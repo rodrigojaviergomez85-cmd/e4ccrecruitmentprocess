@@ -14,7 +14,211 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_evaluations: {
+        Row: {
+          application_id: string
+          areas_to_review: Json | null
+          cefr: string | null
+          created_at: string
+          error_message: string | null
+          grammar_evidence: Json | null
+          id: string
+          overall_score: number | null
+          scores: Json | null
+          state: string
+          strengths: Json | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          areas_to_review?: Json | null
+          cefr?: string | null
+          created_at?: string
+          error_message?: string | null
+          grammar_evidence?: Json | null
+          id?: string
+          overall_score?: number | null
+          scores?: Json | null
+          state?: string
+          strengths?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          areas_to_review?: Json | null
+          cefr?: string | null
+          created_at?: string
+          error_message?: string | null
+          grammar_evidence?: Json | null
+          id?: string
+          overall_score?: number | null
+          scores?: Json | null
+          state?: string
+          strengths?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_evaluations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      applications: {
+        Row: {
+          city: string
+          country: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          status: string
+          submit_token: string
+          submitted_at: string | null
+          taught_children: boolean
+          teaching_experience: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          country: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          phone: string
+          status?: string
+          submit_token?: string
+          submitted_at?: string | null
+          taught_children: boolean
+          teaching_experience: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          country?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          status?: string
+          submit_token?: string
+          submitted_at?: string | null
+          taught_children?: boolean
+          teaching_experience?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transcripts: {
+        Row: {
+          application_id: string
+          content: string
+          created_at: string
+          id: string
+          slot: number
+          video_id: string
+        }
+        Insert: {
+          application_id: string
+          content: string
+          created_at?: string
+          id?: string
+          slot: number
+          video_id: string
+        }
+        Update: {
+          application_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          slot?: number
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcripts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transcripts_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      videos: {
+        Row: {
+          application_id: string
+          audio_path: string | null
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          question: string
+          slot: number
+          video_path: string
+        }
+        Insert: {
+          application_id: string
+          audio_path?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          question: string
+          slot: number
+          video_path: string
+        }
+        Update: {
+          application_id?: string
+          audio_path?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          question?: string
+          slot?: number
+          video_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +227,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "recruiter"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +354,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "recruiter"],
+    },
   },
 } as const
