@@ -9,6 +9,7 @@ import { MediaCheck } from "@/components/apply/MediaCheck";
 import { Stepper } from "@/components/apply/Stepper";
 import { VideoRecorder } from "@/components/apply/VideoRecorder";
 import type { Recording } from "@/components/apply/media";
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -223,9 +224,7 @@ function Apply() {
           <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground">
             <ArrowLeft className="h-4 w-4" /> Home
           </Link>
-          <span className="font-display text-base font-extrabold">
-            English<span className="text-brand">4</span>Kids
-          </span>
+          <BrandMark className="h-8" />
         </div>
       </header>
 

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, Search, SlidersHorizontal } from "lucide-react";
 
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,9 +77,7 @@ function Dashboard() {
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div>
-            <span className="font-display text-base font-extrabold">
-              English<span className="text-brand">4</span>Kids
-            </span>
+            <BrandMark className="h-8" />
             <p className="text-xs text-muted-foreground">Recruitment dashboard</p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => void signOut()}>

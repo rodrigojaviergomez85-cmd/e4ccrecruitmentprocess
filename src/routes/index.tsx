@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, ClipboardList, Sparkles, Video } from "lucide-react";
 
+import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -34,9 +35,7 @@ function Welcome() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-background">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-5 py-6">
-        <span className="font-display text-lg font-extrabold tracking-tight">
-          English<span className="text-brand">4</span>Kids
-        </span>
+        <BrandMark className="h-8" />
         <Link
           to="/auth"
           className="text-sm font-medium text-muted-foreground hover:text-foreground"
