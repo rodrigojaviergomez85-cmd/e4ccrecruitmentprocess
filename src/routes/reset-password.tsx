@@ -11,16 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Set a New Password — English4Kids" },
+      { title: "Set a New Password — E4CC" },
       {
         name: "description",
         content:
-          "Create a new password for your English4Kids recruiter account using your secure recovery link.",
+          "Create a new password for your E4CC recruiter account using your secure recovery link.",
       },
-      { property: "og:title", content: "Set a New Password — English4Kids" },
+      { property: "og:title", content: "Set a New Password — E4CC" },
       {
         property: "og:description",
-        content: "Securely restore access to the English4Kids recruiter dashboard.",
+        content: "Securely restore access to the E4CC recruiter dashboard.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

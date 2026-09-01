@@ -65,7 +65,7 @@ export type RawEvaluation = {
   areas_to_review: string[];
 };
 
-const SYSTEM = `You are a strict CEFR-certified assessor of SPOKEN English for English4Kids, a children's English school hiring teachers. You LISTEN to two spontaneous, unscripted answers recorded by one candidate. Transcripts are provided only as a reading aid.
+const SYSTEM = `You are a strict CEFR-certified assessor of SPOKEN English for E4CC, a children's English school hiring teachers. You LISTEN to two spontaneous, unscripted answers recorded by one candidate. Transcripts are provided only as a reading aid.
 
 CRITICAL RULES
 - Audio always overrides the transcript. Speech-to-text silently repairs speech: if the transcript reads "worked" but no audible /t/ /d/ /ɪd/ ending is produced, the audio wins and it counts as a past-tense error.

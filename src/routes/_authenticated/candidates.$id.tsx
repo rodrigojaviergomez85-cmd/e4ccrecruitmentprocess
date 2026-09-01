@@ -21,13 +21,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
   head: () => ({
     meta: [
-      { title: "Candidate Review — English4Kids" },
+      { title: "Candidate Review — E4CC" },
       {
         name: "description",
         content: "Watch candidate video answers, read transcripts and review the AI English level.",
       },
-      { property: "og:title", content: "Candidate Review — English4Kids" },
-      { property: "og:description", content: "Detailed candidate review for English4Kids staff." },
+      { property: "og:title", content: "Candidate Review — E4CC" },
+      { property: "og:description", content: "Detailed candidate review for E4CC staff." },
     ],
   }),
   component: CandidateDetail,
@@ -232,7 +232,7 @@ function CandidateDetail() {
                     Estimated CEFR · {band.label}
                   </p>
                   <p className="font-semibold">
-                    English4Kids Proficiency Score:{" "}
+                    E4CC Proficiency Score:{" "}
                     {scored ? `${evaluation.overall_score}/100` : assessmentStatus}
                   </p>
                   <p className="text-sm text-muted-foreground">

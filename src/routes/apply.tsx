@@ -34,13 +34,13 @@ import { EXPERIENCE_OPTIONS, questionForSlot } from "@/lib/recruitment";
 export const Route = createFileRoute("/apply")({
   head: () => ({
     meta: [
-      { title: "Teacher Application — English4Kids" },
+      { title: "Teacher Application — E4CC" },
       {
         name: "description",
         content:
-          "Complete your English4Kids teacher application: share your details and record two short video answers in your browser.",
+          "Complete your E4CC teacher application: share your details and record two short video answers in your browser.",
       },
-      { property: "og:title", content: "Teacher Application — English4Kids" },
+      { property: "og:title", content: "Teacher Application — E4CC" },
       {
         property: "og:description",
         content: "Share your details and record two short spoken English answers.",

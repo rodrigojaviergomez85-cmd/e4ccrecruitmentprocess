@@ -12,15 +12,15 @@ import { lovable } from "@/integrations/lovable/index";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Recruiter Login — English4Kids" },
+      { title: "Recruiter Login — E4CC" },
       {
         name: "description",
-        content: "Sign in to the English4Kids recruiter dashboard to review teacher applications.",
+        content: "Sign in to the E4CC recruiter dashboard to review teacher applications.",
       },
-      { property: "og:title", content: "Recruiter Login — English4Kids" },
+      { property: "og:title", content: "Recruiter Login — E4CC" },
       {
         property: "og:description",
-        content: "Secure sign-in for the English4Kids recruitment team.",
+        content: "Secure sign-in for the E4CC recruitment team.",
       },
     ],
   }),
@@ -105,7 +105,7 @@ function AuthPage() {
             "Enter your work email and we'll send you a secure link to set a new password."
           ) : (
             <>
-              For English4Kids staff only. Candidates should use the{" "}
+              For E4CC staff only. Candidates should use the{" "}
               <Link to="/apply" className="font-medium text-primary underline">
                 application form
               </Link>
@@ -148,7 +148,7 @@ function AuthPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@english4kids.com"
+                  placeholder="you@e4cc.com"
                 />
               </div>
               {mode !== "forgot" ? (

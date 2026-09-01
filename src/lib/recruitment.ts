@@ -1,5 +1,5 @@
 export const QUESTION_1 =
-  "Tell us about yourself and explain why you would like to work as an English teacher at English4Kids.";
+  "Tell us about yourself and explain why you would like to work as an English teacher at E4CC.";
 
 export const QUESTION_2_EXPERIENCED =
   "Tell us about your previous teaching experience. Describe a class or teaching experience that you remember well. What happened, what did you do, and what did you learn from it?";
@@ -85,7 +85,7 @@ export type ScoreBand = {
   tone: "danger" | "warning" | "success";
 };
 
-/** Internal English4Kids recruitment interpretation of the proficiency score. */
+/** Internal E4CC recruitment interpretation of the proficiency score. */
 export function scoreBand(score: number | null | undefined): ScoreBand {
   if (score == null) return { label: "Not scored", tone: "warning" };
   if (score >= 90) return { label: "Exceptional spoken English", tone: "success" };

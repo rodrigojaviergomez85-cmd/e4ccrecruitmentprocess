@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Join English4Kids — Teacher Application" },
+      { title: "Join E4CC — Teacher Application" },
       {
         name: "description",
         content:
-          "Apply to become an English teacher at English4Kids. Complete your profile and record two short video answers in about 10 minutes.",
+          "Apply to become an English teacher at E4CC. Complete your profile and record two short video answers in about 10 minutes.",
       },
-      { property: "og:title", content: "Join English4Kids — Teacher Application" },
+      { property: "og:title", content: "Join E4CC — Teacher Application" },
       {
         property: "og:description",
         content:
-          "Apply to become an English teacher at English4Kids. Record two short video answers directly in your browser.",
+          "Apply to become an English teacher at E4CC. Record two short video answers directly in your browser.",
       },
     ],
   }),
@@ -51,7 +51,7 @@ function Welcome() {
             <Sparkles className="h-3.5 w-3.5" /> Now hiring English teachers
           </span>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight sm:text-5xl">
-            Join English4Kids
+            Join E4CC
           </h1>
           <p className="mt-3 text-lg font-medium text-primary">
             Show us your English in just a few minutes.

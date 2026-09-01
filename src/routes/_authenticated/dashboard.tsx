@@ -23,13 +23,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Candidate Dashboard — English4Kids" },
+      { title: "Candidate Dashboard — E4CC" },
       {
         name: "description",
         content: "Review teacher applications, AI English level estimates and video answers.",
       },
-      { property: "og:title", content: "Candidate Dashboard — English4Kids" },
-      { property: "og:description", content: "Internal recruitment dashboard for English4Kids." },
+      { property: "og:title", content: "Candidate Dashboard — E4CC" },
+      { property: "og:description", content: "Internal recruitment dashboard for E4CC." },
     ],
   }),
   component: Dashboard,
