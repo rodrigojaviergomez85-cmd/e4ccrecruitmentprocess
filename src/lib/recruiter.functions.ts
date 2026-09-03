@@ -51,7 +51,7 @@ const filterSchema = z.object({
   cefr: z.string().max(10).optional(),
   status: z.string().max(40).optional(),
   experience: z.string().max(40).optional(),
-  taughtChildren: z.enum(["yes", "no"]).optional(),
+  callcenterExperience: z.enum(["yes", "no"]).optional(),
   minScore: z.number().min(0).max(100).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
@@ -65,7 +65,7 @@ export const listCandidates = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence)",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence)",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
@@ -87,7 +87,7 @@ export const listCandidates = createServerFn({ method: "POST" })
     }
     if (data.status) query = query.eq("status", data.status);
     if (data.experience) query = query.eq("teaching_experience", data.experience);
-    if (data.taughtChildren) query = query.eq("taught_children", data.taughtChildren === "yes");
+    if (data.callcenterExperience) query = query.eq("callcenter_experience", data.callcenterExperience === "yes");
     if (data.from) query = query.gte("submitted_at", data.from);
     if (data.to) query = query.lte("submitted_at", data.to);
 
@@ -108,6 +108,7 @@ export const listCandidates = createServerFn({ method: "POST" })
           country_code: row.country_code,
           city: cityRel?.name ?? row.city_other ?? row.city,
           teaching_experience: row.teaching_experience,
+          callcenter_experience: row.callcenter_experience,
           taught_children: row.taught_children,
           status: row.status,
           submitted_at: row.submitted_at,
