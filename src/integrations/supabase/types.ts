@@ -510,13 +510,18 @@ export type Database = {
           grammar_test_status: string
           grammar_test_verified: boolean
           grammar_topics_confirmed: boolean
+          internet_speed_mbps: number | null
           references_declaration: boolean
           resume_filename: string | null
           resume_path: string | null
           resume_uploaded_at: string | null
           sample_class_confirmed: boolean
           scheduling_status: string
+          system_info_filename: string | null
+          system_info_path: string | null
+          system_info_uploaded_at: string | null
           updated_at: string
+          work_modality: string | null
         }
         Insert: {
           application_id: string
@@ -528,13 +533,18 @@ export type Database = {
           grammar_test_status?: string
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
+          internet_speed_mbps?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
           resume_uploaded_at?: string | null
           sample_class_confirmed?: boolean
           scheduling_status?: string
+          system_info_filename?: string | null
+          system_info_path?: string | null
+          system_info_uploaded_at?: string | null
           updated_at?: string
+          work_modality?: string | null
         }
         Update: {
           application_id?: string
@@ -546,13 +556,18 @@ export type Database = {
           grammar_test_status?: string
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
+          internet_speed_mbps?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
           resume_uploaded_at?: string | null
           sample_class_confirmed?: boolean
           scheduling_status?: string
+          system_info_filename?: string | null
+          system_info_path?: string | null
+          system_info_uploaded_at?: string | null
           updated_at?: string
+          work_modality?: string | null
         }
         Relationships: [
           {
@@ -838,7 +853,7 @@ export type Database = {
           supervisor_email: string
           supervisor_name: string
           supervisor_phone: string
-          supervisor_position: string
+          supervisor_position: string | null
           updated_at: string
           verification_notes: string
           verification_status: string
@@ -859,7 +874,7 @@ export type Database = {
           supervisor_email?: string
           supervisor_name?: string
           supervisor_phone?: string
-          supervisor_position?: string
+          supervisor_position?: string | null
           updated_at?: string
           verification_notes?: string
           verification_status?: string
@@ -880,7 +895,7 @@ export type Database = {
           supervisor_email?: string
           supervisor_name?: string
           supervisor_phone?: string
-          supervisor_position?: string
+          supervisor_position?: string | null
           updated_at?: string
           verification_notes?: string
           verification_status?: string

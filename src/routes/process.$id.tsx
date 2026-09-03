@@ -23,21 +23,15 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useCountries } from "@/hooks/useLocations";
 import {
   createResumeUploadTarget,
+  createSystemInfoUploadTarget,
   getRecruitmentProcess,
   markSchedulingOpened,
   saveRecruitmentProgress,
   saveResume,
+  saveSystemInfo,
   saveWorkReference,
 } from "@/lib/process.functions";
 import { cn } from "@/lib/utils";
@@ -45,7 +39,6 @@ import { cn } from "@/lib/utils";
 const GRAMMAR_TEST_URL = "https://app.testgorilla.com/s/bnm9wczd";
 const GRAMMAR_TOPICS_URL =
   "https://drive.google.com/file/d/1307-D5PsWy6crpyXyUCBXQM59w4aBs9P/view?usp=sharing";
-const SAMPLE_CLASS_URL = "https://youtu.be/9-YaNY1K_qs?si=nJdVcCyBc8AmfG0a";
 const CALENDLY_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 
 export const Route = createFileRoute("/process/$id")({
@@ -165,7 +158,7 @@ function Content({
   const pct = Math.round((done / state.requirements.length) * 100);
 
   const saveMutation = useMutation({
-    mutationFn: (patch: Record<string, boolean>) =>
+    mutationFn: (patch: Record<string, boolean | string | number>) =>
       save({ data: { applicationId: id, token, ...patch } }),
     onSuccess: (next) => onState(next as State),
     onError: (e: Error) => toast.error(e.message),
@@ -208,17 +201,7 @@ function Content({
         </ul>
       </section>
 
-      <Card icon={<Monitor className="h-5 w-5" />} title="1. Device Requirement">
-        <p className="text-sm text-muted-foreground">
-          You must attend your interview using a laptop or desktop computer with a working camera
-          and microphone. Mobile phones are not allowed.
-        </p>
-        <Confirm
-          checked={progress.device_confirmed}
-          onChange={(v) => saveMutation.mutate({ device_confirmed: v })}
-          label="I confirm that I have access to a laptop or desktop computer with a working camera and microphone."
-        />
-      </Card>
+      <DeviceCard state={state} id={id} token={token} onState={onState} saveMutation={saveMutation} />
 
       <Card icon={<FileText className="h-5 w-5" />} title="2. Grammar Test">
         <p className="text-sm text-muted-foreground">
@@ -265,25 +248,6 @@ function Content({
       <ResumeCard state={state} id={id} token={token} onState={onState} />
 
       <ReferencesCard state={state} id={id} token={token} onState={onState} />
-
-      <Card icon={<CalendarClock className="h-5 w-5" />} title="5. Sample Class Preparation">
-        <p className="text-sm text-muted-foreground">
-          Please watch the following video and get ready to teach a short sample class during your
-          interview.
-        </p>
-        <Button
-          variant="outline"
-          className="rounded-2xl"
-          onClick={() => window.open(SAMPLE_CLASS_URL, "_blank", "noopener,noreferrer")}
-        >
-          Watch Sample Class Preparation Video <ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-        <Confirm
-          checked={progress.sample_class_confirmed}
-          onChange={(v) => saveMutation.mutate({ sample_class_confirmed: v })}
-          label="I watched the video and understand that I must be prepared to teach a short sample class."
-        />
-      </Card>
 
       <SchedulingCard state={state} />
     </>
@@ -411,6 +375,201 @@ function ResumeCard({
   );
 }
 
+async function measureInternetSpeedMbps(): Promise<number> {
+  // Prefer the browser's own estimate when available.
+  const conn = (navigator as Navigator & { connection?: { downlink?: number } }).connection;
+  const hint = typeof conn?.downlink === "number" && conn.downlink > 0 ? conn.downlink : null;
+  // Timed downloads of a same-origin asset as a fallback / complement.
+  let measured: number | null = null;
+  try {
+    let bytes = 0;
+    const start = performance.now();
+    for (let i = 0; i < 6; i++) {
+      const res = await fetch(`/favicon.png?sb=${Date.now()}-${i}`, { cache: "no-store" });
+      const blob = await res.blob();
+      bytes += blob.size;
+    }
+    const seconds = (performance.now() - start) / 1000;
+    if (seconds > 0.05 && bytes > 0) measured = (bytes * 8) / seconds / 1_000_000;
+  } catch {
+    measured = null;
+  }
+  const best = Math.max(hint ?? 0, measured ?? 0);
+  return Math.round(best * 10) / 10;
+}
+
+function DeviceCard({
+  state,
+  id,
+  token,
+  onState,
+  saveMutation,
+}: {
+  state: State;
+  id: string;
+  token: string;
+  onState: (next: State) => void;
+  saveMutation: {
+    mutate: (fields: {
+      device_confirmed?: boolean;
+      work_modality?: "online" | "onsite";
+      internet_speed_mbps?: number;
+    }) => void;
+    isPending: boolean;
+  };
+}) {
+  const createTarget = useServerFn(createSystemInfoUploadTarget);
+  const commit = useServerFn(saveSystemInfo);
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const progress = state.progress;
+  const modality = progress.work_modality;
+  const isOnline = modality === "online";
+
+  async function runSpeedTest() {
+    setTesting(true);
+    try {
+      const mbps = await measureInternetSpeedMbps();
+      const next = await saveRecruitmentProgress({
+        data: { applicationId: id, token, internet_speed_mbps: mbps },
+      });
+      onState(next as State);
+      toast.success(`Estimated speed: ${mbps} Mbps`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not measure your internet speed");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function uploadScreenshot(file: File) {
+    const ext = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (!["jpg", "jpeg", "png"].includes(ext)) {
+      toast.error("Please upload a JPG or PNG screenshot.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("The file must be 10 MB or smaller.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const target = await createTarget({
+        data: { applicationId: id, token, ext: ext as "jpg" | "jpeg" | "png", size: file.size },
+      });
+      const { error } = await supabase.storage
+        .from("candidate-media")
+        .uploadToSignedUrl(target.path, target.token, file);
+      if (error) throw new Error(error.message);
+      const next = await commit({
+        data: { applicationId: id, token, path: target.path, filename: file.name },
+      });
+      onState(next as State);
+      toast.success("System information uploaded");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <Card icon={<Monitor className="h-5 w-5" />} title="1. Device Requirement">
+      <p className="text-sm text-muted-foreground">
+        Online coaches must attend their interview using a laptop or desktop computer with a working
+        camera and microphone, and a stable internet connection. This does not apply to onsite
+        coaches.
+      </p>
+      <div className="space-y-1.5">
+        <Label className="text-xs">How will you work with E4CC?</Label>
+        <div className="flex gap-2">
+          {(["online", "onsite"] as const).map((m) => (
+            <Button
+              key={m}
+              type="button"
+              variant={modality === m ? "default" : "outline"}
+              className="rounded-2xl capitalize"
+              disabled={saveMutation.isPending}
+              onClick={() => saveMutation.mutate({ work_modality: m })}
+            >
+              {m === "online" ? "Online coach" : "Onsite coach"}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {isOnline && (
+        <div className="space-y-3 rounded-2xl bg-secondary/40 p-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Internet speed</Label>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-2xl"
+                disabled={testing || saveMutation.isPending}
+                onClick={() => void runSpeedTest()}
+              >
+                {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {progress.internet_speed_mbps != null ? "Run speed test again" : "Run speed test"}
+              </Button>
+              {progress.internet_speed_mbps != null && (
+                <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {progress.internet_speed_mbps} Mbps
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Computer processor and RAM</Label>
+            <p className="text-xs text-muted-foreground">
+              Open your computer's System Information (on Windows: press Windows key, type "System
+              Information"; on Mac: Apple menu → About This Mac), take a screenshot showing your
+              processor and RAM memory, and upload it here. JPG or PNG · max 10 MB.
+            </p>
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void uploadScreenshot(file);
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-2xl"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+              >
+                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {progress.system_info_path ? "Replace screenshot" : "Upload screenshot"}
+              </Button>
+              {progress.system_info_filename && (
+                <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4 text-success" /> {progress.system_info_filename}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Confirm
+        checked={progress.device_confirmed}
+        onChange={(v) => saveMutation.mutate({ device_confirmed: v })}
+        label="I confirm that I have access to a laptop or desktop computer with a working camera and microphone."
+      />
+    </Card>
+  );
+}
+
 const REFERENCE_TITLES = [
   "Work Reference 1 — Most Recent Position",
   "Work Reference 2 — Previous Position",
@@ -429,7 +588,7 @@ function ReferencesCard({
 }) {
   const save = useServerFn(saveWorkReference);
   const saveProgress = useServerFn(saveRecruitmentProgress);
-  const { data: countries = [] } = useCountries();
+  
 
   return (
     <section className="space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
@@ -441,7 +600,7 @@ function ReferencesCard({
         <ReferenceForm
           key={slot}
           title={REFERENCE_TITLES[slot - 1]!}
-          countries={countries}
+          
           initial={state.references.find((r) => r.slot === slot)}
           onSave={async (values) => {
             const next = await save({ data: { applicationId: id, token, slot, ...values } });
@@ -470,10 +629,8 @@ type ReferenceValues = {
   end_date: string | null;
   currently_working: boolean;
   supervisor_name: string;
-  supervisor_position: string;
   supervisor_phone: string;
   supervisor_email: string;
-  country_code: string | null;
   reason_for_leaving: string;
   may_contact: boolean;
 };
@@ -481,12 +638,10 @@ type ReferenceValues = {
 function ReferenceForm({
   title,
   initial,
-  countries,
   onSave,
 }: {
   title: string;
   initial: State["references"][number] | undefined;
-  countries: Array<{ code: string; name: string; flag: string; dial_code: string }>;
   onSave: (values: ReferenceValues) => Promise<void>;
 }) {
   const [values, setValues] = useState<ReferenceValues>(() => ({
@@ -496,20 +651,13 @@ function ReferenceForm({
     end_date: initial?.end_date ?? "",
     currently_working: initial?.currently_working ?? false,
     supervisor_name: initial?.supervisor_name ?? "",
-    supervisor_position: initial?.supervisor_position ?? "",
     supervisor_phone: initial?.supervisor_phone ?? "",
     supervisor_email: initial?.supervisor_email ?? "",
-    country_code: initial?.country_code ?? "",
     reason_for_leaving: initial?.reason_for_leaving ?? "",
     may_contact: initial?.may_contact ?? true,
   }));
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<ReferenceValues>) => setValues((v) => ({ ...v, ...patch }));
-
-  const dial = useMemo(
-    () => countries.find((c) => c.code === values.country_code)?.dial_code ?? "",
-    [countries, values.country_code],
-  );
 
   return (
     <div className="space-y-3 rounded-2xl border border-border p-4">
@@ -560,35 +708,11 @@ function ReferenceForm({
             onChange={(e) => set({ supervisor_name: e.target.value })}
           />
         </Row>
-        <Row label="Supervisor's position">
-          <Input
-            value={values.supervisor_position}
-            maxLength={120}
-            onChange={(e) => set({ supervisor_position: e.target.value })}
-          />
-        </Row>
-        <Row label="Country">
-          <Select
-            value={values.country_code ?? ""}
-            onValueChange={(v) => set({ country_code: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select country" />
-            </SelectTrigger>
-            <SelectContent>
-              {countries.map((c) => (
-                <SelectItem key={c.code} value={c.code}>
-                  {c.flag} {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Row>
-        <Row label={`Supervisor's phone / WhatsApp${dial ? ` (${dial})` : ""}`}>
+        <Row label="Supervisor's phone / WhatsApp (international format)">
           <Input
             value={values.supervisor_phone}
             maxLength={40}
-            placeholder={dial ? `${dial} 7777 7777` : "+503 7777 7777"}
+            placeholder="+503 7777 7777"
             onChange={(e) => set({ supervisor_phone: e.target.value })}
           />
         </Row>
@@ -621,12 +745,9 @@ function ReferenceForm({
         onClick={async () => {
           setBusy(true);
           try {
-            const phone = values.supervisor_phone.trim();
             await onSave({
               ...values,
-              supervisor_phone:
-                phone && !phone.startsWith("+") && dial ? `${dial}${phone.replace(/\D/g, "")}` : phone,
-              country_code: values.country_code || null,
+              supervisor_phone: values.supervisor_phone.trim(),
               start_date: values.start_date || null,
               end_date: values.end_date || null,
             });
@@ -686,7 +807,7 @@ function SchedulingCard({ state }: { state: State }) {
       <section className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Lock className="h-5 w-5" />
-          <h2 className="text-lg font-bold text-foreground">6. Schedule Your Interview</h2>
+          <h2 className="text-lg font-bold text-foreground">5. Schedule Your Interview</h2>
         </div>
         <p className="text-sm text-muted-foreground">
           Scheduling unlocks once every requirement above is complete. Still missing:
@@ -706,7 +827,7 @@ function SchedulingCard({ state }: { state: State }) {
     <section className="space-y-3 rounded-3xl border border-success/40 bg-card p-6 shadow-sm">
       <div className="flex items-center gap-2 text-success">
         <CheckCircle2 className="h-5 w-5" />
-        <h2 className="text-lg font-bold text-foreground">6. Schedule Your Interview</h2>
+        <h2 className="text-lg font-bold text-foreground">5. Schedule Your Interview</h2>
       </div>
       <p className="text-sm">
         Excellent! You have completed all the requirements. You may now select the date and time for
