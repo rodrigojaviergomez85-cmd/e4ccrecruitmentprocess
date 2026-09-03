@@ -31,6 +31,17 @@ import {
   submitApplication,
 } from "@/lib/candidate.functions";
 import { EXPERIENCE_OPTIONS, questionForSlot } from "@/lib/recruitment";
+import { SearchSelect } from "@/components/SearchSelect";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCities, useCountries } from "@/hooks/useLocations";
+import {
+  digitsOnly,
+  EXTRA_DIAL_CODES,
+  isValidE164,
+  OTHER_CITY_VALUE,
+  toE164,
+} from "@/lib/locations";
+
 
 export const Route = createFileRoute("/apply")({
   head: () => ({
