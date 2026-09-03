@@ -95,16 +95,10 @@ function ProcessPage() {
       </Shell>
     );
   }
-  if (error || !data || data.invalid)
-    return (
-      <Denied
-        message={
-          (data && "invalid" in data && data.invalid) ||
-          (error instanceof Error ? error.message : undefined) ||
-          undefined
-        }
-      />
-    );
+  if (error || !data)
+    return <Denied message={error instanceof Error ? error.message : undefined} />;
+  if (data.invalid) return <Denied message={data.invalid} />;
+
 
 
   return (
