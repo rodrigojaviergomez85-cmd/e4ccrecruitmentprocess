@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createApplication,
   createUploadTargets,
+  getOutcome,
   getReviewData,
   runAnalysis,
   saveVideo,
@@ -613,6 +614,102 @@ function Field({
       <Label className="text-sm font-medium">{label}</Label>
       {children}
       {error && <p className="text-xs font-medium text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Final screen. While the AI evaluation runs we show a thank-you; B2+ candidates
+ * then get a congratulations screen with their secure scheduling link.
+ */
+function DoneScreen({ session }: { session: Session | null }) {
+  const outcome = useServerFn(getOutcome);
+  const [state, setState] = useState<{ state: string; eligible: boolean; scheduleUrl: string | null }>(
+    { state: "pending", eligible: false, scheduleUrl: null },
+  );
+
+  useEffect(() => {
+    if (!session) return;
+    let stop = false;
+    let tries = 0;
+    const poll = async () => {
+      if (stop || tries > 40) return;
+      tries += 1;
+      try {
+        const result = await outcome({
+          data: { applicationId: session.applicationId, token: session.token },
+        });
+        if (stop) return;
+        setState(result);
+        if (result.state === "done") return;
+      } catch {
+        // keep waiting; the evaluation may still be starting
+      }
+      setTimeout(poll, 6000);
+    };
+    void poll();
+    return () => {
+      stop = true;
+    };
+  }, [session, outcome]);
+
+  if (state.state === "done" && state.eligible && state.scheduleUrl) {
+    return (
+      <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
+        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
+          <PartyPopper className="h-8 w-8" />
+        </span>
+        <h1 className="mt-5 text-2xl font-bold">Congratulations!</h1>
+        <p className="mt-2 text-muted-foreground">
+          Your English assessment qualifies you for an interview with E4CC. We also sent this link
+          to your email.
+        </p>
+        <Button asChild size="lg" className="mt-8 rounded-2xl">
+          <a href={state.scheduleUrl}>Schedule your interview</a>
+        </Button>
+      </div>
+    );
+  }
+
+  if (state.state === "done" && !state.eligible) {
+    return (
+      <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold">Thank you for your application</h1>
+        <p className="mt-3 text-muted-foreground">
+          We appreciate the time you invested. At this moment we are not moving forward with an
+          interview, but we&apos;ll keep your profile on file.
+        </p>
+        <Button asChild variant="outline" className="mt-8 rounded-2xl">
+          <Link to="/">Back to home</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
+      <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
+        <PartyPopper className="h-8 w-8" />
+      </span>
+      <h1 className="mt-5 text-2xl font-bold">Thank you!</h1>
+      <p className="mt-2 text-muted-foreground">
+        Your application has been received. We&apos;re reviewing your videos right now — keep this
+        page open for a moment.
+      </p>
+      <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-muted-foreground">
+        <li className="flex items-start gap-2">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Profile submitted
+        </li>
+        <li className="flex items-start gap-2">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Both videos recorded
+        </li>
+        <li className="flex items-start gap-2">
+          <Loader2 className="mt-0.5 h-4 w-4 animate-spin" /> Review in progress
+        </li>
+      </ul>
+      <Button asChild variant="outline" className="mt-8 rounded-2xl">
+        <Link to="/">Back to home</Link>
+      </Button>
     </div>
   );
 }
