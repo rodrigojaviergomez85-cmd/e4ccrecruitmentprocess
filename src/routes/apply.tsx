@@ -592,32 +592,8 @@ function Apply() {
           </div>
         )}
 
-        {step === "done" && (
-          <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-            <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
-              <PartyPopper className="h-8 w-8" />
-            </span>
-            <h1 className="mt-5 text-2xl font-bold">Thank you!</h1>
-            <p className="mt-2 text-muted-foreground">
-              Your application has been received. Our team will review your videos and get back to
-              you soon.
-            </p>
-            <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Profile submitted
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Both videos recorded
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Review in progress
-              </li>
-            </ul>
-            <Button asChild variant="outline" className="mt-8 rounded-2xl">
-              <Link to="/">Back to home</Link>
-            </Button>
-          </div>
-        )}
+        {step === "done" && <DoneScreen session={session} />}
+
       </div>
     </main>
   );
