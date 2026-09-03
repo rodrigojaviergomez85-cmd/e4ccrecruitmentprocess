@@ -66,7 +66,7 @@ export const listCandidates = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence)",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name))",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
@@ -102,6 +102,14 @@ export const listCandidates = createServerFn({ method: "POST" })
           ? row.ai_evaluations[0]
           : row.ai_evaluations;
         const cityRel = Array.isArray(row.cities) ? row.cities[0] : row.cities;
+        const appointment = (row.appointments ?? [])
+          .filter((a) => a.status === "Scheduled" || a.status === "Confirmed")
+          .sort((a, b) => a.starts_at.localeCompare(b.starts_at))[0];
+        const appointmentInterviewer = appointment
+          ? Array.isArray(appointment.interviewers)
+            ? appointment.interviewers[0]
+            : appointment.interviewers
+          : null;
         return {
           id: row.id,
           full_name: row.full_name,
@@ -115,6 +123,9 @@ export const listCandidates = createServerFn({ method: "POST" })
           taught_children: row.taught_children,
           status: row.status,
           submitted_at: row.submitted_at,
+          appointment_at: appointment?.starts_at ?? null,
+          appointment_status: appointment?.status ?? null,
+          interviewer: appointmentInterviewer?.full_name ?? null,
           cefr: evaluation?.cefr ?? null,
           overall_score: evaluation?.overall_score ?? null,
           evaluation_state: evaluation?.state ?? "pending",
