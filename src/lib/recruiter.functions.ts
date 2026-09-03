@@ -157,11 +157,14 @@ export const getCandidate = createServerFn({ method: "POST" })
     }
 
 
-    const [{ data: videos }, { data: transcripts }, { data: evaluation }] = await Promise.all([
-      db.from("videos").select("*").eq("application_id", data.id).order("slot"),
-      db.from("transcripts").select("slot, content").eq("application_id", data.id),
-      db.from("ai_evaluations").select("*").eq("application_id", data.id).maybeSingle(),
-    ]);
+    const [{ data: videos }, { data: transcripts }, { data: evaluation }, { data: progress }, { data: references }] =
+      await Promise.all([
+        db.from("videos").select("*").eq("application_id", data.id).order("slot"),
+        db.from("transcripts").select("slot, content").eq("application_id", data.id),
+        db.from("ai_evaluations").select("*").eq("application_id", data.id).maybeSingle(),
+        db.from("recruitment_progress").select("*").eq("application_id", data.id).maybeSingle(),
+        db.from("work_references").select("*").eq("application_id", data.id).order("slot"),
+      ]);
 
     const withUrls = await Promise.all(
       (videos ?? []).map(async (v) => {
@@ -178,9 +181,95 @@ export const getCandidate = createServerFn({ method: "POST" })
       }),
     );
 
+    // Short-lived signed URL only — resumes never get a public URL.
+    let resumeUrl: string | null = null;
+    if (progress?.resume_path) {
+      const { data: signed } = await db.storage
+        .from("candidate-media")
+        .createSignedUrl(progress.resume_path, 600);
+      resumeUrl = signed?.signedUrl ?? null;
+    }
+
     const { submit_token: _token, ...safeApp } = app;
-    return { application: safeApp, videos: withUrls, evaluation };
+    return {
+      application: safeApp,
+      videos: withUrls,
+      evaluation,
+      progress: progress ?? null,
+      references: references ?? [],
+      resumeUrl,
+    };
   });
+
+const GRAMMAR_STATUSES = [
+  "Not started",
+  "Link opened",
+  "Candidate marked as completed",
+  "Verified by recruiter",
+] as const;
+
+export const updateGrammarTest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        applicationId: z.string().uuid(),
+        grammar_test_score: z.number().int().min(0).max(100).nullable().optional(),
+        grammar_test_verified: z.boolean().optional(),
+        grammar_test_status: z.enum(GRAMMAR_STATUSES).optional(),
+        grammar_test_notes: z.string().max(2000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db } = await staffContext(context.userId);
+    const { applicationId, ...patch } = data;
+    const { error } = await db
+      .from("recruitment_progress")
+      .upsert(
+        {
+          application_id: applicationId,
+          ...patch,
+          ...(patch.grammar_test_verified ? { grammar_test_status: "Verified by recruiter" } : {}),
+        },
+        { onConflict: "application_id" },
+      );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+const REFERENCE_STATUSES = [
+  "Pending verification",
+  "Contacted",
+  "Verified",
+  "Unable to verify",
+  "Invalid reference",
+] as const;
+
+export const updateReferenceVerification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        applicationId: z.string().uuid(),
+        slot: z.number().int().min(1).max(2),
+        verification_status: z.enum(REFERENCE_STATUSES).optional(),
+        verification_notes: z.string().max(2000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db } = await staffContext(context.userId);
+    const { applicationId, slot, ...patch } = data;
+    const { error } = await db
+      .from("work_references")
+      .update(patch)
+      .eq("application_id", applicationId)
+      .eq("slot", slot);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 
 export const updateCandidateStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
