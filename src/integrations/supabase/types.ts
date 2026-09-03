@@ -499,6 +499,71 @@ export type Database = {
         }
         Relationships: []
       }
+      recruitment_progress: {
+        Row: {
+          application_id: string
+          created_at: string
+          device_confirmed: boolean
+          grammar_test_confirmed: boolean
+          grammar_test_notes: string
+          grammar_test_score: number | null
+          grammar_test_status: string
+          grammar_test_verified: boolean
+          grammar_topics_confirmed: boolean
+          references_declaration: boolean
+          resume_filename: string | null
+          resume_path: string | null
+          resume_uploaded_at: string | null
+          sample_class_confirmed: boolean
+          scheduling_status: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          device_confirmed?: boolean
+          grammar_test_confirmed?: boolean
+          grammar_test_notes?: string
+          grammar_test_score?: number | null
+          grammar_test_status?: string
+          grammar_test_verified?: boolean
+          grammar_topics_confirmed?: boolean
+          references_declaration?: boolean
+          resume_filename?: string | null
+          resume_path?: string | null
+          resume_uploaded_at?: string | null
+          sample_class_confirmed?: boolean
+          scheduling_status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          device_confirmed?: boolean
+          grammar_test_confirmed?: boolean
+          grammar_test_notes?: string
+          grammar_test_score?: number | null
+          grammar_test_status?: string
+          grammar_test_verified?: boolean
+          grammar_topics_confirmed?: boolean
+          references_declaration?: boolean
+          resume_filename?: string | null
+          resume_path?: string | null
+          resume_uploaded_at?: string | null
+          sample_class_confirmed?: boolean
+          scheduling_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruitment_progress_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reminder_logs: {
         Row: {
           appointment_id: string
@@ -749,6 +814,80 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "videos_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      work_references: {
+        Row: {
+          application_id: string
+          company: string
+          country_code: string | null
+          created_at: string
+          currently_working: boolean
+          end_date: string | null
+          id: string
+          may_contact: boolean
+          position: string
+          reason_for_leaving: string
+          slot: number
+          start_date: string | null
+          supervisor_email: string
+          supervisor_name: string
+          supervisor_phone: string
+          supervisor_position: string
+          updated_at: string
+          verification_notes: string
+          verification_status: string
+        }
+        Insert: {
+          application_id: string
+          company?: string
+          country_code?: string | null
+          created_at?: string
+          currently_working?: boolean
+          end_date?: string | null
+          id?: string
+          may_contact?: boolean
+          position?: string
+          reason_for_leaving?: string
+          slot: number
+          start_date?: string | null
+          supervisor_email?: string
+          supervisor_name?: string
+          supervisor_phone?: string
+          supervisor_position?: string
+          updated_at?: string
+          verification_notes?: string
+          verification_status?: string
+        }
+        Update: {
+          application_id?: string
+          company?: string
+          country_code?: string | null
+          created_at?: string
+          currently_working?: boolean
+          end_date?: string | null
+          id?: string
+          may_contact?: boolean
+          position?: string
+          reason_for_leaving?: string
+          slot?: number
+          start_date?: string | null
+          supervisor_email?: string
+          supervisor_name?: string
+          supervisor_phone?: string
+          supervisor_position?: string
+          updated_at?: string
+          verification_notes?: string
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_references_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"

@@ -15,11 +15,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getCandidate, rerunAnalysis, updateCandidateStatus } from "@/lib/recruiter.functions";
+import {
+  getCandidate,
+  rerunAnalysis,
+  updateCandidateStatus,
+  updateGrammarTest,
+  updateReferenceVerification,
+} from "@/lib/recruiter.functions";
 import { overrideEligibility, sendSchedulingLink } from "@/lib/interviews.functions";
 import { isSchedulingEligible } from "@/lib/interviews";
 import { Textarea } from "@/components/ui/textarea";
-import { cefrBand, scoreBand, SCORE_CATEGORIES, STATUS_OPTIONS } from "@/lib/recruitment";
+import { Input } from "@/components/ui/input";
+import { cefrBand, cefrInternalLabel, scoreBand, SCORE_CATEGORIES, STATUS_OPTIONS } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/candidates/$id")({
@@ -203,6 +210,19 @@ function CandidateDetail() {
             </div>
           </div>
         </section>
+
+        {cefrInternalLabel(evaluation?.cefr) && (
+          <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-2 text-sm font-semibold text-warning-foreground">
+            {cefrInternalLabel(evaluation?.cefr)}
+          </p>
+        )}
+
+        <RecruitmentProcessPanel
+          applicationId={id}
+          progress={data.progress}
+          references={data.references}
+          resumeUrl={data.resumeUrl}
+        />
 
         <InterviewPanel applicationId={id} cefr={evaluation?.cefr ?? null} />
 
@@ -482,5 +502,258 @@ function InterviewPanel({ applicationId, cefr }: { applicationId: string; cefr: 
         </div>
       </div>
     </section>
+  );
+}
+
+const GRAMMAR_STATUS_LABELS = [
+  "Not started",
+  "Link opened",
+  "Candidate marked as completed",
+  "Verified by recruiter",
+] as const;
+
+const REFERENCE_STATUS_LABELS = [
+  "Pending verification",
+  "Contacted",
+  "Verified",
+  "Unable to verify",
+  "Invalid reference",
+] as const;
+
+/** Recruitment requirements: checklist progress, grammar test, resume, references. */
+function RecruitmentProcessPanel({
+  applicationId,
+  progress,
+  references,
+  resumeUrl,
+}: {
+  applicationId: string;
+  progress: NonNullable<Awaited<ReturnType<typeof getCandidate>>["progress"]> | null;
+  references: Awaited<ReturnType<typeof getCandidate>>["references"];
+  resumeUrl: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const saveGrammar = useServerFn(updateGrammarTest);
+  const saveReference = useServerFn(updateReferenceVerification);
+  const [score, setScore] = useState(progress?.grammar_test_score?.toString() ?? "");
+  const [notes, setNotes] = useState(progress?.grammar_test_notes ?? "");
+
+  const refresh = () =>
+    void queryClient.invalidateQueries({ queryKey: ["candidate", applicationId] });
+
+  const grammarMutation = useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      saveGrammar({ data: { applicationId, ...patch } }),
+    onSuccess: () => {
+      toast.success("Grammar test updated");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const refMutation = useMutation({
+    mutationFn: (patch: { slot: number; verification_status?: string; verification_notes?: string }) =>
+      saveReference({ data: { applicationId, ...patch } as never }),
+    onSuccess: () => {
+      toast.success("Reference updated");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const checklist = [
+    { label: "Device confirmed", done: Boolean(progress?.device_confirmed) },
+    { label: "Grammar Test completed", done: Boolean(progress?.grammar_test_confirmed) },
+    { label: "Grammar topics reviewed", done: Boolean(progress?.grammar_topics_confirmed) },
+    { label: "Resume uploaded", done: Boolean(progress?.resume_path) },
+    { label: "Reference declaration", done: Boolean(progress?.references_declaration) },
+    { label: "Sample class video", done: Boolean(progress?.sample_class_confirmed) },
+  ];
+
+  return (
+    <section className="space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <h2 className="text-lg font-bold">Recruitment requirements</h2>
+      {!progress ? (
+        <p className="text-sm text-muted-foreground">
+          The candidate has not started the recruitment process yet.
+        </p>
+      ) : (
+        <>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {checklist.map((item) => (
+              <li key={item.label} className="text-sm">
+                <span className={item.done ? "text-success" : "text-muted-foreground"}>
+                  {item.done ? "✓" : "○"}
+                </span>{" "}
+                {item.label}
+              </li>
+            ))}
+          </ul>
+          <p className="text-sm text-muted-foreground">
+            Scheduling status: <span className="font-medium text-foreground">{progress.scheduling_status}</span>
+          </p>
+
+          <div className="rounded-2xl border border-border p-4">
+            <h3 className="text-sm font-semibold">Grammar Test</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Status: {progress.grammar_test_status}
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Score</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={score}
+                  onChange={(e) => setScore(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <Select
+                  value={progress.grammar_test_status}
+                  onValueChange={(value) => grammarMutation.mutate({ grammar_test_status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GRAMMAR_STATUS_LABELS.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  className="w-full rounded-2xl"
+                  disabled={grammarMutation.isPending}
+                  onClick={() => grammarMutation.mutate({ grammar_test_verified: true })}
+                >
+                  Mark verified
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <Label className="text-xs">Internal note</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
+            </div>
+            <Button
+              className="mt-3 rounded-2xl"
+              disabled={grammarMutation.isPending}
+              onClick={() =>
+                grammarMutation.mutate({
+                  grammar_test_score: score === "" ? null : Number(score),
+                  grammar_test_notes: notes,
+                })
+              }
+            >
+              Save grammar test
+            </Button>
+          </div>
+
+          <div className="rounded-2xl border border-border p-4">
+            <h3 className="text-sm font-semibold">Resume</h3>
+            {progress.resume_path && resumeUrl ? (
+              <p className="mt-1 text-sm">
+                <a
+                  href={resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline"
+                >
+                  {progress.resume_filename ?? "Open resume"}
+                </a>{" "}
+                <span className="text-xs text-muted-foreground">(secure link, expires shortly)</span>
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted-foreground">No resume uploaded yet.</p>
+            )}
+          </div>
+
+          {[1, 2].map((slot) => {
+            const reference = references.find((r) => r.slot === slot);
+            return (
+              <div key={slot} className="rounded-2xl border border-border p-4">
+                <h3 className="text-sm font-semibold">
+                  Work Reference {slot} — {slot === 1 ? "Most recent position" : "Previous position"}
+                </h3>
+                {!reference || !reference.company ? (
+                  <p className="mt-1 text-sm text-muted-foreground">Not provided yet.</p>
+                ) : (
+                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    <p className="text-foreground">
+                      {reference.position} · {reference.company}
+                    </p>
+                    <p>
+                      {reference.start_date ?? "—"} →{" "}
+                      {reference.currently_working ? "Currently working" : (reference.end_date ?? "—")}
+                    </p>
+                    <p>
+                      Supervisor: {reference.supervisor_name} ({reference.supervisor_position}) ·{" "}
+                      {reference.supervisor_phone} · {reference.supervisor_email}
+                    </p>
+                    <p>
+                      Country: {reference.country_code ?? "—"} · May contact:{" "}
+                      {reference.may_contact ? "Yes" : "No"}
+                    </p>
+                    <p>Reason for leaving: {reference.reason_for_leaving}</p>
+                  </div>
+                )}
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Verification status</Label>
+                    <Select
+                      value={reference?.verification_status ?? "Pending verification"}
+                      onValueChange={(value) =>
+                        refMutation.mutate({ slot, verification_status: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REFERENCE_STATUS_LABELS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <ReferenceNotes
+                    initial={reference?.verification_notes ?? ""}
+                    onSave={(value) => refMutation.mutate({ slot, verification_notes: value })}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+    </section>
+  );
+}
+
+function ReferenceNotes({
+  initial,
+  onSave,
+}: {
+  initial: string;
+  onSave: (value: string) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">Private verification notes</Label>
+      <Textarea value={value} maxLength={2000} onChange={(e) => setValue(e.target.value)} />
+      <Button variant="outline" size="sm" className="rounded-2xl" onClick={() => onSave(value)}>
+        Save note
+      </Button>
+    </div>
   );
 }

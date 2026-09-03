@@ -19,6 +19,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
+import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
@@ -72,6 +73,11 @@ const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ProcessIdRoute = ProcessIdRouteImport.update({
+  id: '/process/$id',
+  path: '/process/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScheduleTokenRoute = ScheduleTokenRouteImport.update({
   id: '/schedule/$token',
   path: '/schedule/$token',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/interviews'
     | '/settings'
     | '/staff'
+    | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
     | '/api/public/cron/reminders'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/interviews'
     | '/settings'
     | '/staff'
+    | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
     | '/api/public/cron/reminders'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/_authenticated/interviews'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/process/$id'
     | '/schedule/$token'
     | '/_authenticated/candidates/$id'
     | '/api/public/cron/reminders'
@@ -186,6 +198,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ProcessIdRoute: typeof ProcessIdRoute
   ScheduleTokenRoute: typeof ScheduleTokenRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
 }
@@ -262,6 +275,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/process/$id': {
+      id: '/process/$id'
+      path: '/process/$id'
+      fullPath: '/process/$id'
+      preLoaderRoute: typeof ProcessIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/schedule/$token': {
       id: '/schedule/$token'
       path: '/schedule/$token'
@@ -312,6 +332,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ProcessIdRoute: ProcessIdRoute,
   ScheduleTokenRoute: ScheduleTokenRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
 }

@@ -383,11 +383,14 @@ export const getOutcome = createServerFn({ method: "POST" })
           : isSchedulingEligible(evaluation?.cefr);
 
     if (evaluation?.state !== "done") {
-      return { state: evaluation?.state ?? "pending", eligible: false, scheduleUrl: null };
+      return { state: evaluation?.state ?? "pending", eligible: false, processUrl: null };
     }
-    if (!eligible) return { state: "done", eligible: false, scheduleUrl: null };
+    if (!eligible) return { state: "done", eligible: false, processUrl: null };
 
-    const { issueSchedulingToken, schedulingUrl } = await import("./scheduling.server");
-    const token = await issueSchedulingToken(data.applicationId);
-    return { state: "done", eligible: true, scheduleUrl: schedulingUrl(token) };
+    // Eligible candidates continue to the E4CC Recruitment Process checklist.
+    return {
+      state: "done",
+      eligible: true,
+      processUrl: `/process/${data.applicationId}?t=${data.token}`,
+    };
   });
