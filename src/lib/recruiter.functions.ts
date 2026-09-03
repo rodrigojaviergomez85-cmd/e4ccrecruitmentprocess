@@ -173,7 +173,17 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status: z.enum(STATUS_OPTIONS) }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
+    if (allowedCountries) {
+      const { data: app } = await db
+        .from("applications")
+        .select("country_code")
+        .eq("id", data.id)
+        .single();
+      if (!app || !allowedCountries.includes(app.country_code ?? "")) {
+        throw new Error("You do not have access to this candidate.");
+      }
+    }
     const { error } = await db
       .from("applications")
       .update({ status: data.status })
@@ -181,6 +191,7 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const rerunAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
