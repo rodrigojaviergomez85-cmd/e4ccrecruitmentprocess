@@ -183,10 +183,34 @@ function Apply() {
       setErrors(fieldErrors);
       return;
     }
+    const country = countries.find((c) => c.code === parsed.data.country_code);
+    const city = cities.find((c) => c.id === parsed.data.city_id);
+    const phoneE164 = toE164(selectedDial?.dial_code ?? "+", parsed.data.phone_local);
+    if (!isValidE164(phoneE164)) {
+      setErrors({ phone_local: "Please enter a valid phone number" });
+      return;
+    }
     setErrors({});
     setBusy(true);
     try {
-      const result = await create({ data: parsed.data });
+      const result = await create({
+        data: {
+          full_name: parsed.data.full_name,
+          email: parsed.data.email,
+          phone: phoneE164,
+          phone_e164: phoneE164,
+          phone_country_code: parsed.data.phone_dial_country,
+          country_code: parsed.data.country_code,
+          country: country?.name ?? parsed.data.country_code,
+          city_id: city?.id ?? null,
+          city: city?.name ?? parsed.data.city_other.trim(),
+          city_other: city ? null : parsed.data.city_other.trim(),
+          teaching_experience: parsed.data.teaching_experience,
+          taught_children: parsed.data.taught_children,
+          contact_consent: parsed.data.contact_consent,
+        },
+      });
+
       const next = {
         applicationId: result.applicationId,
         token: result.token,
