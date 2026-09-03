@@ -122,7 +122,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Denied({ message }: { message?: string }) {
+function Denied({ message }: { message?: string | undefined }) {
   return (
     <Shell>
       <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">

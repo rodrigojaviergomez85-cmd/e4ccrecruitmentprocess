@@ -223,7 +223,8 @@ export const updateGrammarTest = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db } = await staffContext(context.userId);
-    const { applicationId, ...patch } = data;
+    const { applicationId, ...rest } = data;
+    const patch = JSON.parse(JSON.stringify(rest)) as Record<string, unknown>;
     const { error } = await db
       .from("recruitment_progress")
       .upsert(
@@ -260,7 +261,8 @@ export const updateReferenceVerification = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db } = await staffContext(context.userId);
-    const { applicationId, slot, ...patch } = data;
+    const { applicationId, slot, ...rest } = data;
+    const patch = JSON.parse(JSON.stringify(rest)) as Record<string, unknown>;
     const { error } = await db
       .from("work_references")
       .update(patch)
