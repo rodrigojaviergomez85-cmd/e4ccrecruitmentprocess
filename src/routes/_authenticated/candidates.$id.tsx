@@ -603,6 +603,50 @@ function RecruitmentProcessPanel({
           </p>
 
           <div className="rounded-2xl border border-border p-4">
+            <h3 className="text-sm font-semibold">Device &amp; internet</h3>
+            <div className="mt-1 space-y-1 text-sm text-muted-foreground">
+              <p>
+                Work modality:{" "}
+                <span className="font-medium text-foreground">
+                  {progress.work_modality === "online"
+                    ? "Online coach"
+                    : progress.work_modality === "onsite"
+                      ? "Onsite coach"
+                      : "Not selected"}
+                </span>
+              </p>
+              {progress.work_modality === "online" && (
+                <>
+                  <p>
+                    Internet speed:{" "}
+                    <span className="font-medium text-foreground">
+                      {progress.internet_speed_mbps != null
+                        ? `${progress.internet_speed_mbps} Mbps (measured in the candidate's browser)`
+                        : "Not measured yet"}
+                    </span>
+                  </p>
+                  {progress.system_info_path && systemInfoUrl ? (
+                    <p>
+                      System info (processor / RAM):{" "}
+                      <a
+                        href={systemInfoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline"
+                      >
+                        {progress.system_info_filename ?? "Open screenshot"}
+                      </a>{" "}
+                      <span className="text-xs">(secure link, expires shortly)</span>
+                    </p>
+                  ) : (
+                    <p>No system information screenshot uploaded yet.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border p-4">
             <h3 className="text-sm font-semibold">Grammar Test</h3>
             <p className="mt-1 text-sm text-muted-foreground">
               Status: {progress.grammar_test_status}
@@ -703,8 +747,8 @@ function RecruitmentProcessPanel({
                       {reference.currently_working ? "Currently working" : (reference.end_date ?? "—")}
                     </p>
                     <p>
-                      Supervisor: {reference.supervisor_name} ({reference.supervisor_position}) ·{" "}
-                      {reference.supervisor_phone} · {reference.supervisor_email}
+                      Supervisor: {reference.supervisor_name} · {reference.supervisor_phone} ·{" "}
+                      {reference.supervisor_email}
                     </p>
                     <p>
                       Country: {reference.country_code ?? "—"} · May contact:{" "}
