@@ -98,6 +98,7 @@ function CandidateDetail() {
     city: string;
     teaching_experience: string;
     taught_children: boolean;
+    callcenter_experience: boolean;
     status: (typeof STATUS_OPTIONS)[number];
     submitted_at: string | null;
   };
@@ -165,6 +166,7 @@ function CandidateDetail() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {app.city}, {app.country} · {app.teaching_experience}
+                {app.callcenter_experience ? " · Call center experience" : ""}
                 {app.taught_children ? " · Has taught children" : ""}
               </p>
               {app.submitted_at && (
