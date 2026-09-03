@@ -55,15 +55,31 @@ type Step = "profile" | "check" | "video1" | "video2" | "review" | "done";
 
 const STORAGE_KEY = "e4k-application";
 
-const profileSchema = z.object({
-  full_name: z.string().trim().min(2, "Please enter your full name").max(120),
-  email: z.string().trim().email("Please enter a valid email").max(255),
-  phone: z.string().trim().min(5, "Please enter your phone number").max(40),
-  country: z.string().trim().min(2, "Please enter your country").max(80),
-  city: z.string().trim().min(1, "Please enter your city").max(80),
-  teaching_experience: z.enum(EXPERIENCE_OPTIONS),
-  taught_children: z.boolean(),
-});
+const profileSchema = z
+  .object({
+    full_name: z.string().trim().min(2, "Please enter your full name").max(120),
+    email: z.string().trim().email("Please enter a valid email").max(255),
+    phone_dial_country: z.string().trim().min(2, "Select a dialing country"),
+    phone_local: z.string().trim().min(5, "Please enter your phone number").max(25),
+    country_code: z.string().trim().min(2, "Please select your country"),
+    city_id: z.string().trim().min(1, "Please select your city"),
+    city_other: z.string().trim().max(80),
+    teaching_experience: z.enum(EXPERIENCE_OPTIONS),
+    taught_children: z.boolean(),
+    contact_consent: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.city_id === OTHER_CITY_VALUE && value.city_other.trim().length < 2) {
+      ctx.addIssue({ code: "custom", path: ["city_other"], message: "Please enter your city" });
+    }
+    if (!value.contact_consent) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contact_consent"],
+        message: "Please accept to continue",
+      });
+    }
+  });
 
 type Profile = z.infer<typeof profileSchema>;
 
@@ -76,12 +92,16 @@ function Apply() {
   const [profile, setProfile] = useState<Profile>({
     full_name: "",
     email: "",
-    phone: "",
-    country: "",
-    city: "",
+    phone_dial_country: "",
+    phone_local: "",
+    country_code: "",
+    city_id: "",
+    city_other: "",
     teaching_experience: "No experience",
     taught_children: false,
+    contact_consent: false,
   });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [reviewVideos, setReviewVideos] = useState<
     Array<{ slot: number; question: string; url: string | null }>
