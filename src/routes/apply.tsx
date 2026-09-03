@@ -626,8 +626,8 @@ function Field({
  */
 function DoneScreen({ session }: { session: Session | null }) {
   const outcome = useServerFn(getOutcome);
-  const [state, setState] = useState<{ state: string; eligible: boolean; scheduleUrl: string | null }>(
-    { state: "pending", eligible: false, scheduleUrl: null },
+  const [state, setState] = useState<{ state: string; eligible: boolean; processUrl: string | null }>(
+    { state: "pending", eligible: false, processUrl: null },
   );
   const [waited, setWaited] = useState(0);
 
@@ -662,7 +662,7 @@ function DoneScreen({ session }: { session: Session | null }) {
     };
   }, [session, outcome]);
 
-  if (state.state === "done" && state.eligible && state.scheduleUrl) {
+  if (state.state === "done" && state.eligible && state.processUrl) {
     return (
       <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
         <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
@@ -670,11 +670,11 @@ function DoneScreen({ session }: { session: Session | null }) {
         </span>
         <h1 className="mt-5 text-2xl font-bold">Congratulations!</h1>
         <p className="mt-2 text-muted-foreground">
-          Your English assessment qualifies you for an interview with the E4CC recruitment team.
-          Pick the day and time that works best for you — we also sent this link to your email.
+          You have been selected to continue to the E4CC Coach Recruitment Process. Complete a few
+          short requirements and then book your LIVE ZOOM INTERVIEW with the recruitment team.
         </p>
         <Button asChild size="lg" className="mt-8 h-14 w-full rounded-2xl text-base sm:w-auto sm:px-10">
-          <a href={state.scheduleUrl}>Schedule your interview</a>
+          <a href={state.processUrl}>Continue to the E4CC Recruitment Process</a>
         </Button>
       </div>
     );
