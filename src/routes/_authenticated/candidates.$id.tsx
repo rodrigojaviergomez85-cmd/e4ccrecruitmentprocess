@@ -222,6 +222,7 @@ function CandidateDetail() {
           progress={data.progress}
           references={data.references}
           resumeUrl={data.resumeUrl}
+          systemInfoUrl={data.systemInfoUrl}
         />
 
         <InterviewPanel applicationId={id} cefr={evaluation?.cefr ?? null} />
@@ -526,11 +527,13 @@ function RecruitmentProcessPanel({
   progress,
   references,
   resumeUrl,
+  systemInfoUrl,
 }: {
   applicationId: string;
   progress: NonNullable<Awaited<ReturnType<typeof getCandidate>>["progress"]> | null;
   references: Awaited<ReturnType<typeof getCandidate>>["references"];
   resumeUrl: string | null;
+  systemInfoUrl: string | null;
 }) {
   const queryClient = useQueryClient();
   const saveGrammar = useServerFn(updateGrammarTest);
@@ -561,13 +564,19 @@ function RecruitmentProcessPanel({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const onlineDevice =
+    progress?.work_modality !== "online" ||
+    (progress?.internet_speed_mbps != null && Boolean(progress?.system_info_path));
   const checklist = [
-    { label: "Device confirmed", done: Boolean(progress?.device_confirmed) },
+    {
+      label: `Device confirmed (${progress?.work_modality === "onsite" ? "Onsite" : progress?.work_modality === "online" ? "Online" : "modality not selected"})`,
+      done: Boolean(progress?.device_confirmed) && Boolean(progress?.work_modality),
+    },
+    { label: "Internet speed + system info (online only)", done: onlineDevice },
     { label: "Grammar Test completed", done: Boolean(progress?.grammar_test_confirmed) },
     { label: "Grammar topics reviewed", done: Boolean(progress?.grammar_topics_confirmed) },
     { label: "Resume uploaded", done: Boolean(progress?.resume_path) },
     { label: "Reference declaration", done: Boolean(progress?.references_declaration) },
-    { label: "Sample class video", done: Boolean(progress?.sample_class_confirmed) },
   ];
 
   return (
@@ -592,6 +601,50 @@ function RecruitmentProcessPanel({
           <p className="text-sm text-muted-foreground">
             Scheduling status: <span className="font-medium text-foreground">{progress.scheduling_status}</span>
           </p>
+
+          <div className="rounded-2xl border border-border p-4">
+            <h3 className="text-sm font-semibold">Device &amp; internet</h3>
+            <div className="mt-1 space-y-1 text-sm text-muted-foreground">
+              <p>
+                Work modality:{" "}
+                <span className="font-medium text-foreground">
+                  {progress.work_modality === "online"
+                    ? "Online coach"
+                    : progress.work_modality === "onsite"
+                      ? "Onsite coach"
+                      : "Not selected"}
+                </span>
+              </p>
+              {progress.work_modality === "online" && (
+                <>
+                  <p>
+                    Internet speed:{" "}
+                    <span className="font-medium text-foreground">
+                      {progress.internet_speed_mbps != null
+                        ? `${progress.internet_speed_mbps} Mbps (measured in the candidate's browser)`
+                        : "Not measured yet"}
+                    </span>
+                  </p>
+                  {progress.system_info_path && systemInfoUrl ? (
+                    <p>
+                      System info (processor / RAM):{" "}
+                      <a
+                        href={systemInfoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-primary underline"
+                      >
+                        {progress.system_info_filename ?? "Open screenshot"}
+                      </a>{" "}
+                      <span className="text-xs">(secure link, expires shortly)</span>
+                    </p>
+                  ) : (
+                    <p>No system information screenshot uploaded yet.</p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
 
           <div className="rounded-2xl border border-border p-4">
             <h3 className="text-sm font-semibold">Grammar Test</h3>
@@ -694,8 +747,8 @@ function RecruitmentProcessPanel({
                       {reference.currently_working ? "Currently working" : (reference.end_date ?? "—")}
                     </p>
                     <p>
-                      Supervisor: {reference.supervisor_name} ({reference.supervisor_position}) ·{" "}
-                      {reference.supervisor_phone} · {reference.supervisor_email}
+                      Supervisor: {reference.supervisor_name} · {reference.supervisor_phone} ·{" "}
+                      {reference.supervisor_email}
                     </p>
                     <p>
                       Country: {reference.country_code ?? "—"} · May contact:{" "}

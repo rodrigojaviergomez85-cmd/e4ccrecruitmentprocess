@@ -59,10 +59,8 @@ function referenceComplete(row: {
   end_date: string | null;
   currently_working: boolean;
   supervisor_name: string;
-  supervisor_position: string;
   supervisor_phone: string;
   supervisor_email: string;
-  country_code: string | null;
   reason_for_leaving: string;
 }) {
   return Boolean(
@@ -71,27 +69,43 @@ function referenceComplete(row: {
       row.start_date &&
       (row.currently_working || row.end_date) &&
       row.supervisor_name.trim() &&
-      row.supervisor_position.trim() &&
       row.supervisor_phone.trim() &&
       row.supervisor_email.trim() &&
-      row.country_code &&
       row.reason_for_leaving.trim(),
   );
+}
+
+/** Device requirement: onsite coaches only confirm the device; online coaches
+ * also need a measured internet speed and a System Information screenshot. */
+export function deviceRequirementMet(progress: {
+  device_confirmed: boolean;
+  work_modality: string | null;
+  internet_speed_mbps: number | null;
+  system_info_path: string | null;
+}) {
+  if (!progress.device_confirmed) return false;
+  if (progress.work_modality === "onsite") return true;
+  if (progress.work_modality === "online") {
+    return progress.internet_speed_mbps != null && Boolean(progress.system_info_path);
+  }
+  return false;
 }
 
 export function requirementsFor(
   progress: {
     device_confirmed: boolean;
+    work_modality: string | null;
+    internet_speed_mbps: number | null;
+    system_info_path: string | null;
     grammar_test_confirmed: boolean;
     grammar_topics_confirmed: boolean;
     resume_path: string | null;
     references_declaration: boolean;
-    sample_class_confirmed: boolean;
   },
   referencesComplete: boolean,
 ) {
   const items = [
-    { key: "device", label: "Device requirement confirmed", done: progress.device_confirmed },
+    { key: "device", label: "Device requirement confirmed", done: deviceRequirementMet(progress) },
     { key: "grammar_test", label: "Grammar Test completed", done: progress.grammar_test_confirmed },
     {
       key: "grammar_topics",
@@ -104,11 +118,6 @@ export function requirementsFor(
       key: "declaration",
       label: "Reference accuracy declaration accepted",
       done: progress.references_declaration,
-    },
-    {
-      key: "sample_class",
-      label: "Sample class video watched",
-      done: progress.sample_class_confirmed,
     },
   ];
   return { items, unlocked: items.every((i) => i.done) };
@@ -192,11 +201,12 @@ export const getRecruitmentProcess = createServerFn({ method: "POST" })
 
 const confirmSchema = ownerSchema.extend({
   device_confirmed: z.boolean().optional(),
+  work_modality: z.enum(["online", "onsite"]).optional(),
+  internet_speed_mbps: z.number().min(0).max(10000).optional(),
   grammar_test_confirmed: z.boolean().optional(),
   grammar_test_opened: z.boolean().optional(),
   grammar_topics_confirmed: z.boolean().optional(),
   references_declaration: z.boolean().optional(),
-  sample_class_confirmed: z.boolean().optional(),
 });
 
 export const saveRecruitmentProgress = createServerFn({ method: "POST" })
@@ -243,10 +253,8 @@ const referenceSchema = ownerSchema.extend({
   end_date: z.string().trim().max(20).nullable(),
   currently_working: z.boolean(),
   supervisor_name: z.string().trim().max(120),
-  supervisor_position: z.string().trim().max(120),
   supervisor_phone: z.string().trim().max(40),
   supervisor_email: z.string().trim().max(255),
-  country_code: z.string().trim().max(8).nullable(),
   reason_for_leaving: z.string().trim().max(500),
   may_contact: z.boolean(),
 });
@@ -320,6 +328,61 @@ export const saveResume = createServerFn({ method: "POST" })
         resume_path: data.path,
         resume_filename: data.filename,
         resume_uploaded_at: new Date().toISOString(),
+      },
+      { onConflict: "application_id" },
+    );
+    const state = await loadState(db, data.applicationId);
+    await syncStatus(
+      db,
+      data.applicationId,
+      state.unlocked,
+      state.progress.scheduling_status === "Scheduling opened",
+    );
+    return state;
+  });
+
+const SYSTEM_INFO_TYPES = ["jpg", "jpeg", "png"] as const;
+
+export const createSystemInfoUploadTarget = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    ownerSchema
+      .extend({ ext: z.enum(SYSTEM_INFO_TYPES), size: z.number().int().max(10 * 1024 * 1024) })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { db } = await assertEligible(data.applicationId, data.token);
+    const path = `${data.applicationId}/system-info-${Date.now()}.${data.ext}`;
+    const { data: signed, error } = await db.storage
+      .from("candidate-media")
+      .createSignedUploadUrl(path);
+    if (error) throw new Error(error.message);
+    return { path, token: signed.token };
+  });
+
+export const saveSystemInfo = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) =>
+    ownerSchema.extend({ path: z.string().min(3).max(300), filename: z.string().min(1).max(200) }).parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { db } = await assertEligible(data.applicationId, data.token);
+    if (!data.path.startsWith(`${data.applicationId}/`)) throw new Error("Invalid file path.");
+
+    // Only one active screenshot: remove the previous file.
+    const { data: current } = await db
+      .from("recruitment_progress")
+      .select("system_info_path")
+      .eq("application_id", data.applicationId)
+      .maybeSingle();
+    if (current?.system_info_path && current.system_info_path !== data.path) {
+      await db.storage.from("candidate-media").remove([current.system_info_path]);
+    }
+
+    await db.from("recruitment_progress").upsert(
+      {
+        application_id: data.applicationId,
+        system_info_path: data.path,
+        system_info_filename: data.filename,
+        system_info_uploaded_at: new Date().toISOString(),
       },
       { onConflict: "application_id" },
     );
