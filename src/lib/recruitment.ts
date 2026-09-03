@@ -53,11 +53,24 @@ export const STATUS_OPTIONS = [
   "Reviewing",
   "English Approved",
   "Qualified",
+  "Ready to schedule",
+  "Scheduling opened",
+  "Interview scheduled",
+  "Interview completed",
+  "No-show",
+  "Canceled",
   "Interview",
   "Rejected",
   "Not eligible",
   "Hired",
 ] as const;
+
+/** Internal recruiter label: B1 needs a live English check during the interview. */
+export function cefrInternalLabel(cefr: string | null | undefined) {
+  const level = (cefr ?? "").toUpperCase();
+  if (level === "B1" || level === "B1+") return "B1 — Live English Validation Required";
+  return null;
+}
 
 
 export const PREP_SECONDS = 30;
