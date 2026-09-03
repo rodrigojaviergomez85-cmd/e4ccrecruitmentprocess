@@ -15,6 +15,25 @@ async function assertStaff(userId: string) {
   return supabaseAdmin;
 }
 
+/** Staff context: role flags plus the countries the user may see (null = all countries). */
+async function staffContext(userId: string) {
+  const db = await assertStaff(userId);
+  const [{ data: roleRows }, { data: countryRows }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", userId),
+    db.from("staff_countries").select("country_code").eq("user_id", userId),
+  ]);
+  const roles = (roleRows ?? []).map((r) => r.role as string);
+  const isAdmin = roles.includes("admin");
+  const assigned = (countryRows ?? []).map((r) => r.country_code);
+  return {
+    db,
+    roles,
+    isAdmin,
+    allowedCountries: isAdmin || assigned.length === 0 ? null : assigned,
+  };
+}
+
+
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
