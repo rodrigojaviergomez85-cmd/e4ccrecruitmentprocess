@@ -68,19 +68,24 @@ function SchedulePage() {
     retry: false,
   });
 
-  const eligible = contextQuery.data?.eligible === true;
+  const invalidMessage = contextQuery.data?.invalid ?? null;
+  const context =
+    contextQuery.data && contextQuery.data.invalid === null ? contextQuery.data : null;
+
+  const eligible = context?.eligible === true;
   const tz =
     timezone ??
-    contextQuery.data?.appointment?.candidateTimezone ??
-    contextQuery.data?.suggestedTimezone ??
+    context?.appointment?.candidateTimezone ??
+    context?.suggestedTimezone ??
     "America/El_Salvador";
 
   const slotsQuery = useQuery({
     queryKey: ["schedule-slots", token],
     queryFn: () => loadSlots({ data: { token } }),
-    enabled: eligible && !contextQuery.data?.appointment,
+    enabled: eligible && !context?.appointment,
     retry: false,
   });
+
 
   const days = useMemo(() => {
     const grouped = new Map<string, string[]>();
@@ -118,7 +123,7 @@ function SchedulePage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const appointment = contextQuery.data?.appointment ?? null;
+  const appointment = context?.appointment ?? null;
 
   return (
     <main className="min-h-screen bg-background px-4 py-10">
@@ -127,11 +132,11 @@ function SchedulePage() {
 
         {contextQuery.isLoading && <Skeleton className="mt-10 h-72 w-full rounded-3xl" />}
 
-        {contextQuery.isError && (
+        {(contextQuery.isError || invalidMessage) && (
           <section className="mt-10 rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
             <h1 className="text-2xl font-bold">This link is not available</h1>
             <p className="mt-3 text-muted-foreground">
-              {(contextQuery.error as Error).message}
+              {invalidMessage ?? (contextQuery.error as Error).message}
             </p>
             <Button asChild variant="outline" className="mt-8 rounded-2xl">
               <Link to="/">Back to home</Link>
@@ -139,16 +144,16 @@ function SchedulePage() {
           </section>
         )}
 
-        {contextQuery.data && !eligible && (
+        {context && !eligible && (
           <section className="mt-10 rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
             <h1 className="text-2xl font-bold">Thank you for your application</h1>
             <p className="mt-3 text-muted-foreground">
               After reviewing your English assessment we are not moving forward with an interview
               at this time. We truly appreciate the time you invested with us.
             </p>
-            {contextQuery.data.allowReapplyDays > 0 && (
+            {context.allowReapplyDays > 0 && (
               <p className="mt-3 text-muted-foreground">
-                You are welcome to apply again in {contextQuery.data.allowReapplyDays} days.
+                You are welcome to apply again in {context.allowReapplyDays} days.
               </p>
             )}
             <Button asChild variant="outline" className="mt-8 rounded-2xl">
@@ -157,7 +162,7 @@ function SchedulePage() {
           </section>
         )}
 
-        {contextQuery.data && eligible && appointment && (
+        {context && eligible && appointment && (
           <section className="mt-10 rounded-3xl border border-border bg-card p-8 shadow-sm">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
               <CalendarCheck className="h-7 w-7" />
@@ -166,7 +171,7 @@ function SchedulePage() {
             <dl className="mx-auto mt-6 max-w-md space-y-2 text-sm">
               <Row label="Your time">{formatInTz(appointment.startsAt, tz)}</Row>
               <Row label="E4CC time">
-                {formatInTz(appointment.startsAt, contextQuery.data.organizationTimezone)}
+                {formatInTz(appointment.startsAt, context.organizationTimezone)}
               </Row>
               <Row label="Interviewer">{appointment.interviewer ?? "To be assigned"}</Row>
               <Row label="Status">{appointment.status}</Row>
@@ -234,17 +239,17 @@ function SchedulePage() {
           </section>
         )}
 
-        {contextQuery.data && eligible && !appointment && (
+        {context && eligible && !appointment && (
           <section className="mt-10 rounded-3xl border border-border bg-card p-8 shadow-sm">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/15 text-success">
               <PartyPopper className="h-7 w-7" />
             </span>
             <h1 className="mt-5 text-center text-2xl font-bold">
-              Congratulations, {contextQuery.data.firstName}!
+              Congratulations, {context.firstName}!
             </h1>
             <p className="mt-2 text-center text-muted-foreground">
               Your English level qualifies you for an interview. Pick a time that works for you —
-              it takes about {contextQuery.data.durationMinutes} minutes.
+              it takes about {context.durationMinutes} minutes.
             </p>
 
             <div className="mt-6 max-w-xs">
