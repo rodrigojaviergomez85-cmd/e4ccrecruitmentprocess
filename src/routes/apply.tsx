@@ -627,13 +627,20 @@ function DoneScreen({ session }: { session: Session | null }) {
   const [state, setState] = useState<{ state: string; eligible: boolean; scheduleUrl: string | null }>(
     { state: "pending", eligible: false, scheduleUrl: null },
   );
+  const [waited, setWaited] = useState(0);
+
+  useEffect(() => {
+    if (state.state === "done") return;
+    const id = setInterval(() => setWaited((v) => v + 1), 1000);
+    return () => clearInterval(id);
+  }, [state.state]);
 
   useEffect(() => {
     if (!session) return;
     let stop = false;
     let tries = 0;
     const poll = async () => {
-      if (stop || tries > 40) return;
+      if (stop || tries > 60) return;
       tries += 1;
       try {
         const result = await outcome({
@@ -661,10 +668,10 @@ function DoneScreen({ session }: { session: Session | null }) {
         </span>
         <h1 className="mt-5 text-2xl font-bold">Congratulations!</h1>
         <p className="mt-2 text-muted-foreground">
-          Your English assessment qualifies you for an interview with E4CC. We also sent this link
-          to your email.
+          Your English assessment qualifies you for an interview with the E4CC recruitment team.
+          Pick the day and time that works best for you — we also sent this link to your email.
         </p>
-        <Button asChild size="lg" className="mt-8 rounded-2xl">
+        <Button asChild size="lg" className="mt-8 h-14 w-full rounded-2xl text-base sm:w-auto sm:px-10">
           <a href={state.scheduleUrl}>Schedule your interview</a>
         </Button>
       </div>
@@ -676,8 +683,8 @@ function DoneScreen({ session }: { session: Session | null }) {
       <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
         <h1 className="text-2xl font-bold">Thank you for your application</h1>
         <p className="mt-3 text-muted-foreground">
-          We appreciate the time you invested. At this moment we are not moving forward with an
-          interview, but we&apos;ll keep your profile on file.
+          We appreciate the time you invested with us. At this moment we are not moving forward
+          with an interview, but your profile stays on file for future openings.
         </p>
         <Button asChild variant="outline" className="mt-8 rounded-2xl">
           <Link to="/">Back to home</Link>
@@ -686,30 +693,58 @@ function DoneScreen({ session }: { session: Session | null }) {
     );
   }
 
+  const estimate = 180;
+  const progress = Math.min(95, Math.round((waited / estimate) * 95));
+  const slow = waited > estimate;
+
   return (
     <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-      <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
-        <PartyPopper className="h-8 w-8" />
+      <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Loader2 className="h-8 w-8 animate-spin" />
       </span>
-      <h1 className="mt-5 text-2xl font-bold">Thank you!</h1>
-      <p className="mt-2 text-muted-foreground">
-        Your application has been received. We&apos;re reviewing your videos right now — keep this
-        page open for a moment.
+      <h1 className="mt-5 text-2xl font-bold">We&apos;re reviewing your application</h1>
+      <p className="mx-auto mt-3 max-w-md text-muted-foreground">
+        Our team is reviewing your English performance right now. This usually takes 2–3 minutes.
+        Please stay on this page — as soon as the review is complete you&apos;ll be able to book
+        your interview with the E4CC recruitment team.
       </p>
+
+      <div className="mx-auto mt-7 max-w-sm space-y-2">
+        <Progress value={progress} className="h-2" />
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Reviewing your performance</span>
+          <span className="tabular-nums">
+            {Math.floor(waited / 60)}:{String(waited % 60).padStart(2, "0")}
+          </span>
+        </div>
+      </div>
+
       <ul className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-muted-foreground">
         <li className="flex items-start gap-2">
           <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Profile submitted
         </li>
         <li className="flex items-start gap-2">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Both videos recorded
+          <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" /> Both videos received
         </li>
         <li className="flex items-start gap-2">
           <Loader2 className="mt-0.5 h-4 w-4 animate-spin" /> Review in progress
         </li>
+        <li className="flex items-start gap-2 opacity-60">
+          <CalendarClock className="mt-0.5 h-4 w-4" /> Interview scheduling
+        </li>
       </ul>
-      <Button asChild variant="outline" className="mt-8 rounded-2xl">
-        <Link to="/">Back to home</Link>
-      </Button>
+
+      <p className="mt-6 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Please do not close this window
+      </p>
+
+      {slow && (
+        <p className="mx-auto mt-4 max-w-md rounded-2xl bg-accent p-3 text-sm text-accent-foreground">
+          This is taking a little longer than usual. You can keep waiting here — we&apos;ll also
+          email you your result and, if you qualify, your interview scheduling link.
+        </p>
+      )}
     </div>
   );
 }
+
