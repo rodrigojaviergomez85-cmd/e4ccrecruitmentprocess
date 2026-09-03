@@ -31,6 +31,17 @@ import {
   submitApplication,
 } from "@/lib/candidate.functions";
 import { EXPERIENCE_OPTIONS, questionForSlot } from "@/lib/recruitment";
+import { SearchSelect } from "@/components/SearchSelect";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCities, useCountries } from "@/hooks/useLocations";
+import {
+  digitsOnly,
+  EXTRA_DIAL_CODES,
+  isValidE164,
+  OTHER_CITY_VALUE,
+  toE164,
+} from "@/lib/locations";
+
 
 export const Route = createFileRoute("/apply")({
   head: () => ({
@@ -55,15 +66,31 @@ type Step = "profile" | "check" | "video1" | "video2" | "review" | "done";
 
 const STORAGE_KEY = "e4k-application";
 
-const profileSchema = z.object({
-  full_name: z.string().trim().min(2, "Please enter your full name").max(120),
-  email: z.string().trim().email("Please enter a valid email").max(255),
-  phone: z.string().trim().min(5, "Please enter your phone number").max(40),
-  country: z.string().trim().min(2, "Please enter your country").max(80),
-  city: z.string().trim().min(1, "Please enter your city").max(80),
-  teaching_experience: z.enum(EXPERIENCE_OPTIONS),
-  taught_children: z.boolean(),
-});
+const profileSchema = z
+  .object({
+    full_name: z.string().trim().min(2, "Please enter your full name").max(120),
+    email: z.string().trim().email("Please enter a valid email").max(255),
+    phone_dial_country: z.string().trim().min(2, "Select a dialing country"),
+    phone_local: z.string().trim().min(5, "Please enter your phone number").max(25),
+    country_code: z.string().trim().min(2, "Please select your country"),
+    city_id: z.string().trim().min(1, "Please select your city"),
+    city_other: z.string().trim().max(80),
+    teaching_experience: z.enum(EXPERIENCE_OPTIONS),
+    taught_children: z.boolean(),
+    contact_consent: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.city_id === OTHER_CITY_VALUE && value.city_other.trim().length < 2) {
+      ctx.addIssue({ code: "custom", path: ["city_other"], message: "Please enter your city" });
+    }
+    if (!value.contact_consent) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["contact_consent"],
+        message: "Please accept to continue",
+      });
+    }
+  });
 
 type Profile = z.infer<typeof profileSchema>;
 
@@ -76,12 +103,16 @@ function Apply() {
   const [profile, setProfile] = useState<Profile>({
     full_name: "",
     email: "",
-    phone: "",
-    country: "",
-    city: "",
+    phone_dial_country: "",
+    phone_local: "",
+    country_code: "",
+    city_id: "",
+    city_other: "",
     teaching_experience: "No experience",
     taught_children: false,
+    contact_consent: false,
   });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [reviewVideos, setReviewVideos] = useState<
     Array<{ slot: number; question: string; url: string | null }>
@@ -94,6 +125,39 @@ function Apply() {
   const review = useServerFn(getReviewData);
   const submit = useServerFn(submitApplication);
   const analyze = useServerFn(runAnalysis);
+
+  const { data: countries = [], isLoading: countriesLoading } = useCountries();
+  const { data: cities = [], isLoading: citiesLoading } = useCities(profile.country_code || null);
+
+  const countryOptions = countries.map((country) => ({
+    value: country.code,
+    label: `${country.flag} ${country.name}`,
+    keywords: country.code,
+  }));
+
+  const cityOptions = [
+    ...cities.map((city) => ({ value: city.id, label: city.name })),
+    { value: OTHER_CITY_VALUE, label: "Other city…" },
+  ];
+
+  const dialCountries = [
+    ...countries
+      .filter((country) => country.code !== "OTHER")
+      .map((country) => ({
+        code: country.code,
+        name: country.name,
+        dial_code: country.dial_code,
+        flag: country.flag,
+      })),
+    ...EXTRA_DIAL_CODES.filter((extra) => !countries.some((c) => c.code === extra.code)),
+  ];
+  const dialOptions = dialCountries.map((country) => ({
+    value: country.code,
+    label: `${country.flag} ${country.dial_code}`,
+    keywords: `${country.name} ${country.code} ${country.dial_code}`,
+  }));
+  const selectedDial = dialCountries.find((c) => c.code === profile.phone_dial_country);
+
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -130,10 +194,34 @@ function Apply() {
       setErrors(fieldErrors);
       return;
     }
+    const country = countries.find((c) => c.code === parsed.data.country_code);
+    const city = cities.find((c) => c.id === parsed.data.city_id);
+    const phoneE164 = toE164(selectedDial?.dial_code ?? "+", parsed.data.phone_local);
+    if (!isValidE164(phoneE164)) {
+      setErrors({ phone_local: "Please enter a valid phone number" });
+      return;
+    }
     setErrors({});
     setBusy(true);
     try {
-      const result = await create({ data: parsed.data });
+      const result = await create({
+        data: {
+          full_name: parsed.data.full_name,
+          email: parsed.data.email,
+          phone: phoneE164,
+          phone_e164: phoneE164,
+          phone_country_code: parsed.data.phone_dial_country,
+          country_code: parsed.data.country_code,
+          country: country?.name ?? parsed.data.country_code,
+          city_id: city?.id ?? null,
+          city: city?.name ?? parsed.data.city_other.trim(),
+          city_other: city ? null : parsed.data.city_other.trim(),
+          teaching_experience: parsed.data.teaching_experience,
+          taught_children: parsed.data.taught_children,
+          contact_consent: parsed.data.contact_consent,
+        },
+      });
+
       const next = {
         applicationId: result.applicationId,
         token: result.token,
@@ -264,31 +352,82 @@ function Apply() {
                 placeholder="you@example.com"
               />
             </Field>
-            <Field label="Phone / WhatsApp" error={errors["phone"]}>
-              <Input
-                type="tel"
-                value={profile.phone}
-                maxLength={40}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                placeholder="+34 600 000 000"
-              />
-            </Field>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Country" error={errors["country"]}>
-                <Input
-                  value={profile.country}
-                  maxLength={80}
-                  onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+              <Field label="Country" error={errors["country_code"]}>
+                <SearchSelect
+                  triggerLabel="Country"
+                  value={profile.country_code}
+                  onChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      country_code: value,
+                      city_id: "",
+                      city_other: "",
+                      phone_dial_country: value,
+                    })
+                  }
+                  options={countryOptions}
+                  placeholder={countriesLoading ? "Loading…" : "Select your country"}
+                  searchPlaceholder="Search countries"
+                  emptyText="No countries found."
                 />
               </Field>
-              <Field label="City" error={errors["city"]}>
-                <Input
-                  value={profile.city}
-                  maxLength={80}
-                  onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+              <Field label="City" error={errors["city_id"]}>
+                <SearchSelect
+                  triggerLabel="City"
+                  value={profile.city_id}
+                  onChange={(value) => setProfile({ ...profile, city_id: value })}
+                  options={cityOptions}
+                  disabled={!profile.country_code || citiesLoading}
+                  placeholder={
+                    !profile.country_code
+                      ? "Select a country first"
+                      : citiesLoading
+                        ? "Loading…"
+                        : "Select your city"
+                  }
+                  searchPlaceholder="Search cities"
+                  emptyText="No cities found."
                 />
               </Field>
             </div>
+            {profile.city_id === OTHER_CITY_VALUE && (
+              <Field label="Your city" error={errors["city_other"]}>
+                <Input
+                  value={profile.city_other}
+                  maxLength={80}
+                  onChange={(e) => setProfile({ ...profile, city_other: e.target.value })}
+                  placeholder="Type your city"
+                />
+              </Field>
+            )}
+            <Field label="Phone / WhatsApp" error={errors["phone_local"]}>
+              <div className="flex gap-2">
+                <SearchSelect
+                  triggerLabel="Dialing country"
+                  className="w-[7.5rem] shrink-0"
+                  value={profile.phone_dial_country}
+                  onChange={(value) => setProfile({ ...profile, phone_dial_country: value })}
+                  options={dialOptions}
+                  placeholder="Code"
+                  searchPlaceholder="Search"
+                  emptyText="No countries found."
+                />
+                <Input
+                  type="tel"
+                  className="flex-1"
+                  value={profile.phone_local}
+                  maxLength={25}
+                  onChange={(e) => setProfile({ ...profile, phone_local: e.target.value })}
+                  placeholder="7000 0000"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll save it as {selectedDial?.dial_code ?? "+"}
+                {digitsOnly(profile.phone_local) || "…"}
+              </p>
+            </Field>
+
             <Field label="Teaching experience" error={errors["teaching_experience"]}>
               <Select
                 value={profile.teaching_experience}
@@ -318,6 +457,30 @@ function Apply() {
                 onCheckedChange={(checked) => setProfile({ ...profile, taught_children: checked })}
               />
             </div>
+
+            <div className="space-y-2 rounded-2xl border border-border bg-secondary/40 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="consent"
+                  checked={profile.contact_consent}
+                  onCheckedChange={(checked) =>
+                    setProfile({ ...profile, contact_consent: checked === true })
+                  }
+                />
+                <Label htmlFor="consent" className="text-sm font-normal leading-snug">
+                  I agree to receive updates about my application and interview by email and
+                  WhatsApp.
+                </Label>
+              </div>
+              {errors["contact_consent"] && (
+                <p className="text-xs font-medium text-destructive">{errors["contact_consent"]}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Privacy notice: your contact information and recordings are used only for this
+                recruitment process and are never shared for marketing or with third parties.
+              </p>
+            </div>
+
 
             <Button
               type="submit"

@@ -15,6 +15,25 @@ async function assertStaff(userId: string) {
   return supabaseAdmin;
 }
 
+/** Staff context: role flags plus the countries the user may see (null = all countries). */
+async function staffContext(userId: string) {
+  const db = await assertStaff(userId);
+  const [{ data: roleRows }, { data: countryRows }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", userId),
+    db.from("staff_countries").select("country_code").eq("user_id", userId),
+  ]);
+  const roles = (roleRows ?? []).map((r) => r.role as string);
+  const isAdmin = roles.includes("admin");
+  const assigned = (countryRows ?? []).map((r) => r.country_code);
+  return {
+    db,
+    roles,
+    isAdmin,
+    allowedCountries: isAdmin || assigned.length === 0 ? null : assigned,
+  };
+}
+
+
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -42,21 +61,30 @@ export const listCandidates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filterSchema.parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, city, teaching_experience, taught_children, status, submitted_at, created_at, ai_evaluations(cefr, overall_score, state, grammar_evidence)",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence)",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
       .limit(500);
 
+    // Country scoping is enforced server-side, never in the UI only.
+    if (allowedCountries) {
+      if (allowedCountries.length === 0) return [];
+      query = query.in("country_code", allowedCountries);
+    }
+
     if (data.search) {
       const s = data.search.replace(/[%,]/g, "");
       query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%`);
     }
-    if (data.country) query = query.eq("country", data.country);
+    if (data.country) {
+      if (allowedCountries && !allowedCountries.includes(data.country)) return [];
+      query = query.eq("country_code", data.country);
+    }
     if (data.status) query = query.eq("status", data.status);
     if (data.experience) query = query.eq("teaching_experience", data.experience);
     if (data.taughtChildren) query = query.eq("taught_children", data.taughtChildren === "yes");
@@ -71,11 +99,14 @@ export const listCandidates = createServerFn({ method: "POST" })
         const evaluation = Array.isArray(row.ai_evaluations)
           ? row.ai_evaluations[0]
           : row.ai_evaluations;
+        const cityRel = Array.isArray(row.cities) ? row.cities[0] : row.cities;
         return {
           id: row.id,
           full_name: row.full_name,
           email: row.email,
           country: row.country,
+          country_code: row.country_code,
+          city: cityRel?.name ?? row.city_other ?? row.city,
           teaching_experience: row.teaching_experience,
           taught_children: row.taught_children,
           status: row.status,
@@ -90,6 +121,7 @@ export const listCandidates = createServerFn({ method: "POST" })
               : "Scored",
         };
       })
+
       .filter((r) => (data.cefr ? r.cefr === data.cefr : true))
       .filter((r) => (data.minScore != null ? (r.overall_score ?? -1) >= data.minScore : true));
   });
@@ -98,13 +130,17 @@ export const getCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
     const { data: app, error } = await db
       .from("applications")
-      .select("*")
+      .select("*, cities(name), countries(name)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
+    if (allowedCountries && !allowedCountries.includes(app.country_code ?? "")) {
+      throw new Error("You do not have access to this candidate.");
+    }
+
 
     const [{ data: videos }, { data: transcripts }, { data: evaluation }] = await Promise.all([
       db.from("videos").select("*").eq("application_id", data.id).order("slot"),
@@ -137,7 +173,17 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status: z.enum(STATUS_OPTIONS) }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
+    if (allowedCountries) {
+      const { data: app } = await db
+        .from("applications")
+        .select("country_code")
+        .eq("id", data.id)
+        .single();
+      if (!app || !allowedCountries.includes(app.country_code ?? "")) {
+        throw new Error("You do not have access to this candidate.");
+      }
+    }
     const { error } = await db
       .from("applications")
       .update({ status: data.status })
@@ -145,6 +191,7 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const rerunAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

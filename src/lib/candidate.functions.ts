@@ -7,11 +7,21 @@ const profileSchema = z.object({
   full_name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(255),
   phone: z.string().trim().min(5).max(40),
+  phone_e164: z
+    .string()
+    .trim()
+    .regex(/^\+[1-9]\d{7,14}$/, "Invalid phone number"),
+  phone_country_code: z.string().trim().min(2).max(8),
   country: z.string().trim().min(2).max(80),
+  country_code: z.string().trim().min(2).max(8),
   city: z.string().trim().min(1).max(80),
+  city_id: z.string().uuid().nullable(),
+  city_other: z.string().trim().max(80).nullable(),
   teaching_experience: z.enum(EXPERIENCE_OPTIONS),
   taught_children: z.boolean(),
+  contact_consent: z.literal(true),
 });
+
 
 const ownerSchema = z.object({
   applicationId: z.string().uuid(),
@@ -41,8 +51,9 @@ export const createApplication = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: row, error } = await db
       .from("applications")
-      .insert(data)
+      .insert({ ...data, consent_at: new Date().toISOString() })
       .select("id, submit_token")
+
       .single();
     if (error) throw new Error(error.message);
     return { applicationId: row.id, token: row.submit_token };
