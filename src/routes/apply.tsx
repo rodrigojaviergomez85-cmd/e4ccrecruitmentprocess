@@ -13,7 +13,6 @@ import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -62,7 +61,7 @@ export const Route = createFileRoute("/apply")({
   component: Apply,
 });
 
-type Step = "profile" | "check" | "video1" | "video2" | "review" | "done";
+type Step = "profile" | "check" | "video1" | "video2" | "review" | "done" | "not-eligible";
 
 const STORAGE_KEY = "e4k-application";
 
@@ -76,7 +75,7 @@ const profileSchema = z
     city_id: z.string().trim().min(1, "Please select your city"),
     city_other: z.string().trim().max(80),
     teaching_experience: z.enum(EXPERIENCE_OPTIONS),
-    callcenter_experience: z.boolean(),
+    callcenter_experience: z.enum(EXPERIENCE_OPTIONS),
     contact_consent: z.boolean(),
   })
   .superRefine((value, ctx) => {
@@ -109,7 +108,7 @@ function Apply() {
     city_id: "",
     city_other: "",
     teaching_experience: "No experience",
-    callcenter_experience: false,
+    callcenter_experience: "No experience",
     contact_consent: false,
   });
 
@@ -175,7 +174,7 @@ function Apply() {
   }, [step]);
 
   const stepNumber =
-    step === "profile" || step === "check"
+    step === "profile" || step === "check" || step === "not-eligible"
       ? 1
       : step === "video1"
         ? 2
@@ -217,7 +216,7 @@ function Apply() {
           city: city?.name ?? parsed.data.city_other.trim(),
           city_other: city ? null : parsed.data.city_other.trim(),
           teaching_experience: parsed.data.teaching_experience,
-          callcenter_experience: parsed.data.callcenter_experience,
+          callcenter_experience_level: parsed.data.callcenter_experience,
           contact_consent: parsed.data.contact_consent,
         },
       });
@@ -227,6 +226,12 @@ function Apply() {
         token: result.token,
         experience: parsed.data.teaching_experience,
       };
+      if (!result.eligible) {
+        localStorage.removeItem(STORAGE_KEY);
+        setSession(null);
+        setStep("not-eligible");
+        return;
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setSession(next);
       setStep("check");
@@ -317,7 +322,7 @@ function Apply() {
       </header>
 
       <div className="mx-auto max-w-2xl px-5 py-6">
-        {step !== "done" && (
+        {step !== "done" && step !== "not-eligible" && (
           <div className="mb-6">
             <Stepper current={stepNumber} />
           </div>
@@ -428,7 +433,7 @@ function Apply() {
               </p>
             </Field>
 
-            <Field label="Teaching experience" error={errors["teaching_experience"]}>
+            <Field label="Teaching or training experience" error={errors["teaching_experience"]}>
               <Select
                 value={profile.teaching_experience}
                 onValueChange={(value) =>
@@ -447,16 +452,28 @@ function Apply() {
                 </SelectContent>
               </Select>
             </Field>
-            <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/40 p-4">
-              <Label htmlFor="callcenter" className="text-sm font-medium">
-                Do you have call center experience?
-              </Label>
-              <Switch
-                id="callcenter"
-                checked={profile.callcenter_experience}
-                onCheckedChange={(checked) => setProfile({ ...profile, callcenter_experience: checked })}
-              />
-            </div>
+            <Field label="Call center experience" error={errors["callcenter_experience"]}>
+              <Select
+                value={profile.callcenter_experience}
+                onValueChange={(value) =>
+                  setProfile({
+                    ...profile,
+                    callcenter_experience: value as Profile["callcenter_experience"],
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EXPERIENCE_OPTIONS.map((option) => (
+                    <SelectItem key={`cc-${option}`} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
 
             <div className="space-y-2 rounded-2xl border border-border bg-secondary/40 p-4">
               <div className="flex items-start gap-3">
@@ -553,6 +570,24 @@ function Apply() {
             >
               {busy ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
               Submit Application
+            </Button>
+          </div>
+        )}
+
+        {step === "not-eligible" && (
+          <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
+            <h1 className="text-2xl font-bold">Thank you for applying</h1>
+            <p className="mt-3 text-muted-foreground">
+              For this role we require at least <strong>1 year of teaching or training
+              experience</strong> — or at least 1 year of call center experience together with 6
+              months of teaching or training.
+            </p>
+            <p className="mt-3 text-muted-foreground">
+              Based on your answers you don&apos;t meet this requirement yet. We&apos;ve saved your
+              details and we&apos;d be glad to hear from you again once you do.
+            </p>
+            <Button asChild variant="outline" className="mt-8 rounded-2xl">
+              <Link to="/">Back to home</Link>
             </Button>
           </div>
         )}

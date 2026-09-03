@@ -14,11 +14,39 @@ export const VIDEO_TITLES: Record<number, string> = {
 
 export const EXPERIENCE_OPTIONS = [
   "No experience",
-  "Less than 1 year",
+  "Less than 6 months",
+  "6–11 months",
   "1–2 years",
   "3–5 years",
   "More than 5 years",
 ] as const;
+
+export type ExperienceOption = (typeof EXPERIENCE_OPTIONS)[number];
+
+/** Approximate months for each range, including legacy stored values. */
+const EXPERIENCE_MONTHS: Record<string, number> = {
+  "No experience": 0,
+  "Less than 6 months": 3,
+  "6–11 months": 8,
+  "Less than 1 year": 8,
+  "1–2 years": 18,
+  "3–5 years": 48,
+  "More than 5 years": 72,
+};
+
+export function experienceMonths(value: string | null | undefined) {
+  return EXPERIENCE_MONTHS[value ?? ""] ?? 0;
+}
+
+/**
+ * Eligibility: 1+ year of teaching/training, OR 1+ year of call center
+ * together with at least 6 months of teaching/training.
+ */
+export function isEligible(teaching: string, callcenter: string) {
+  const t = experienceMonths(teaching);
+  const c = experienceMonths(callcenter);
+  return t >= 12 || (c >= 12 && t >= 6);
+}
 
 export const STATUS_OPTIONS = [
   "New",
@@ -26,8 +54,10 @@ export const STATUS_OPTIONS = [
   "English Approved",
   "Interview",
   "Rejected",
+  "Not eligible",
   "Hired",
 ] as const;
+
 
 export const PREP_SECONDS = 30;
 export const MIN_RECORD_SECONDS = 60;

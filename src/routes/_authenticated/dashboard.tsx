@@ -63,7 +63,7 @@ function Dashboard() {
       ...(country !== ALL ? { country } : {}),
       ...(status !== ALL ? { status } : {}),
       ...(experience !== ALL ? { experience } : {}),
-      ...(callcenterExp !== ALL ? { callcenterExperience: callcenterExp as "yes" | "no" } : {}),
+      ...(callcenterExp !== ALL ? { callcenterExperience: callcenterExp } : {}),
       ...(minScore ? { minScore: Number(minScore) } : {}),
     }),
     [search, cefr, country, status, experience, callcenterExp, minScore],
@@ -163,8 +163,11 @@ function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL}>Any</SelectItem>
-                  <SelectItem value="yes">Yes</SelectItem>
-                  <SelectItem value="no">No</SelectItem>
+                  {EXPERIENCE_OPTIONS.map((option) => (
+                    <SelectItem key={`cc-${option}`} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -220,8 +223,9 @@ function Dashboard() {
                       {candidate.country}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {candidate.teaching_experience}
-                      {candidate.callcenter_experience ? " · Call center experience" : ""}{candidate.taught_children ? " · Has taught children" : ""}
+                      Teaching/training: {candidate.teaching_experience} · Call center:{" "}
+                      {candidate.callcenter_experience_level ??
+                        (candidate.callcenter_experience ? "Yes" : "No experience")}
                       {candidate.submitted_at
                         ? ` · ${new Date(candidate.submitted_at).toLocaleDateString()}`
                         : ""}
