@@ -200,6 +200,9 @@ function CandidateDetail() {
           </div>
         </section>
 
+        <InterviewPanel applicationId={id} cefr={evaluation?.cefr ?? null} />
+
+
         <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
           <h2 className="text-lg font-bold">AI English assessment</h2>
           {!evaluation || evaluation.state !== "done" ? (
