@@ -6,12 +6,13 @@ import { STATUS_OPTIONS } from "./recruitment";
 
 async function assertStaff(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
+  const [{ data, error }, { data: profile }] = await Promise.all([
+    supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+    supabaseAdmin.from("staff_profiles").select("active").eq("user_id", userId).maybeSingle(),
+  ]);
   if (error) throw new Error(error.message);
   if (!data?.length) throw new Error("You do not have recruiter access.");
+  if (profile && profile.active === false) throw new Error("Your account is deactivated.");
   return supabaseAdmin;
 }
 
@@ -29,7 +30,7 @@ async function staffContext(userId: string) {
     db,
     roles,
     isAdmin,
-    allowedCountries: isAdmin || assigned.length === 0 ? null : assigned,
+    allowedCountries: isAdmin ? null : assigned,
   };
 }
 

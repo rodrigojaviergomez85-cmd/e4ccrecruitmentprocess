@@ -157,6 +157,39 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       cities: {
         Row: {
           active: boolean
@@ -259,6 +292,42 @@ export type Database = {
             referencedColumns: ["code"]
           },
         ]
+      }
+      staff_profiles: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          email: string
+          full_name: string
+          last_login_at: string | null
+          must_change_password: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          email: string
+          full_name?: string
+          last_login_at?: string | null
+          must_change_password?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          full_name?: string
+          last_login_at?: string | null
+          must_change_password?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       transcripts: {
         Row: {
@@ -372,7 +441,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      app_role: "admin" | "recruiter"
+      app_role: "admin" | "recruiter" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -500,7 +569,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "recruiter"],
+      app_role: ["admin", "recruiter", "viewer"],
     },
   },
 } as const
