@@ -264,31 +264,82 @@ function Apply() {
                 placeholder="you@example.com"
               />
             </Field>
-            <Field label="Phone / WhatsApp" error={errors["phone"]}>
-              <Input
-                type="tel"
-                value={profile.phone}
-                maxLength={40}
-                onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                placeholder="+34 600 000 000"
-              />
-            </Field>
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Country" error={errors["country"]}>
-                <Input
-                  value={profile.country}
-                  maxLength={80}
-                  onChange={(e) => setProfile({ ...profile, country: e.target.value })}
+              <Field label="Country" error={errors["country_code"]}>
+                <SearchSelect
+                  triggerLabel="Country"
+                  value={profile.country_code}
+                  onChange={(value) =>
+                    setProfile({
+                      ...profile,
+                      country_code: value,
+                      city_id: "",
+                      city_other: "",
+                      phone_dial_country: value,
+                    })
+                  }
+                  options={countryOptions}
+                  placeholder={countriesLoading ? "Loading…" : "Select your country"}
+                  searchPlaceholder="Search countries"
+                  emptyText="No countries found."
                 />
               </Field>
-              <Field label="City" error={errors["city"]}>
-                <Input
-                  value={profile.city}
-                  maxLength={80}
-                  onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+              <Field label="City" error={errors["city_id"]}>
+                <SearchSelect
+                  triggerLabel="City"
+                  value={profile.city_id}
+                  onChange={(value) => setProfile({ ...profile, city_id: value })}
+                  options={cityOptions}
+                  disabled={!profile.country_code || citiesLoading}
+                  placeholder={
+                    !profile.country_code
+                      ? "Select a country first"
+                      : citiesLoading
+                        ? "Loading…"
+                        : "Select your city"
+                  }
+                  searchPlaceholder="Search cities"
+                  emptyText="No cities found."
                 />
               </Field>
             </div>
+            {profile.city_id === OTHER_CITY_VALUE && (
+              <Field label="Your city" error={errors["city_other"]}>
+                <Input
+                  value={profile.city_other}
+                  maxLength={80}
+                  onChange={(e) => setProfile({ ...profile, city_other: e.target.value })}
+                  placeholder="Type your city"
+                />
+              </Field>
+            )}
+            <Field label="Phone / WhatsApp" error={errors["phone_local"]}>
+              <div className="flex gap-2">
+                <SearchSelect
+                  triggerLabel="Dialing country"
+                  className="w-[7.5rem] shrink-0"
+                  value={profile.phone_dial_country}
+                  onChange={(value) => setProfile({ ...profile, phone_dial_country: value })}
+                  options={dialOptions}
+                  placeholder="Code"
+                  searchPlaceholder="Search"
+                  emptyText="No countries found."
+                />
+                <Input
+                  type="tel"
+                  className="flex-1"
+                  value={profile.phone_local}
+                  maxLength={25}
+                  onChange={(e) => setProfile({ ...profile, phone_local: e.target.value })}
+                  placeholder="7000 0000"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll save it as {selectedDial?.dial_code ?? "+"}
+                {digitsOnly(profile.phone_local) || "…"}
+              </p>
+            </Field>
+
             <Field label="Teaching experience" error={errors["teaching_experience"]}>
               <Select
                 value={profile.teaching_experience}
