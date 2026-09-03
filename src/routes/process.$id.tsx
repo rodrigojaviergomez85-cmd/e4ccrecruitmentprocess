@@ -657,8 +657,8 @@ function SchedulingCard({ state }: { state: State }) {
   const [embedFailed, setEmbedFailed] = useState(false);
   const url = useMemo(() => {
     const u = new URL(CALENDLY_URL);
-    u.searchParams.set("name", state.candidate.fullName);
-    u.searchParams.set("email", state.candidate.email);
+    if (state.candidate?.fullName) u.searchParams.set("name", state.candidate.fullName);
+    if (state.candidate?.email) u.searchParams.set("email", state.candidate.email);
     u.searchParams.set("hide_gdpr_banner", "1");
     return u.toString();
   }, [state.candidate]);
