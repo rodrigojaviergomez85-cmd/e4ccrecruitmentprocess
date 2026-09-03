@@ -14,8 +14,19 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
       timezoneForCountry,
       appointmentDetails,
     } = await import("./scheduling.server");
-    const { applicationId, client } = await resolveToken(data.token);
+
+    let applicationId: string;
+    let client: Awaited<ReturnType<typeof resolveToken>>["client"];
+    try {
+      const resolved = await resolveToken(data.token);
+      applicationId = resolved.applicationId;
+      client = resolved.client;
+    } catch (e) {
+      // Invalid/expired links are a normal state, not a crash: return it as data.
+      return { invalid: (e as Error).message } as const;
+    }
     const ctx = await candidateContext(applicationId);
+
     const settings = await getSettings();
 
     const { data: existing } = await client
