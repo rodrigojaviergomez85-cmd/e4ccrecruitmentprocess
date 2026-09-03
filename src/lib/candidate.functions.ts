@@ -18,7 +18,7 @@ const profileSchema = z.object({
   city_id: z.string().uuid().nullable(),
   city_other: z.string().trim().max(80).nullable(),
   teaching_experience: z.enum(EXPERIENCE_OPTIONS),
-  taught_children: z.boolean(),
+  callcenter_experience: z.boolean(),
   contact_consent: z.literal(true),
 });
 
