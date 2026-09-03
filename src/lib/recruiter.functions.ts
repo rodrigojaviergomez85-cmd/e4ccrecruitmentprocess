@@ -130,13 +130,17 @@ export const getCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
     const { data: app, error } = await db
       .from("applications")
-      .select("*")
+      .select("*, cities(name), countries(name)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
+    if (allowedCountries && !allowedCountries.includes(app.country_code ?? "")) {
+      throw new Error("You do not have access to this candidate.");
+    }
+
 
     const [{ data: videos }, { data: transcripts }, { data: evaluation }] = await Promise.all([
       db.from("videos").select("*").eq("application_id", data.id).order("slot"),
