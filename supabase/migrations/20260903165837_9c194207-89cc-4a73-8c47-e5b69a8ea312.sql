@@ -1,0 +1,2 @@
+ALTER TABLE public.applications ADD COLUMN IF NOT EXISTS callcenter_experience boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.applications.callcenter_experience IS 'Whether the applicant has call center experience (E4CC plus).';

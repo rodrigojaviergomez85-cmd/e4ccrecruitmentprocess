@@ -69,6 +69,7 @@ export type Database = {
       }
       applications: {
         Row: {
+          callcenter_experience: boolean
           city: string
           city_id: string | null
           city_other: string | null
@@ -91,6 +92,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          callcenter_experience?: boolean
           city: string
           city_id?: string | null
           city_other?: string | null
@@ -113,6 +115,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          callcenter_experience?: boolean
           city?: string
           city_id?: string | null
           city_other?: string | null
