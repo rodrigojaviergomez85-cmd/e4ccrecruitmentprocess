@@ -99,6 +99,7 @@ function CandidateDetail() {
     teaching_experience: string;
     taught_children: boolean;
     callcenter_experience: boolean;
+    callcenter_experience_level?: string | null;
     status: (typeof STATUS_OPTIONS)[number];
     submitted_at: string | null;
   };
@@ -165,8 +166,9 @@ function CandidateDetail() {
                 {app.email} · {app.phone}
               </p>
               <p className="text-sm text-muted-foreground">
-                {app.city}, {app.country} · {app.teaching_experience}
-                {app.callcenter_experience ? " · Call center experience" : ""}
+                {app.city}, {app.country} · Teaching/training: {app.teaching_experience} · Call
+                center: {app.callcenter_experience_level ??
+                  (app.callcenter_experience ? "Yes" : "No experience")}
                 {app.taught_children ? " · Has taught children" : ""}
               </p>
               {app.submitted_at && (
