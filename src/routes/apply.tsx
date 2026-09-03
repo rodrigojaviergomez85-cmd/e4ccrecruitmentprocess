@@ -109,7 +109,7 @@ function Apply() {
     city_id: "",
     city_other: "",
     teaching_experience: "No experience",
-    taught_children: false,
+    callcenter_experience: false,
     contact_consent: false,
   });
 
@@ -217,7 +217,7 @@ function Apply() {
           city: city?.name ?? parsed.data.city_other.trim(),
           city_other: city ? null : parsed.data.city_other.trim(),
           teaching_experience: parsed.data.teaching_experience,
-          taught_children: parsed.data.taught_children,
+          callcenter_experience: parsed.data.callcenter_experience,
           contact_consent: parsed.data.contact_consent,
         },
       });
@@ -448,13 +448,13 @@ function Apply() {
               </Select>
             </Field>
             <div className="flex items-center justify-between rounded-2xl border border-border bg-secondary/40 p-4">
-              <Label htmlFor="taught" className="text-sm font-medium">
-                Have you taught children before?
+              <Label htmlFor="callcenter" className="text-sm font-medium">
+                Do you have call center experience?
               </Label>
               <Switch
-                id="taught"
-                checked={profile.taught_children}
-                onCheckedChange={(checked) => setProfile({ ...profile, taught_children: checked })}
+                id="callcenter"
+                checked={profile.callcenter_experience}
+                onCheckedChange={(checked) => setProfile({ ...profile, callcenter_experience: checked })}
               />
             </div>
 
