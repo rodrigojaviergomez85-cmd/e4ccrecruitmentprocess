@@ -189,6 +189,13 @@ export const getCandidate = createServerFn({ method: "POST" })
         .createSignedUrl(progress.resume_path, 600);
       resumeUrl = signed?.signedUrl ?? null;
     }
+    let systemInfoUrl: string | null = null;
+    if (progress?.system_info_path) {
+      const { data: signed } = await db.storage
+        .from("candidate-media")
+        .createSignedUrl(progress.system_info_path, 600);
+      systemInfoUrl = signed?.signedUrl ?? null;
+    }
 
     const { submit_token: _token, ...safeApp } = app;
     return {
@@ -198,6 +205,7 @@ export const getCandidate = createServerFn({ method: "POST" })
       progress: progress ?? null,
       references: references ?? [],
       resumeUrl,
+      systemInfoUrl,
     };
   });
 
