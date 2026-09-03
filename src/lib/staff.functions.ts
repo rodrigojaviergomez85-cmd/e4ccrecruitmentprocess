@@ -6,12 +6,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const STAFF_ROLES = ["admin", "recruiter", "viewer"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
-type AdminDb = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server").then>
-> extends never
-  ? never
-  : Awaited<ReturnType<typeof getAdmin>>;
-
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
@@ -286,5 +280,3 @@ export const listAuditLogs = createServerFn({ method: "GET" })
       .limit(100);
     return data ?? [];
   });
-
-export type { AdminDb };
