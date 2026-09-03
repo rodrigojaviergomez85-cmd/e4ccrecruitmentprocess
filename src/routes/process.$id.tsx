@@ -107,7 +107,12 @@ function ProcessPage() {
         state={data}
         id={id}
         token={token}
-        onState={(next) => queryClient.setQueryData(["process", id], next)}
+        onState={(next) =>
+          queryClient.setQueryData(["process", id], (prev: State | undefined) => ({
+            ...(prev ?? {}),
+            ...next,
+          }))
+        }
       />
     </Shell>
   );
