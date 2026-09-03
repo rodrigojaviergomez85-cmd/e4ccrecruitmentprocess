@@ -52,6 +52,7 @@ export const STATUS_OPTIONS = [
   "New",
   "Reviewing",
   "English Approved",
+  "Qualified",
   "Interview",
   "Rejected",
   "Not eligible",
