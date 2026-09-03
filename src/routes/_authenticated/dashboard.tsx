@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useCountries } from "@/hooks/useLocations";
 import { listCandidates } from "@/lib/recruiter.functions";
 import { cefrBand, scoreBand, EXPERIENCE_OPTIONS, STATUS_OPTIONS } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,10 @@ const CEFR_FILTERS = ["A2", "B1", "B1+", "B2", "B2+", "C1", "C2"];
 function Dashboard() {
   const navigate = useNavigate();
   const list = useServerFn(listCandidates);
+  const { data: countries = [] } = useCountries();
   const [search, setSearch] = useState("");
   const [cefr, setCefr] = useState(ALL);
+  const [country, setCountry] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [experience, setExperience] = useState(ALL);
   const [taughtChildren, setTaughtChildren] = useState(ALL);
@@ -54,12 +57,13 @@ function Dashboard() {
     () => ({
       ...(search.trim() ? { search: search.trim() } : {}),
       ...(cefr !== ALL ? { cefr } : {}),
+      ...(country !== ALL ? { country } : {}),
       ...(status !== ALL ? { status } : {}),
       ...(experience !== ALL ? { experience } : {}),
       ...(taughtChildren !== ALL ? { taughtChildren: taughtChildren as "yes" | "no" } : {}),
       ...(minScore ? { minScore: Number(minScore) } : {}),
     }),
-    [search, cefr, status, experience, taughtChildren, minScore],
+    [search, cefr, country, status, experience, taughtChildren, minScore],
   );
 
   const { data, isLoading, error } = useQuery({
@@ -104,7 +108,23 @@ function Dashboard() {
         </div>
 
         {showFilters && (
-          <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Country</Label>
+              <Select value={country} onValueChange={setCountry}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All countries</SelectItem>
+                  {countries.map((c) => (
+                    <SelectItem key={c.code} value={c.code}>
+                      {c.flag} {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <FilterSelect
               label="CEFR level"
               value={cefr}
@@ -184,7 +204,8 @@ function Dashboard() {
                   <div>
                     <p className="font-semibold">{candidate.full_name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {candidate.email} · {candidate.country}
+                      {candidate.email} · {candidate.city ? `${candidate.city}, ` : ""}
+                      {candidate.country}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {candidate.teaching_experience}
