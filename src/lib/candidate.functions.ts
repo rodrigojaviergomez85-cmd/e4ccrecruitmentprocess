@@ -314,6 +314,18 @@ export async function runAnalysisForApplication(applicationId: string) {
       },
       { onConflict: "application_id" },
     );
+
+    // B2+ candidates qualify automatically and receive a secure scheduling link.
+    const { isSchedulingEligible } = await import("./interviews");
+    if (isSchedulingEligible(evaluation.cefr)) {
+      await db.from("applications").update({ status: "Qualified" }).eq("id", applicationId);
+      try {
+        const { sendSchedulingInvite } = await import("./scheduling.server");
+        await sendSchedulingInvite(applicationId);
+      } catch {
+        // Never fail the evaluation because a notification provider is down.
+      }
+    }
     return { ok: true };
 
   } catch (err) {
