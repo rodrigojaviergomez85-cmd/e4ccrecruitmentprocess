@@ -18,6 +18,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
+import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -64,6 +65,11 @@ const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ScheduleTokenRoute = ScheduleTokenRouteImport.update({
+  id: '/schedule/$token',
+  path: '/schedule/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCandidatesIdRoute =
   AuthenticatedCandidatesIdRouteImport.update({
     id: '/candidates/$id',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
 }
 export interface FileRoutesByTo {
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
 }
 export interface FileRoutesById {
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
 }
 export interface FileRouteTypes {
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/staff'
+    | '/schedule/$token'
     | '/candidates/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/settings'
     | '/staff'
+    | '/schedule/$token'
     | '/candidates/$id'
   id:
     | '__root__'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/schedule/$token'
     | '/_authenticated/candidates/$id'
   fileRoutesById: FileRoutesById
 }
@@ -150,6 +162,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ChangePasswordRoute: typeof ChangePasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ScheduleTokenRoute: typeof ScheduleTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/schedule/$token': {
+      id: '/schedule/$token'
+      path: '/schedule/$token'
+      fullPath: '/schedule/$token'
+      preLoaderRoute: typeof ScheduleTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/candidates/$id': {
       id: '/_authenticated/candidates/$id'
       path: '/candidates/$id'
@@ -251,6 +271,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ChangePasswordRoute: ChangePasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ScheduleTokenRoute: ScheduleTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
