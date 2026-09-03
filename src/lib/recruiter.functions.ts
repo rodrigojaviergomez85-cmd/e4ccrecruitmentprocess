@@ -61,21 +61,30 @@ export const listCandidates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filterSchema.parse(d ?? {}))
   .handler(async ({ context, data }) => {
-    const db = await assertStaff(context.userId);
+    const { db, allowedCountries } = await staffContext(context.userId);
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, city, teaching_experience, taught_children, status, submitted_at, created_at, ai_evaluations(cefr, overall_score, state, grammar_evidence)",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence)",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
       .limit(500);
 
+    // Country scoping is enforced server-side, never in the UI only.
+    if (allowedCountries) {
+      if (allowedCountries.length === 0) return [];
+      query = query.in("country_code", allowedCountries);
+    }
+
     if (data.search) {
       const s = data.search.replace(/[%,]/g, "");
       query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%`);
     }
-    if (data.country) query = query.eq("country", data.country);
+    if (data.country) {
+      if (allowedCountries && !allowedCountries.includes(data.country)) return [];
+      query = query.eq("country_code", data.country);
+    }
     if (data.status) query = query.eq("status", data.status);
     if (data.experience) query = query.eq("teaching_experience", data.experience);
     if (data.taughtChildren) query = query.eq("taught_children", data.taughtChildren === "yes");
@@ -90,11 +99,14 @@ export const listCandidates = createServerFn({ method: "POST" })
         const evaluation = Array.isArray(row.ai_evaluations)
           ? row.ai_evaluations[0]
           : row.ai_evaluations;
+        const cityRel = Array.isArray(row.cities) ? row.cities[0] : row.cities;
         return {
           id: row.id,
           full_name: row.full_name,
           email: row.email,
           country: row.country,
+          country_code: row.country_code,
+          city: cityRel?.name ?? row.city_other ?? row.city,
           teaching_experience: row.teaching_experience,
           taught_children: row.taught_children,
           status: row.status,
@@ -109,6 +121,7 @@ export const listCandidates = createServerFn({ method: "POST" })
               : "Scored",
         };
       })
+
       .filter((r) => (data.cefr ? r.cefr === data.cefr : true))
       .filter((r) => (data.minScore != null ? (r.overall_score ?? -1) >= data.minScore : true));
   });
