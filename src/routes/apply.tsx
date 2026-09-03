@@ -370,6 +370,30 @@ function Apply() {
               />
             </div>
 
+            <div className="space-y-2 rounded-2xl border border-border bg-secondary/40 p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="consent"
+                  checked={profile.contact_consent}
+                  onCheckedChange={(checked) =>
+                    setProfile({ ...profile, contact_consent: checked === true })
+                  }
+                />
+                <Label htmlFor="consent" className="text-sm font-normal leading-snug">
+                  I agree to receive updates about my application and interview by email and
+                  WhatsApp.
+                </Label>
+              </div>
+              {errors["contact_consent"] && (
+                <p className="text-xs font-medium text-destructive">{errors["contact_consent"]}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Privacy notice: your contact information and recordings are used only for this
+                recruitment process and are never shared for marketing or with third parties.
+              </p>
+            </div>
+
+
             <Button
               type="submit"
               size="lg"
