@@ -51,7 +51,7 @@ export const createApplication = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: row, error } = await db
       .from("applications")
-      .insert({ ...data, consent_at: new Date().toISOString() })
+      .insert({ ...data, taught_children: false, consent_at: new Date().toISOString() })
       .select("id, submit_token")
 
       .single();
