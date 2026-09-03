@@ -39,6 +39,8 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
     const appointment = existing ? await appointmentDetails(existing.id) : null;
 
     return {
+      invalid: null,
+
       firstName: ctx.application.full_name.split(" ")[0] ?? ctx.application.full_name,
       eligible: ctx.eligible,
       organizationTimezone: settings.timezone,
