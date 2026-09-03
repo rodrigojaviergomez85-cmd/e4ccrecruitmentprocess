@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Search, Settings, SlidersHorizontal } from "lucide-react";
+import { LogOut, Search, Settings, ShieldCheck, SlidersHorizontal } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
