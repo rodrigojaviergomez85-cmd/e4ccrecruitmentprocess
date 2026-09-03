@@ -172,13 +172,23 @@ async function syncStatus(db: Db, applicationId: string, unlocked: boolean, sche
 export const getRecruitmentProcess = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ownerSchema.parse(d))
   .handler(async ({ data }) => {
-    const { app, cefr, db } = await assertEligible(data.applicationId, data.token);
-    const state = await loadState(db, data.applicationId);
-    return {
-      candidate: { fullName: app.full_name, email: app.email, cefr },
-      ...state,
-    };
+    try {
+      const { app, cefr, db } = await assertEligible(data.applicationId, data.token);
+      const state = await loadState(db, data.applicationId);
+      return {
+        invalid: null,
+        candidate: { fullName: app.full_name, email: app.email, cefr },
+        ...state,
+      };
+    } catch (e) {
+      // Never throw across the RPC boundary: an invalid/ineligible link should
+      // render the "not available" screen, not a blank error page.
+      return {
+        invalid: e instanceof Error ? e.message : "This stage is not available for your application.",
+      } as const;
+    }
   });
+
 
 const confirmSchema = ownerSchema.extend({
   device_confirmed: z.boolean().optional(),
