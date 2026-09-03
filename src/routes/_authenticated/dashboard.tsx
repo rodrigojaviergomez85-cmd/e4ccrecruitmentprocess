@@ -237,6 +237,12 @@ function Dashboard() {
                         ? ` · ${new Date(candidate.submitted_at).toLocaleDateString()}`
                         : ""}
                     </p>
+                    {candidate.appointment_at && (
+                      <p className="mt-1 text-xs font-medium text-primary">
+                        Interview {new Date(candidate.appointment_at).toLocaleString()} ·{" "}
+                        {candidate.interviewer ?? "Unassigned"} · {candidate.appointment_status}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span
