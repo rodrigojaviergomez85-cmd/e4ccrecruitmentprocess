@@ -68,19 +68,22 @@ function SchedulePage() {
     retry: false,
   });
 
-  const eligible = contextQuery.data?.eligible === true;
+  const invalidMessage = contextQuery.data?.invalid ?? null;
+  const context = invalidMessage ? null : (contextQuery.data ?? null);
+  const eligible = context?.eligible === true;
   const tz =
     timezone ??
-    contextQuery.data?.appointment?.candidateTimezone ??
-    contextQuery.data?.suggestedTimezone ??
+    context?.appointment?.candidateTimezone ??
+    context?.suggestedTimezone ??
     "America/El_Salvador";
 
   const slotsQuery = useQuery({
     queryKey: ["schedule-slots", token],
     queryFn: () => loadSlots({ data: { token } }),
-    enabled: eligible && !contextQuery.data?.appointment,
+    enabled: eligible && !context?.appointment,
     retry: false,
   });
+
 
   const days = useMemo(() => {
     const grouped = new Map<string, string[]>();
