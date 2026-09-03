@@ -95,6 +95,13 @@ function Dashboard() {
                 </Link>
               </Button>
             )}
+            {isAdmin && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/staff">
+                  <ShieldCheck className="mr-2 h-4 w-4" /> Staff
+                </Link>
+              </Button>
+            )}
           <Button variant="ghost" size="sm" onClick={() => void signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sign out
           </Button>

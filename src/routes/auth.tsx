@@ -29,7 +29,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [mode, setMode] = useState<"signin" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,19 +56,10 @@ function AuthPage() {
         // Neutral response regardless of whether the account exists.
         setSentTo(email);
         toast.success("If an account exists for that email, we've sent a reset link.");
-      } else if (mode === "signin") {
+      } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         await navigate({ to: "/dashboard" });
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
-        });
-        if (error) throw error;
-        toast.success("Account created. Ask an admin to grant you recruiter access.");
-        setMode("signin");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
@@ -165,11 +156,7 @@ function AuthPage() {
               ) : null}
               <Button type="submit" className="h-12 w-full rounded-2xl" disabled={busy}>
                 {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {mode === "signin"
-                  ? "Sign in"
-                  : mode === "signup"
-                    ? "Create account"
-                    : "Send reset link"}
+                {mode === "signin" ? "Sign in" : "Send reset link"}
               </Button>
             </form>
 
@@ -201,15 +188,6 @@ function AuthPage() {
               </>
             ) : null}
 
-            <button
-              type="button"
-              className="mt-5 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            >
-              {mode === "signin"
-                ? "Need an account? Create one"
-                : "Already have an account? Sign in"}
-            </button>
           </>
         )}
       </div>
