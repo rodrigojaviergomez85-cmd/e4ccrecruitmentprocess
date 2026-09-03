@@ -79,6 +79,10 @@ export type Database = {
           country: string
           country_code: string | null
           created_at: string
+          eligibility_note: string | null
+          eligibility_override: boolean | null
+          eligibility_override_at: string | null
+          eligibility_override_by: string | null
           email: string
           full_name: string
           id: string
@@ -103,6 +107,10 @@ export type Database = {
           country: string
           country_code?: string | null
           created_at?: string
+          eligibility_note?: string | null
+          eligibility_override?: boolean | null
+          eligibility_override_at?: string | null
+          eligibility_override_by?: string | null
           email: string
           full_name: string
           id?: string
@@ -127,6 +135,10 @@ export type Database = {
           country?: string
           country_code?: string | null
           created_at?: string
+          eligibility_note?: string | null
+          eligibility_override?: boolean | null
+          eligibility_override_at?: string | null
+          eligibility_override_by?: string | null
           email?: string
           full_name?: string
           id?: string
@@ -154,6 +166,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "countries"
             referencedColumns: ["code"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          application_id: string
+          canceled_at: string | null
+          candidate_timezone: string
+          created_at: string
+          ends_at: string
+          id: string
+          interviewer_id: string | null
+          meeting_link: string
+          notes: string | null
+          reschedule_count: number
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          canceled_at?: string | null
+          candidate_timezone?: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          interviewer_id?: string | null
+          meeting_link?: string
+          notes?: string | null
+          reschedule_count?: number
+          starts_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          canceled_at?: string | null
+          candidate_timezone?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          interviewer_id?: string | null
+          meeting_link?: string
+          notes?: string | null
+          reschedule_count?: number
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "interviewers"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -189,6 +264,38 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      blocked_dates: {
+        Row: {
+          blocked_on: string
+          created_at: string
+          id: string
+          interviewer_id: string | null
+          reason: string
+        }
+        Insert: {
+          blocked_on: string
+          created_at?: string
+          id?: string
+          interviewer_id?: string | null
+          reason?: string
+        }
+        Update: {
+          blocked_on?: string
+          created_at?: string
+          id?: string
+          interviewer_id?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocked_dates_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "interviewers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cities: {
         Row: {
@@ -263,6 +370,222 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      interview_settings: {
+        Row: {
+          allow_reapply_days: number
+          assignment_mode: string
+          buffer_minutes: number
+          created_at: string
+          default_meeting_link: string
+          duration_minutes: number
+          id: boolean
+          max_booking_days: number
+          max_per_slot: number
+          min_notice_hours: number
+          reminder_offsets_minutes: number[]
+          templates: Json
+          timezone: string
+          token_expiry_days: number
+          updated_at: string
+          weekly_hours: Json
+        }
+        Insert: {
+          allow_reapply_days?: number
+          assignment_mode?: string
+          buffer_minutes?: number
+          created_at?: string
+          default_meeting_link?: string
+          duration_minutes?: number
+          id?: boolean
+          max_booking_days?: number
+          max_per_slot?: number
+          min_notice_hours?: number
+          reminder_offsets_minutes?: number[]
+          templates?: Json
+          timezone?: string
+          token_expiry_days?: number
+          updated_at?: string
+          weekly_hours?: Json
+        }
+        Update: {
+          allow_reapply_days?: number
+          assignment_mode?: string
+          buffer_minutes?: number
+          created_at?: string
+          default_meeting_link?: string
+          duration_minutes?: number
+          id?: boolean
+          max_booking_days?: number
+          max_per_slot?: number
+          min_notice_hours?: number
+          reminder_offsets_minutes?: number[]
+          templates?: Json
+          timezone?: string
+          token_expiry_days?: number
+          updated_at?: string
+          weekly_hours?: Json
+        }
+        Relationships: []
+      }
+      interviewer_availability: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          interviewer_id: string
+          start_time: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          interviewer_id: string
+          start_time: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          interviewer_id?: string
+          start_time?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviewer_availability_interviewer_id_fkey"
+            columns: ["interviewer_id"]
+            isOneToOne: false
+            referencedRelation: "interviewers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interviewers: {
+        Row: {
+          active: boolean
+          country_codes: string[]
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          meeting_link: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          country_codes?: string[]
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          meeting_link?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          country_codes?: string[]
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          meeting_link?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reminder_logs: {
+        Row: {
+          appointment_id: string
+          attempts: number
+          channel: string
+          created_at: string
+          id: string
+          kind: string
+          provider_response: string | null
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: string
+          attempts?: number
+          channel: string
+          created_at?: string
+          id?: string
+          kind: string
+          provider_response?: string | null
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          attempts?: number
+          channel?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          provider_response?: string | null
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_logs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduling_tokens: {
+        Row: {
+          application_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          purpose: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          purpose?: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          purpose?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduling_tokens_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       staff_countries: {
         Row: {
@@ -438,7 +761,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      book_appointment: {
+        Args: {
+          _application_id: string
+          _candidate_timezone: string
+          _ends_at: string
+          _interviewer_id: string
+          _meeting_link: string
+          _starts_at: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "recruiter" | "viewer"

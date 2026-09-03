@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, Search, Settings, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { CalendarClock, LogOut, Search, Settings, ShieldCheck, SlidersHorizontal } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -237,6 +237,12 @@ function Dashboard() {
                         ? ` · ${new Date(candidate.submitted_at).toLocaleDateString()}`
                         : ""}
                     </p>
+                    {candidate.appointment_at && (
+                      <p className="mt-1 text-xs font-medium text-primary">
+                        Interview {new Date(candidate.appointment_at).toLocaleString()} ·{" "}
+                        {candidate.interviewer ?? "Unassigned"} · {candidate.appointment_status}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <span

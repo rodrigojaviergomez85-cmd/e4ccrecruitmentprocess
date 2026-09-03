@@ -314,6 +314,18 @@ export async function runAnalysisForApplication(applicationId: string) {
       },
       { onConflict: "application_id" },
     );
+
+    // B2+ candidates qualify automatically and receive a secure scheduling link.
+    const { isSchedulingEligible } = await import("./interviews");
+    if (isSchedulingEligible(evaluation.cefr)) {
+      await db.from("applications").update({ status: "Qualified" }).eq("id", applicationId);
+      try {
+        const { sendSchedulingInvite } = await import("./scheduling.server");
+        await sendSchedulingInvite(applicationId);
+      } catch {
+        // Never fail the evaluation because a notification provider is down.
+      }
+    }
     return { ok: true };
 
   } catch (err) {
@@ -339,4 +351,43 @@ export const runAnalysis = createServerFn({ method: "POST" })
       return runAnalysisForApplication(data.applicationId);
     }
 
+  });
+
+/**
+ * Candidate outcome after the AI evaluation. Eligible candidates receive a
+ * fresh secure scheduling link; everyone else only sees a thank-you message.
+ */
+export const getOutcome = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => ownerSchema.parse(d))
+  .handler(async ({ data }) => {
+    await assertOwner(data.applicationId, data.token);
+    const db = await admin();
+    const { data: evaluation } = await db
+      .from("ai_evaluations")
+      .select("state, cefr")
+      .eq("application_id", data.applicationId)
+      .maybeSingle();
+
+    const { isSchedulingEligible } = await import("./interviews");
+    const { data: app } = await db
+      .from("applications")
+      .select("eligibility_override")
+      .eq("id", data.applicationId)
+      .maybeSingle();
+
+    const eligible =
+      app?.eligibility_override === true
+        ? true
+        : app?.eligibility_override === false
+          ? false
+          : isSchedulingEligible(evaluation?.cefr);
+
+    if (evaluation?.state !== "done") {
+      return { state: evaluation?.state ?? "pending", eligible: false, scheduleUrl: null };
+    }
+    if (!eligible) return { state: "done", eligible: false, scheduleUrl: null };
+
+    const { issueSchedulingToken, schedulingUrl } = await import("./scheduling.server");
+    const token = await issueSchedulingToken(data.applicationId);
+    return { state: "done", eligible: true, scheduleUrl: schedulingUrl(token) };
   });

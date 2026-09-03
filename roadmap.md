@@ -20,11 +20,16 @@
 - [x] Route guards for every staff page (StaffGate) + server-side checks; RLS on new tables
 - [x] `audit_logs` table + events (staff created / access changed / activated / reset link / password change)
 
-## Phase 3 — B2+ interview scheduling (TODO)
-- [ ] Ranked CEFR eligibility (server-side), manual override with note
-- [ ] Hashed scheduling tokens with expiry
-- [ ] Interview settings, availability, blocked dates, interviewers
-- [ ] UTC appointments, anti-double-booking constraint, statuses
-- [ ] Confirmation, reschedule/cancel, ICS + Google Calendar
-- [ ] Dashboard appointment columns/filters
-- [ ] Reminder job (cron) + `reminder_logs`, email now, WhatsApp disabled until configured
+## Phase 3 — B2+ interview scheduling (DONE)
+- [x] Ranked CEFR eligibility (server-side), manual override with note
+- [x] Hashed scheduling tokens with expiry
+- [x] Interview settings, availability, blocked dates, interviewers
+- [x] UTC appointments, anti-double-booking constraint, statuses
+- [x] Confirmation, reschedule/cancel, ICS + Google Calendar
+- [x] Dashboard appointment columns/filters
+- [x] Reminder job (cron) + `reminder_logs`, email now, WhatsApp disabled until configured
+
+## Pending configuration
+- [ ] Email provider secret (`RESEND_API_KEY`, `EMAIL_FROM`) — until then emails are logged as "Email not configured"
+- [ ] WhatsApp secrets (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`) — UI shows "WhatsApp not configured"
+- [ ] Schedule the cron POST to `/api/public/cron/reminders` (bearer `LOVABLE_CRON_SECRET`)

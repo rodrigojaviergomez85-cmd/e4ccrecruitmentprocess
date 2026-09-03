@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getCandidate, rerunAnalysis, updateCandidateStatus } from "@/lib/recruiter.functions";
+import { overrideEligibility, sendSchedulingLink } from "@/lib/interviews.functions";
+import { isSchedulingEligible } from "@/lib/interviews";
+import { Textarea } from "@/components/ui/textarea";
 import { cefrBand, scoreBand, SCORE_CATEGORIES, STATUS_OPTIONS } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 
@@ -199,6 +203,9 @@ function CandidateDetail() {
             </div>
           </div>
         </section>
+
+        <InterviewPanel applicationId={id} cefr={evaluation?.cefr ?? null} />
+
 
         <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
           <h2 className="text-lg font-bold">AI English assessment</h2>
@@ -392,5 +399,88 @@ function EvidenceList({ title, items }: { title: string; items: string[] | null 
         )}
       </ul>
     </div>
+  );
+}
+
+/** Scheduling eligibility, manual override (note required) and secure link. */
+function InterviewPanel({ applicationId, cefr }: { applicationId: string; cefr: string | null }) {
+  const sendLink = useServerFn(sendSchedulingLink);
+  const override = useServerFn(overrideEligibility);
+  const [note, setNote] = useState("");
+  const [link, setLink] = useState<string | null>(null);
+  const eligible = isSchedulingEligible(cefr);
+
+  const linkMutation = useMutation({
+    mutationFn: () => sendLink({ data: { applicationId } }),
+    onSuccess: (r) => {
+      setLink(r.url ?? null);
+      toast.success(r.sent ? "Scheduling link sent." : (r.email ?? "Not sent."));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const overrideMutation = useMutation({
+    mutationFn: (approve: boolean) => override({ data: { applicationId, approve, note } }),
+    onSuccess: () => {
+      setNote("");
+      toast.success("Eligibility override recorded in the audit log.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <h2 className="text-lg font-bold">Interview</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {eligible
+          ? `CEFR ${cefr} qualifies for an interview (B2 and above).`
+          : `CEFR ${cefr ?? "pending"} is below B2 — not eligible unless a recruiter approves manually.`}
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Button
+          variant="outline"
+          className="rounded-2xl"
+          disabled={linkMutation.isPending}
+          onClick={() => linkMutation.mutate()}
+        >
+          Send scheduling link
+        </Button>
+        {link && (
+          <a className="text-xs text-primary underline" href={link}>
+            {link}
+          </a>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-2">
+        <Label className="text-xs">Manual override note (required)</Label>
+        <Textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Why are you approving or rejecting this candidate?"
+          className="rounded-2xl"
+        />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="rounded-2xl"
+            disabled={note.trim().length < 5 || overrideMutation.isPending}
+            onClick={() => overrideMutation.mutate(true)}
+          >
+            Approve for interview
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-2xl"
+            disabled={note.trim().length < 5 || overrideMutation.isPending}
+            onClick={() => overrideMutation.mutate(false)}
+          >
+            Reject
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }
