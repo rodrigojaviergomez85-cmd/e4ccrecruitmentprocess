@@ -12,9 +12,9 @@ export const CEFR_RANK: Record<string, number> = {
   C2: 8,
 };
 
-export const MIN_SCHEDULING_RANK = CEFR_RANK["B2"]!;
+export const MIN_SCHEDULING_RANK = CEFR_RANK["B1"]!;
 
-/** B2 and above may schedule. A1, A2, B1 (and B1+) may not. */
+/** B1 and above may schedule. A1 and A2 may not. */
 export function isSchedulingEligible(cefr: string | null | undefined): boolean {
   if (!cefr) return false;
   const rank = CEFR_RANK[cefr.toUpperCase()];

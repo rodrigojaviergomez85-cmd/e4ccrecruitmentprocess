@@ -433,8 +433,8 @@ function InterviewPanel({ applicationId, cefr }: { applicationId: string; cefr: 
       <h2 className="text-lg font-bold">Interview</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {eligible
-          ? `CEFR ${cefr} qualifies for an interview (B2 and above).`
-          : `CEFR ${cefr ?? "pending"} is below B2 — not eligible unless a recruiter approves manually.`}
+          ? `CEFR ${cefr} qualifies for an interview (B1 and above).`
+          : `CEFR ${cefr ?? "pending"} is below B1 — not eligible unless a recruiter approves manually.`}
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

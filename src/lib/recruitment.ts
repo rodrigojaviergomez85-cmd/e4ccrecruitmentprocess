@@ -82,9 +82,9 @@ export function cefrBand(cefr: string | null | undefined): CefrBand {
   if (!cefr) return { label: "Not analyzed yet", tone: "warning", emoji: "⏳" };
   const idx = CEFR_ORDER.indexOf(cefr.toUpperCase());
   if (idx < 0) return { label: "Not analyzed yet", tone: "warning", emoji: "⏳" };
-  if (idx < CEFR_ORDER.indexOf("B2"))
+  if (idx < CEFR_ORDER.indexOf("B1"))
     return { label: "Below Preferred English Level", tone: "danger", emoji: "🔴" };
-  if (cefr.toUpperCase() === "B2")
+  if (cefr.toUpperCase() === "B1" || cefr.toUpperCase() === "B1+")
     return { label: "Human Review Recommended", tone: "warning", emoji: "🟡" };
   if (cefr.toUpperCase() === "B2+")
     return { label: "Strong English", tone: "success", emoji: "🟢" };

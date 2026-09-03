@@ -315,7 +315,7 @@ export async function runAnalysisForApplication(applicationId: string) {
       { onConflict: "application_id" },
     );
 
-    // B2+ candidates qualify automatically and receive a secure scheduling link.
+    // B1+ candidates qualify automatically and receive a secure scheduling link.
     const { isSchedulingEligible } = await import("./interviews");
     if (isSchedulingEligible(evaluation.cefr)) {
       await db.from("applications").update({ status: "Qualified" }).eq("id", applicationId);
