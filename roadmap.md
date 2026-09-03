@@ -11,14 +11,14 @@
 - [x] `staff_countries` + server-side country scoping for recruiters
 - [x] Admin Settings page (countries, cities, recruiter country access)
 
-## Phase 2 — Invitation-only staff accounts & security (TODO)
-- [ ] Roles admin/recruiter/viewer, `staff_profiles`, active flag, last login
-- [ ] Remove public sign-up; keep forgot password
-- [ ] Admin "Staff Access" page: create user, one-time temp password, activate/deactivate, reset link, roles + countries
-- [ ] `must_change_password` flow
-- [ ] Google login limited to authorized active staff
-- [ ] Route guards for every staff page; RLS review
-- [ ] `audit_logs` table + events
+## Phase 2 — Invitation-only staff accounts & security (DONE)
+- [x] Roles admin/recruiter/viewer, `staff_profiles`, active flag, last login
+- [x] Remove public sign-up; keep forgot password
+- [x] Admin "Staff Access" page: create user, one-time temp password, activate/deactivate, reset link, roles + countries
+- [x] `must_change_password` flow (`/change-password`)
+- [x] Google login limited to authorized active staff (StaffGate signs out others)
+- [x] Route guards for every staff page (StaffGate) + server-side checks; RLS on new tables
+- [x] `audit_logs` table + events (staff created / access changed / activated / reset link / password change)
 
 ## Phase 3 — B2+ interview scheduling (TODO)
 - [ ] Ranked CEFR eligibility (server-side), manual override with note
