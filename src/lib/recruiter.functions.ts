@@ -231,7 +231,7 @@ export const updateGrammarTest = createServerFn({ method: "POST" })
         {
           application_id: applicationId,
           ...patch,
-          ...(patch.grammar_test_verified ? { grammar_test_status: "Verified by recruiter" } : {}),
+          ...(patch['grammar_test_verified'] ? { grammar_test_status: "Verified by recruiter" } : {}),
         },
         { onConflict: "application_id" },
       );
@@ -262,7 +262,10 @@ export const updateReferenceVerification = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { db } = await staffContext(context.userId);
     const { applicationId, slot, ...rest } = data;
-    const patch = JSON.parse(JSON.stringify(rest)) as Record<string, unknown>;
+    const patch = JSON.parse(JSON.stringify(rest)) as {
+      verification_status?: string;
+      verification_notes?: string;
+    };
     const { error } = await db
       .from("work_references")
       .update(patch)
