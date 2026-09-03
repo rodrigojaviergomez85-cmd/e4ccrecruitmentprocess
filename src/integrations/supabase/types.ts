@@ -70,12 +70,19 @@ export type Database = {
       applications: {
         Row: {
           city: string
+          city_id: string | null
+          city_other: string | null
+          consent_at: string | null
+          contact_consent: boolean
           country: string
+          country_code: string | null
           created_at: string
           email: string
           full_name: string
           id: string
           phone: string
+          phone_country_code: string | null
+          phone_e164: string | null
           status: string
           submit_token: string
           submitted_at: string | null
@@ -85,12 +92,19 @@ export type Database = {
         }
         Insert: {
           city: string
+          city_id?: string | null
+          city_other?: string | null
+          consent_at?: string | null
+          contact_consent?: boolean
           country: string
+          country_code?: string | null
           created_at?: string
           email: string
           full_name: string
           id?: string
           phone: string
+          phone_country_code?: string | null
+          phone_e164?: string | null
           status?: string
           submit_token?: string
           submitted_at?: string | null
@@ -100,12 +114,19 @@ export type Database = {
         }
         Update: {
           city?: string
+          city_id?: string | null
+          city_other?: string | null
+          consent_at?: string | null
+          contact_consent?: boolean
           country?: string
+          country_code?: string | null
           created_at?: string
           email?: string
           full_name?: string
           id?: string
           phone?: string
+          phone_country_code?: string | null
+          phone_e164?: string | null
           status?: string
           submit_token?: string
           submitted_at?: string | null
@@ -113,7 +134,125 @@ export type Database = {
           teaching_experience?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "applications_city_id_fkey"
+            columns: ["city_id"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_country_code_fkey"
+            columns: ["country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      cities: {
+        Row: {
+          active: boolean
+          country_code: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          country_code: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          country_code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_country_code_fkey"
+            columns: ["country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      countries: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          dial_code: string
+          flag: string
+          name: string
+          sort_order: number
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          dial_code: string
+          flag?: string
+          name: string
+          sort_order?: number
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          dial_code?: string
+          flag?: string
+          name?: string
+          sort_order?: number
+          timezone?: string
+          updated_at?: string
+        }
         Relationships: []
+      }
+      staff_countries: {
+        Row: {
+          country_code: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_countries_country_code_fkey"
+            columns: ["country_code"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       transcripts: {
         Row: {
