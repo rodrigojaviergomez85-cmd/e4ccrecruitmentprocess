@@ -131,7 +131,14 @@ function InterviewsPage() {
   });
 
   const interviewerMutation = useMutation({
-    mutationFn: (data: Parameters<typeof saveInterviewer>[0]["data"]) => saveInterviewer({ data }),
+    mutationFn: (data: {
+      id?: string;
+      full_name: string;
+      email: string;
+      meeting_link: string;
+      country_codes: string[];
+      active: boolean;
+    }) => saveInterviewer({ data }),
     onSuccess: () => {
       toast.success("Interviewer saved.");
       setNewInterviewer({ full_name: "", email: "", meeting_link: "", country_codes: "" });

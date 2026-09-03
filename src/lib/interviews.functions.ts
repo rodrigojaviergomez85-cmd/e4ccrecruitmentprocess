@@ -126,7 +126,16 @@ export const upsertInterviewer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db, email } = await requireAdmin(context.userId);
-    const { error } = await db.from("interviewers").upsert({ ...data });
+    const payload = data.id ? { ...data, id: data.id } : { ...data, id: undefined };
+    const { error } = data.id
+      ? await db.from("interviewers").update({ ...data, id: data.id }).eq("id", data.id)
+      : await db.from("interviewers").insert({
+          full_name: payload.full_name,
+          email: payload.email,
+          meeting_link: payload.meeting_link,
+          country_codes: payload.country_codes,
+          active: payload.active,
+        });
     if (error) throw new Error(error.message);
     await audit(db, {
       actorId: context.userId,
