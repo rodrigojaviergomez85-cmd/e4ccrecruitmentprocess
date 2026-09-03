@@ -70,7 +70,7 @@ export const Route = createFileRoute("/process/$id")({
   component: ProcessPage,
 });
 
-type State = Awaited<ReturnType<typeof getRecruitmentProcess>>;
+type State = Extract<Awaited<ReturnType<typeof getRecruitmentProcess>>, { invalid: null }>;
 
 function ProcessPage() {
   const { id } = Route.useParams();
