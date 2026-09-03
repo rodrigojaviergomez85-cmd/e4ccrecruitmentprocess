@@ -97,7 +97,7 @@ function ProcessPage() {
   }
   if (error || !data)
     return <Denied message={error instanceof Error ? error.message : undefined} />;
-  if (data.invalid) return <Denied message={data.invalid} />;
+  if (data.invalid != null) return <Denied message={data.invalid} />;
 
 
 
