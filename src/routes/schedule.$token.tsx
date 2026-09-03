@@ -69,7 +69,9 @@ function SchedulePage() {
   });
 
   const invalidMessage = contextQuery.data?.invalid ?? null;
-  const context = invalidMessage ? null : (contextQuery.data ?? null);
+  const context =
+    contextQuery.data && contextQuery.data.invalid === null ? contextQuery.data : null;
+
   const eligible = context?.eligible === true;
   const tz =
     timezone ??
