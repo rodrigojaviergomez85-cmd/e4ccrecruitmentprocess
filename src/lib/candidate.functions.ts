@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { EXPERIENCE_OPTIONS, questionForSlot } from "./recruitment";
+import { EXPERIENCE_OPTIONS, isEligible, questionForSlot } from "./recruitment";
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(2).max(120),
@@ -18,7 +18,7 @@ const profileSchema = z.object({
   city_id: z.string().uuid().nullable(),
   city_other: z.string().trim().max(80).nullable(),
   teaching_experience: z.enum(EXPERIENCE_OPTIONS),
-  callcenter_experience: z.boolean(),
+  callcenter_experience_level: z.enum(EXPERIENCE_OPTIONS),
   contact_consent: z.literal(true),
 });
 
@@ -49,14 +49,20 @@ export const createApplication = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => profileSchema.parse(d))
   .handler(async ({ data }) => {
     const db = await admin();
+    const eligible = isEligible(data.teaching_experience, data.callcenter_experience_level);
     const { data: row, error } = await db
       .from("applications")
-      .insert({ ...data, taught_children: false, consent_at: new Date().toISOString() })
+      .insert({
+        ...data,
+        callcenter_experience: data.callcenter_experience_level !== "No experience",
+        taught_children: false,
+        consent_at: new Date().toISOString(),
+        ...(eligible ? {} : { status: "Not eligible" }),
+      })
       .select("id, submit_token")
-
       .single();
     if (error) throw new Error(error.message);
-    return { applicationId: row.id, token: row.submit_token };
+    return { applicationId: row.id, token: row.submit_token, eligible };
   });
 
 export const updateProfile = createServerFn({ method: "POST" })
