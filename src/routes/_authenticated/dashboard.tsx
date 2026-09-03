@@ -18,7 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useCountries } from "@/hooks/useLocations";
-import { listCandidates } from "@/lib/recruiter.functions";
+import { getMyAccess, listCandidates } from "@/lib/recruiter.functions";
 import { cefrBand, scoreBand, EXPERIENCE_OPTIONS, STATUS_OPTIONS } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,9 @@ function Dashboard() {
   const navigate = useNavigate();
   const list = useServerFn(listCandidates);
   const { data: countries = [] } = useCountries();
+  const access = useServerFn(getMyAccess);
+  const { data: myAccess } = useQuery({ queryKey: ["my-access"], queryFn: () => access() });
+  const isAdmin = Boolean(myAccess?.roles.includes("admin"));
   const [search, setSearch] = useState("");
   const [cefr, setCefr] = useState(ALL);
   const [country, setCountry] = useState(ALL);
@@ -84,9 +87,18 @@ function Dashboard() {
             <BrandMark className="h-8" />
             <p className="text-xs text-muted-foreground">Recruitment dashboard</p>
           </div>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/settings">
+                  <Settings className="mr-2 h-4 w-4" /> Settings
+                </Link>
+              </Button>
+            )}
           <Button variant="ghost" size="sm" onClick={() => void signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sign out
           </Button>
+          </div>
         </div>
       </header>
 
