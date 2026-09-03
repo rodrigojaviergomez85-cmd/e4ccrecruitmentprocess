@@ -115,6 +115,39 @@ function Apply() {
   const submit = useServerFn(submitApplication);
   const analyze = useServerFn(runAnalysis);
 
+  const { data: countries = [], isLoading: countriesLoading } = useCountries();
+  const { data: cities = [], isLoading: citiesLoading } = useCities(profile.country_code || null);
+
+  const countryOptions = countries.map((country) => ({
+    value: country.code,
+    label: `${country.flag} ${country.name}`,
+    keywords: country.code,
+  }));
+
+  const cityOptions = [
+    ...cities.map((city) => ({ value: city.id, label: city.name })),
+    { value: OTHER_CITY_VALUE, label: "Other city…" },
+  ];
+
+  const dialCountries = [
+    ...countries
+      .filter((country) => country.code !== "OTHER")
+      .map((country) => ({
+        code: country.code,
+        name: country.name,
+        dial_code: country.dial_code,
+        flag: country.flag,
+      })),
+    ...EXTRA_DIAL_CODES.filter((extra) => !countries.some((c) => c.code === extra.code)),
+  ];
+  const dialOptions = dialCountries.map((country) => ({
+    value: country.code,
+    label: `${country.flag} ${country.dial_code}`,
+    keywords: `${country.name} ${country.code} ${country.dial_code}`,
+  }));
+  const selectedDial = dialCountries.find((c) => c.code === profile.phone_dial_country);
+
+
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
