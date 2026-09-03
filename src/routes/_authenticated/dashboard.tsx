@@ -52,7 +52,7 @@ function Dashboard() {
   const [country, setCountry] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [experience, setExperience] = useState(ALL);
-  const [taughtChildren, setTaughtChildren] = useState(ALL);
+  const [callcenterExp, setCallcenterExp] = useState(ALL);
   const [minScore, setMinScore] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -63,10 +63,10 @@ function Dashboard() {
       ...(country !== ALL ? { country } : {}),
       ...(status !== ALL ? { status } : {}),
       ...(experience !== ALL ? { experience } : {}),
-      ...(taughtChildren !== ALL ? { taughtChildren: taughtChildren as "yes" | "no" } : {}),
+      ...(callcenterExp !== ALL ? { callcenterExperience: callcenterExp as "yes" | "no" } : {}),
       ...(minScore ? { minScore: Number(minScore) } : {}),
     }),
-    [search, cefr, country, status, experience, taughtChildren, minScore],
+    [search, cefr, country, status, experience, callcenterExp, minScore],
   );
 
   const { data, isLoading, error } = useQuery({
@@ -156,8 +156,8 @@ function Dashboard() {
               options={[...EXPERIENCE_OPTIONS]}
             />
             <div className="space-y-1.5">
-              <Label className="text-xs">Taught children</Label>
-              <Select value={taughtChildren} onValueChange={setTaughtChildren}>
+              <Label className="text-xs">Call center experience</Label>
+              <Select value={callcenterExp} onValueChange={setCallcenterExp}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -221,7 +221,7 @@ function Dashboard() {
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {candidate.teaching_experience}
-                      {candidate.taught_children ? " · Has taught children" : ""}
+                      {candidate.callcenter_experience ? " · Call center experience" : ""}{candidate.taught_children ? " · Has taught children" : ""}
                       {candidate.submitted_at
                         ? ` · ${new Date(candidate.submitted_at).toLocaleDateString()}`
                         : ""}
