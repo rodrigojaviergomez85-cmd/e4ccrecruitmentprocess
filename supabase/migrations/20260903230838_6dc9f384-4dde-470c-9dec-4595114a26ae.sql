@@ -1,0 +1,1 @@
+revoke all on function public.bootstrap_owner_account() from public, anon, authenticated;
