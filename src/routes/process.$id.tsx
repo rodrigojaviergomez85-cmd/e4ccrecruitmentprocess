@@ -70,7 +70,7 @@ export const Route = createFileRoute("/process/$id")({
   component: ProcessPage,
 });
 
-type State = Awaited<ReturnType<typeof getRecruitmentProcess>>;
+type State = Extract<Awaited<ReturnType<typeof getRecruitmentProcess>>, { invalid: null }>;
 
 function ProcessPage() {
   const { id } = Route.useParams();
@@ -95,7 +95,11 @@ function ProcessPage() {
       </Shell>
     );
   }
-  if (error || !data) return <Denied message={error instanceof Error ? error.message : undefined} />;
+  if (error || !data)
+    return <Denied message={error instanceof Error ? error.message : undefined} />;
+  if (data.invalid != null) return <Denied message={data.invalid} />;
+
+
 
   return (
     <Shell>
