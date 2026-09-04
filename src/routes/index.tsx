@@ -34,16 +34,35 @@ const STEPS = [
 ];
 
 function Welcome() {
+  const [signedIn, setSignedIn] = useState(false);
+
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) =>
+      setSignedIn(Boolean(session)),
+    );
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-secondary/60 via-background to-background">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-5 py-6">
         <BrandMark className="h-8" />
-        <Link
-          to="/auth"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          Recruiter login
-        </Link>
+        {signedIn ? (
+          <Link
+            to="/dashboard"
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Go to dashboard
+          </Link>
+        ) : (
+          <Link
+            to="/auth"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            Recruiter login
+          </Link>
+        )}
       </header>
 
       <div className="mx-auto max-w-3xl px-5 pb-20">
