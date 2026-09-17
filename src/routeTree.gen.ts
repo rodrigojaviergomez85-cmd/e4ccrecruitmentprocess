@@ -17,12 +17,15 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
+import { Route as AuthenticatedScorecardRouteImport } from './routes/_authenticated/scorecard'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
+import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
+import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -64,6 +67,11 @@ const AuthenticatedInterviewsRoute = AuthenticatedInterviewsRouteImport.update({
   path: '/interviews',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedScorecardRoute = AuthenticatedScorecardRouteImport.update({
+  id: '/scorecard',
+  path: '/scorecard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -95,6 +103,18 @@ const AuthenticatedCandidatesIdRoute =
     path: '/candidates/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEvaluationsIndexRoute =
+  AuthenticatedEvaluationsIndexRouteImport.update({
+    id: '/evaluations/',
+    path: '/evaluations/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedEvaluationsApplicationIdRoute =
+  AuthenticatedEvaluationsApplicationIdRouteImport.update({
+    id: '/evaluations/$applicationId',
+    path: '/evaluations/$applicationId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   id: '/api/public/cron/reminders',
   path: '/api/public/cron/reminders',
@@ -109,12 +129,15 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
+  '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRoutesByTo {
@@ -125,12 +148,15 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
+  '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRoutesById {
@@ -143,12 +169,15 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
+  '/_authenticated/scorecard': typeof AuthenticatedScorecardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRouteTypes {
@@ -161,12 +190,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/dashboard'
     | '/interviews'
+    | '/scorecard'
     | '/settings'
     | '/staff'
     | '/auth/callback'
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations/$applicationId'
+    | '/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -177,12 +209,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/dashboard'
     | '/interviews'
+    | '/scorecard'
     | '/settings'
     | '/staff'
     | '/auth/callback'
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations/$applicationId'
+    | '/evaluations'
     | '/api/public/cron/reminders'
   id:
     | '__root__'
@@ -194,12 +229,15 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/dashboard'
     | '/_authenticated/interviews'
+    | '/_authenticated/scorecard'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
     | '/auth/callback'
     | '/process/$id'
     | '/schedule/$token'
     | '/_authenticated/candidates/$id'
+    | '/_authenticated/evaluations/$applicationId'
+    | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesById: FileRoutesById
 }
@@ -273,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInterviewsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/scorecard': {
+      id: '/_authenticated/scorecard'
+      path: '/scorecard'
+      fullPath: '/scorecard'
+      preLoaderRoute: typeof AuthenticatedScorecardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -315,6 +360,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidatesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/evaluations/': {
+      id: '/_authenticated/evaluations/'
+      path: '/evaluations'
+      fullPath: '/evaluations/'
+      preLoaderRoute: typeof AuthenticatedEvaluationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/evaluations/$applicationId': {
+      id: '/_authenticated/evaluations/$applicationId'
+      path: '/evaluations/$applicationId'
+      fullPath: '/evaluations/$applicationId'
+      preLoaderRoute: typeof AuthenticatedEvaluationsApplicationIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/cron/reminders': {
       id: '/api/public/cron/reminders'
       path: '/api/public/cron/reminders'
@@ -328,17 +387,24 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedInterviewsRoute: typeof AuthenticatedInterviewsRoute
+  AuthenticatedScorecardRoute: typeof AuthenticatedScorecardRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
+  AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
+  AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedInterviewsRoute: AuthenticatedInterviewsRoute,
+  AuthenticatedScorecardRoute: AuthenticatedScorecardRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
+  AuthenticatedEvaluationsApplicationIdRoute:
+    AuthenticatedEvaluationsApplicationIdRoute,
+  AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

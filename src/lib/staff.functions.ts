@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export const STAFF_ROLES = ["admin", "recruiter", "viewer"] as const;
+export const STAFF_ROLES = ["admin", "evaluator", "recruiter", "viewer"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 async function getAdmin() {

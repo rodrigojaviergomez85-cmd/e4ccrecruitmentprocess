@@ -2,7 +2,16 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, LogOut, Search, Settings, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import {
+  BarChart3,
+  CalendarClock,
+  ClipboardCheck,
+  LogOut,
+  Search,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -47,6 +56,8 @@ function Dashboard() {
   const access = useServerFn(getMyAccess);
   const { data: myAccess } = useQuery({ queryKey: ["my-access"], queryFn: () => access() });
   const isAdmin = Boolean(myAccess?.roles.includes("admin"));
+  // Evaluation links only render for accounts the server will actually authorize.
+  const canEvaluate = isAdmin || Boolean(myAccess?.roles.includes("evaluator"));
   const [search, setSearch] = useState("");
   const [cefr, setCefr] = useState(ALL);
   const [country, setCountry] = useState(ALL);
@@ -88,6 +99,20 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground">Recruitment dashboard</p>
           </div>
           <div className="flex items-center gap-1">
+            {canEvaluate && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/evaluations">
+                  <ClipboardCheck className="mr-2 h-4 w-4" /> Evaluations
+                </Link>
+              </Button>
+            )}
+            {canEvaluate && (
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/scorecard">
+                  <BarChart3 className="mr-2 h-4 w-4" /> Scorecard
+                </Link>
+              </Button>
+            )}
             {isAdmin && (
               <Button asChild variant="ghost" size="sm">
                 <Link to="/settings">
