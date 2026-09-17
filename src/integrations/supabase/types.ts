@@ -371,6 +371,249 @@ export type Database = {
         }
         Relationships: []
       }
+      evaluation_audit: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          created_at: string
+          details: Json
+          evaluation_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          evaluation_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          evaluation_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_audit_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_jobs: {
+        Row: {
+          accomplishment: string
+          biggest_mistake: string
+          company: string
+          created_at: string
+          end_date: string
+          evaluation_id: string
+          gap_explanation: string
+          hired_to_do: string
+          id: string
+          position: string
+          rating_reason: string
+          reason_for_leaving: string
+          slot: number
+          start_date: string
+          supervisor_contact: string
+          supervisor_name: string
+          supervisor_rating: number | null
+        }
+        Insert: {
+          accomplishment?: string
+          biggest_mistake?: string
+          company?: string
+          created_at?: string
+          end_date?: string
+          evaluation_id: string
+          gap_explanation?: string
+          hired_to_do?: string
+          id?: string
+          position?: string
+          rating_reason?: string
+          reason_for_leaving?: string
+          slot?: number
+          start_date?: string
+          supervisor_contact?: string
+          supervisor_name?: string
+          supervisor_rating?: number | null
+        }
+        Update: {
+          accomplishment?: string
+          biggest_mistake?: string
+          company?: string
+          created_at?: string
+          end_date?: string
+          evaluation_id?: string
+          gap_explanation?: string
+          hired_to_do?: string
+          id?: string
+          position?: string
+          rating_reason?: string
+          reason_for_leaving?: string
+          slot?: number
+          start_date?: string
+          supervisor_contact?: string
+          supervisor_name?: string
+          supervisor_rating?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_jobs_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_verbs: {
+        Row: {
+          correct: boolean
+          created_at: string
+          evaluation_id: string
+          id: string
+          position: number
+          verb: string
+        }
+        Insert: {
+          correct?: boolean
+          created_at?: string
+          evaluation_id: string
+          id?: string
+          position?: number
+          verb: string
+        }
+        Update: {
+          correct?: boolean
+          created_at?: string
+          evaluation_id?: string
+          id?: string
+          position?: number
+          verb?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_verbs_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_evaluations: {
+        Row: {
+          application_id: string
+          appointment_id: string | null
+          category_scores: Json
+          comments: string | null
+          compliance_score: number | null
+          created_at: string
+          evaluator_id: string
+          final_result: string | null
+          hiring_bonus: string | null
+          id: string
+          interview_date: string | null
+          last_edited_by: string | null
+          last_roleplay_date: string | null
+          live_cefr: string | null
+          not_approved_other: string | null
+          not_approved_reasons: Json
+          red_flags: string | null
+          reopened_at: string | null
+          retake_date: string | null
+          retake_reason: string | null
+          sections: Json
+          started_at: string
+          status: string
+          submitted_at: string | null
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          appointment_id?: string | null
+          category_scores?: Json
+          comments?: string | null
+          compliance_score?: number | null
+          created_at?: string
+          evaluator_id: string
+          final_result?: string | null
+          hiring_bonus?: string | null
+          id?: string
+          interview_date?: string | null
+          last_edited_by?: string | null
+          last_roleplay_date?: string | null
+          live_cefr?: string | null
+          not_approved_other?: string | null
+          not_approved_reasons?: Json
+          red_flags?: string | null
+          reopened_at?: string | null
+          retake_date?: string | null
+          retake_reason?: string | null
+          sections?: Json
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          appointment_id?: string | null
+          category_scores?: Json
+          comments?: string | null
+          compliance_score?: number | null
+          created_at?: string
+          evaluator_id?: string
+          final_result?: string | null
+          hiring_bonus?: string | null
+          id?: string
+          interview_date?: string | null
+          last_edited_by?: string | null
+          last_roleplay_date?: string | null
+          live_cefr?: string | null
+          not_approved_other?: string | null
+          not_approved_reasons?: Json
+          red_flags?: string | null
+          reopened_at?: string | null
+          retake_date?: string | null
+          retake_reason?: string | null
+          sections?: Json
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_evaluations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_evaluations_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_settings: {
         Row: {
           allow_reapply_days: number
@@ -667,6 +910,27 @@ export type Database = {
           },
         ]
       }
+      scorecard_weights: {
+        Row: {
+          id: boolean
+          thresholds: Json
+          updated_at: string
+          weights: Json
+        }
+        Insert: {
+          id?: boolean
+          thresholds?: Json
+          updated_at?: string
+          weights?: Json
+        }
+        Update: {
+          id?: boolean
+          thresholds?: Json
+          updated_at?: string
+          weights?: Json
+        }
+        Relationships: []
+      }
       staff_countries: {
         Row: {
           country_code: string
@@ -926,6 +1190,14 @@ export type Database = {
         }
         Returns: string
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_active_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "recruiter" | "viewer" | "evaluator"
