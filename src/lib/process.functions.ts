@@ -265,7 +265,8 @@ export const saveWorkReference = createServerFn({ method: "POST" })
     const { db } = await assertEligible(data.applicationId, data.token);
     const { applicationId, token: _t, ...fields } = data;
     if (fields.supervisor_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.supervisor_email)) {
-      throw new Error("Please enter a valid supervisor email.");
+      const current = await loadState(db, applicationId);
+      return { ...current, error: "Please enter a valid supervisor email." };
     }
     await db.from("work_references").upsert(
       {
