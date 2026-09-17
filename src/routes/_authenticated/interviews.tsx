@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BellRing, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BellRing, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -25,6 +25,7 @@ import {
   removeBlockedDate,
   saveInterviewSettings,
   sendManualReminder,
+  syncCalendlyAppointments,
   updateAppointmentStatus,
   upsertInterviewer,
 } from "@/lib/interviews.functions";
@@ -81,6 +82,20 @@ function InterviewsPage() {
   const unblockDate = useServerFn(removeBlockedDate);
   const setStatus = useServerFn(updateAppointmentStatus);
   const remind = useServerFn(sendManualReminder);
+  const syncCalendly = useServerFn(syncCalendlyAppointments);
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncCalendly(),
+    onSuccess: (r) => {
+      toast.success(
+        `Calendly synced: ${r.created} new, ${r.updated} updated${
+          r.unmatched.length ? `, ${r.unmatched.length} without a matching application` : ""
+        }.`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const accessQuery = useQuery({ queryKey: ["my-access"], queryFn: () => loadAccess() });
   const configQuery = useQuery({ queryKey: ["interview-config"], queryFn: () => loadConfig() });
