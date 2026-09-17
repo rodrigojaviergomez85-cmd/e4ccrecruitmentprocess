@@ -29,6 +29,7 @@ import {
   createSystemInfoUploadTarget,
   getRecruitmentProcess,
   markSchedulingOpened,
+  recordCalendlyBooking,
   saveRecruitmentProgress,
   saveResume,
   saveSystemInfo,
@@ -249,7 +250,7 @@ function Content({
 
       <ReferencesCard state={state} id={id} token={token} onState={onState} />
 
-      <SchedulingCard state={state} />
+      <SchedulingCard state={state} id={id} token={token} />
     </>
   );
 }
