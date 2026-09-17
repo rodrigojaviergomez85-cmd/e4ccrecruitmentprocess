@@ -603,9 +603,12 @@ function ReferencesCard({
           
           initial={state.references.find((r) => r.slot === slot)}
           onSave={async (values) => {
-            const next = await save({ data: { applicationId: id, token, slot, ...values } });
+            const next = (await save({
+              data: { applicationId: id, token, slot, ...values },
+            })) as State & { error?: string };
             onState(next as State);
-            toast.success("Reference saved");
+            if (next.error) toast.error(next.error);
+            else toast.success("Reference saved");
           }}
         />
       ))}
