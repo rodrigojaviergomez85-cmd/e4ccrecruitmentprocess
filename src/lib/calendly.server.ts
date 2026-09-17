@@ -135,7 +135,7 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
         candidate_timezone: invitee.timezone ?? "UTC",
         meeting_link: meetingLink(event),
         notes: marker,
-        ...(canceled ? { canceled_at: new Date().toISOString() } : { canceled_at: null }),
+        canceled_at: canceled ? new Date().toISOString() : (null as string | null),
       };
 
       if (existing) {
