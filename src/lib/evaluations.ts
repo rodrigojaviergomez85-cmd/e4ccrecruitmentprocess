@@ -1,6 +1,15 @@
 /** Shared, client-safe domain model for the E4CC Interview Evaluations module. */
 
-export const EVALUATION_STATUSES = ["Not started", "In progress", "Submitted", "Reopened"] as const;
+export const EVALUATION_STATUSES = [
+  "Not started",
+  "In progress",
+  "Submitted",
+  "Retake pending",
+  "Reopened",
+] as const;
+export const isLockedStatus = (status?: string | null) =>
+  status === "Submitted" || status === "Retake pending";
+
 export type EvaluationStatus = (typeof EVALUATION_STATUSES)[number];
 
 export const FINAL_RESULTS = ["Approved for last step", "Retake required", "Not approved"] as const;
@@ -24,6 +33,63 @@ export const HIRING_BONUS_OPTIONS = [
   "$100 — Teaching/Call Center experience, Superstar/Great Online profile",
   "No hiring bonus — PB/PB+ profile",
 ] as const;
+
+/** Verb bank offered to the evaluator. They assess between 5 and 10 of them. */
+export const VERB_BANK = [
+  "Ride / Rode / Ridden",
+  "Freeze / Froze / Frozen",
+  "Swim / Swam / Swum",
+  "Hide / Hid / Hidden",
+  "Teach / Taught / Taught",
+  "Hear / Heard / Heard",
+  "Drive / Drove / Driven",
+  "Withdraw / Withdrew / Withdrawn",
+  "Fly / Flew / Flown",
+  "Hold / Held / Held",
+  "Grow / Grew / Grown",
+  "Know / Knew / Known",
+  "Catch / Caught / Caught",
+  "Leave / Left / Left",
+  "Bring / Brought / Brought",
+  "Make / Made / Made",
+  "Seek / Sought / Sought",
+  "Build / Built / Built",
+  "Fight / Fought / Fought",
+  "Ring / Rang / Rung",
+] as const;
+
+export const SCHEDULE_OPTIONS = [
+  "Weekends Only",
+  "5:50 PM + Weekends",
+  "AM + Weekends",
+  "PM + Weekends",
+  "6:30 PM–9:35 PM Online",
+  "Full Time AM/PM",
+] as const;
+
+export const REFERRAL_SOURCES = ["Facebook", "Instagram", "Other"] as const;
+
+export const VALUE_RATING_LABELS: Record<number, string> = {
+  1: "1 — Major concern",
+  2: "2 — Below expectations",
+  3: "3 — Meets expectations",
+  4: "4 — Strong",
+  5: "5 — Superstar evidence",
+};
+
+export const ONLINE_MINIMUM_SPECS = [
+  "Intel i3 8th generation or newer",
+  "AMD Ryzen 3 or equivalent",
+  "8 GB RAM",
+  "Working camera and microphone",
+  "Stable internet connection, minimum 10 Mbps",
+] as const;
+
+export const VARIABLE_SCHEDULE_WARNING =
+  "Potential disqualifier: the candidate may not be able to guarantee their E4CC classes. Document the situation. The candidate may reapply if their work schedule changes.";
+
+export const ENGLISH_INTRO =
+  "This interview may last from 20 to 30 minutes. We will review your English, work experience, goals and aspirations. At the end, you will have an opportunity to ask questions.";
 
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B1+", "B2", "B2+", "C1", "C2"] as const;
 
@@ -51,7 +117,6 @@ export const ENGLISH_ACTIVITIES = [
   { key: "conditionals", label: "Conditionals" },
   { key: "comparatives", label: "Comparatives" },
   { key: "phrasal", label: "Phrasal verbs" },
-  { key: "class_roleplay", label: "Class roleplay" },
   { key: "mistakes_wh", label: "Mistakes and WH questions roleplay" },
 ] as const;
 
@@ -71,9 +136,10 @@ export type SectionKey = (typeof SECTIONS)[number]["key"];
 
 export const DEFAULT_WEIGHTS = {
   english: 20,
-  grammar: 20,
+  grammar: 15,
+  verbs: 10,
   teaching: 20,
-  experience: 15,
+  experience: 10,
   availability: 15,
   values: 10,
 };
@@ -82,11 +148,12 @@ export type Weights = typeof DEFAULT_WEIGHTS;
 
 export const SCORE_CATEGORY_LABELS: Record<keyof Weights, string> = {
   english: "English communication",
-  grammar: "Grammar and irregular verbs",
-  teaching: "Teaching demonstration and class roleplay",
-  experience: "Experience and job history",
+  grammar: "Grammar knowledge",
+  verbs: "Irregular verbs",
+  teaching: "Teaching / class roleplay",
+  experience: "Experience",
   availability: "Availability and commitment",
-  values: "Culture and E4CC values",
+  values: "E4CC values and cultural fit",
 };
 
 export type VerbResult = { verb: string; correct: boolean };
@@ -215,7 +282,9 @@ export function missingRequired(input: ComplianceInput): string[] {
   const get = (section: string, key: string) => (s[section] ?? {})[key];
   const missing: string[] = [];
   if (!filled(get("candidate", "lob"))) missing.push("LOB (Online or Onsite)");
-  if (!filled(get("english", "level"))) missing.push("Final English level");
+  if (!filled(get("english", "level"))) missing.push("Live interview English level");
+  if (!filled(get("grammar_test", "completed"))) missing.push("Grammar Test answer");
+  if (!filled(get("profile", "availability_required"))) missing.push("Availability confirmation");
   if (input.verbs.filter((v) => v.verb.trim()).length < 5)
     missing.push("At least 5 irregular verbs evaluated");
   if (input.jobsCount < 1) missing.push("At least one job history entry");
@@ -230,14 +299,15 @@ export function missingRequired(input: ComplianceInput): string[] {
   }
   if (input.finalResult === "Retake required") {
     if (!filled(get("result", "retake_reason"))) missing.push("Retake reason");
+    if (!filled(get("result", "retake_improvements"))) missing.push("Areas to improve");
     if (!filled(input.retakeDate)) missing.push("Retake date");
     if (!filled(input.comments)) missing.push("Evaluator comments");
   }
   if (input.finalResult === "Not approved") {
     const reasons = (s["result"]?.["not_approved_reasons"] as string[] | undefined) ?? [];
     if (!reasons.length) missing.push("At least one rejection reason");
-    if (reasons.includes("Other") && !filled(input.comments))
-      missing.push("Comments for the 'Other' reason");
+    if (!filled(input.comments)) missing.push("Final interview comments");
+    if (!filled(input.redFlags)) missing.push("Red flags identified");
   }
   if (input.isOnline && !filled(get("equipment", "meets_requirements")))
     missing.push("Equipment and internet check");

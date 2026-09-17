@@ -102,7 +102,7 @@ function Dashboard() {
             {canEvaluate && (
               <Button asChild variant="ghost" size="sm">
                 <Link to="/evaluations">
-                  <ClipboardCheck className="mr-2 h-4 w-4" /> Evaluations
+                  <ClipboardCheck className="mr-2 h-4 w-4" /> E4CC Interviews
                 </Link>
               </Button>
             )}
