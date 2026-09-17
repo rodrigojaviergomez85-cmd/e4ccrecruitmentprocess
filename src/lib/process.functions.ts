@@ -263,7 +263,7 @@ export const saveRecruitmentProgress = createServerFn({ method: "POST" })
   });
 
 const referenceSchema = ownerSchema.extend({
-  slot: z.number().int().min(1).max(2),
+  slot: z.number().int().min(1).max(MAX_REFERENCES),
   company: z.string().trim().max(120),
   position: z.string().trim().max(120),
   start_date: z.string().trim().max(20).nullable(),
