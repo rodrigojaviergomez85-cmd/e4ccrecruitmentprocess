@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   DEFAULT_WEIGHTS,
+  isLockedStatus,
   STATUS_FOR_RESULT,
   complianceScore,
   missingRequired,
@@ -79,7 +80,13 @@ async function audit(
 
 async function loadWeights(db: Db): Promise<Weights> {
   const { data } = await db.from("scorecard_weights").select("weights").eq("id", true).maybeSingle();
-  return { ...DEFAULT_WEIGHTS, ...((data?.weights as Partial<Weights>) ?? {}) };
+  const stored = (data?.weights as Partial<Weights>) ?? {};
+  // Only keys the current category set knows about; legacy keys are ignored.
+  const merged = { ...DEFAULT_WEIGHTS };
+  for (const key of Object.keys(DEFAULT_WEIGHTS) as Array<keyof Weights>) {
+    if (typeof stored[key] === "number") merged[key] = stored[key];
+  }
+  return merged;
 }
 
 export const getEvaluatorAccess = createServerFn({ method: "GET" })
@@ -390,7 +397,7 @@ async function loadEditable(db: Db, evaluationId: string) {
     .eq("id", evaluationId)
     .maybeSingle();
   if (!evaluation) throw new Error("Evaluation not found.");
-  if (evaluation.status === "Submitted")
+  if (isLockedStatus(evaluation.status))
     throw new Error("This evaluation was submitted and is read-only. An admin must reopen it.");
   return evaluation;
 }
@@ -458,7 +465,13 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         total_score: total,
         compliance_score: compliance,
         last_edited_by: context.userId,
-        status: data.submit ? "Submitted" : current.status === "Reopened" ? "Reopened" : "In progress",
+        status: data.submit
+          ? data.finalResult === "Retake required"
+            ? "Retake pending"
+            : "Submitted"
+          : current.status === "Reopened"
+            ? "Reopened"
+            : "In progress",
         submitted_at: data.submit ? new Date().toISOString() : current.submitted_at,
       })
       .eq("id", data.evaluationId);

@@ -24,7 +24,7 @@ import { EVALUATION_STATUSES } from "@/lib/evaluations";
 export const Route = createFileRoute("/_authenticated/evaluations/")({
   head: () => ({
     meta: [
-      { title: "Interview Evaluations — E4CC" },
+      { title: "E4CC Interviews — Evaluator workspace" },
       {
         name: "description",
         content: "Internal E4CC page to run live interview evaluations for scheduled candidates.",
@@ -100,10 +100,24 @@ function EvaluationsPage() {
       },
       { title: "In progress", items: rows.filter((r) => r.evaluationStatus === "In progress" || r.evaluationStatus === "Reopened") },
       { title: "Submitted", items: rows.filter((r) => r.evaluationStatus === "Submitted") },
-      { title: "Retakes pending", items: rows.filter((r) => r.finalResult === "Retake required") },
+      {
+        title: "Retakes pending",
+        items: rows.filter(
+          (r) => r.finalResult === "Retake required" || r.evaluationStatus === "Retake pending",
+        ),
+      },
       {
         title: "Approved for last step",
         items: rows.filter((r) => r.finalResult === "Approved for last step"),
+      },
+      {
+        title: "Not started",
+        items: rows.filter(
+          (r) =>
+            r.evaluationStatus === "Not started" &&
+            (!r.appointmentAt || r.appointmentAt < new Date().toISOString()) &&
+            !isToday(r.appointmentAt),
+        ),
       },
     ],
     [rows],
@@ -121,7 +135,7 @@ function EvaluationsPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-secondary/30 px-5">
         <div className="max-w-md rounded-2xl border border-border bg-card p-6 text-center">
-          <h1 className="text-lg font-semibold">Interview Evaluations</h1>
+          <h1 className="text-lg font-semibold">E4CC Interviews</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your account does not have permission to open interview evaluations.
           </p>
@@ -139,7 +153,7 @@ function EvaluationsPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div>
             <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">Interview evaluations</p>
+            <p className="text-xs text-muted-foreground">E4CC Interviews</p>
           </div>
           <div className="flex items-center gap-1">
             <Button asChild variant="ghost" size="sm">

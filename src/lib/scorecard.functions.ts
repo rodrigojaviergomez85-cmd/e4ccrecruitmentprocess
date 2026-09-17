@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { levelDifference } from "./evaluations";
+import { isLockedStatus, levelDifference } from "./evaluations";
 
 /** Embedded Supabase relations arrive as a row or an array depending on the relationship. */
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -186,7 +186,7 @@ export const getScorecard = createServerFn({ method: "POST" })
     const { rows, evaluators } = await buildRows(context.userId, data);
 
     const scheduled = rows.filter((r) => r.appointmentAt).length;
-    const completed = rows.filter((r) => r.evaluationStatus === "Submitted").length;
+    const completed = rows.filter((r) => isLockedStatus(r.evaluationStatus)).length;
     const approved = rows.filter((r) => r.finalResult === "Approved for last step").length;
     const retakes = rows.filter((r) => r.finalResult === "Retake required").length;
     const notApproved = rows.filter((r) => r.finalResult === "Not approved").length;
@@ -222,7 +222,7 @@ export const getScorecard = createServerFn({ method: "POST" })
     const evaluatorRows = evaluators
       .map((e) => {
         const mine = rows.filter((r) => r.evaluatorId === e.id);
-        const done = mine.filter((r) => r.evaluationStatus === "Submitted");
+        const done = mine.filter((r) => isLockedStatus(r.evaluationStatus));
         return {
           evaluator: e.name,
           assigned: mine.length,
@@ -251,7 +251,7 @@ export const getScorecard = createServerFn({ method: "POST" })
         avgCompliance: avg(rows.map((r) => r.complianceScore)),
         avgGrammarTest: avg(rows.map((r) => r.grammarTestScore)),
         pendingFinalInterview: rows.filter(
-          (r) => r.finalResult === "Approved for last step" && r.evaluationStatus === "Submitted",
+          (r) => r.finalResult === "Approved for last step" && isLockedStatus(r.evaluationStatus),
         ).length,
         pendingRetake: retakes,
         teachingExperienceRate: rows.length

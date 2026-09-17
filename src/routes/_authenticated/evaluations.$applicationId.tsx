@@ -31,8 +31,16 @@ import {
   NOT_APPROVED_REASONS,
   SCORE_CATEGORY_LABELS,
   SECTIONS,
+  ENGLISH_INTRO,
+  ONLINE_MINIMUM_SPECS,
+  REFERRAL_SOURCES,
+  SCHEDULE_OPTIONS,
+  VALUE_RATING_LABELS,
+  VARIABLE_SCHEDULE_WARNING,
+  VERB_BANK,
   WRITING_TOPICS,
   complianceItems,
+  isLockedStatus,
   complianceScore,
   levelDifference,
   missingRequired,
@@ -45,7 +53,7 @@ import { openEvaluation, reopenEvaluation, saveEvaluation } from "@/lib/evaluati
 export const Route = createFileRoute("/_authenticated/evaluations/$applicationId")({
   head: () => ({
     meta: [
-      { title: "Live Interview Evaluation — E4CC" },
+      { title: "E4CC Interview — Live evaluation" },
       {
         name: "description",
         content: "Guided E4CC live interview evaluation form with scoring and compliance tracking.",
@@ -140,7 +148,7 @@ function EvaluationForm() {
   const evaluation = data?.evaluation ?? null;
   const candidate = data?.candidate ?? null;
   const weights: Weights = (data?.weights as Weights) ?? DEFAULT_WEIGHTS;
-  const locked = evaluation?.status === "Submitted" || !data?.access.canEvaluate;
+  const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate;
 
   useEffect(() => {
     if (!evaluation || hydrated) return;
@@ -317,7 +325,7 @@ function EvaluationForm() {
             {error instanceof Error ? error.message : "This candidate could not be loaded."}
           </p>
           <Button asChild className="mt-4" variant="outline">
-            <Link to="/evaluations">Back to evaluations</Link>
+            <Link to="/evaluations">Back to E4CC Interviews</Link>
           </Button>
         </div>
       </main>
@@ -333,7 +341,7 @@ function EvaluationForm() {
             This candidate has no evaluation and your account cannot create one.
           </p>
           <Button asChild className="mt-4" variant="outline">
-            <Link to="/evaluations">Back to evaluations</Link>
+            <Link to="/evaluations">Back to E4CC Interviews</Link>
           </Button>
         </div>
       </main>
@@ -349,10 +357,10 @@ function EvaluationForm() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div>
             <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">Live interview evaluation</p>
+            <p className="text-xs text-muted-foreground">E4CC Interview — live evaluation</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant={evaluation.status === "Submitted" ? "default" : "secondary"}>
+            <Badge variant={isLockedStatus(evaluation.status) ? "default" : "secondary"}>
               {evaluation.status}
             </Badge>
             {locked ? (
@@ -372,7 +380,7 @@ function EvaluationForm() {
                       : "Autosave on"}
               </span>
             )}
-            {data.access.isAdmin && evaluation.status === "Submitted" && (
+            {data.access.isAdmin && isLockedStatus(evaluation.status) && (
               <Button size="sm" variant="outline" onClick={() => void reopen()}>
                 <Unlock className="mr-2 h-4 w-4" /> Reopen
               </Button>
@@ -456,13 +464,56 @@ function EvaluationForm() {
               <Field label="Candidate">
                 <Input value={candidate.fullName} readOnly />
               </Field>
-              <Field label="Referral or external lead source">
-                <Input
-                  value={str("candidate", "referral_source")}
-                  maxLength={80}
-                  onChange={(e) => set("candidate", "referral_source", e.target.value)}
-                />
+              <Field label="Candidate phone">
+                <Input value={candidate.phone} readOnly />
               </Field>
+              <Field label="Candidate email">
+                <Input value={candidate.email} readOnly />
+              </Field>
+              <Field label="Was this person referred?">
+                <Select
+                  value={str("candidate", "referred")}
+                  onValueChange={(v) => set("candidate", "referred", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YES_NO.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              {str("candidate", "referred") === "Yes" ? (
+                <Field label="Name of the person who referred the applicant">
+                  <Input
+                    value={str("candidate", "referrer_name")}
+                    maxLength={80}
+                    onChange={(e) => set("candidate", "referrer_name", e.target.value)}
+                  />
+                </Field>
+              ) : (
+                <Field label="External source">
+                  <Select
+                    value={str("candidate", "referral_source")}
+                    onValueChange={(v) => set("candidate", "referral_source", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REFERRAL_SOURCES.map((v) => (
+                        <SelectItem key={v} value={v}>
+                          {v}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
               <Field label="Country">
                 <Input value={candidate.country} readOnly />
               </Field>
@@ -487,10 +538,21 @@ function EvaluationForm() {
                 </Select>
               </Field>
               <Field label="Schedule selected">
-                <Input
+                <Select
                   value={str("candidate", "schedule")}
-                  onChange={(e) => set("candidate", "schedule", e.target.value)}
-                />
+                  onValueChange={(v) => set("candidate", "schedule", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCHEDULE_OPTIONS.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Training start date">
                 <Input
@@ -514,11 +576,23 @@ function EvaluationForm() {
 
           {current.key === "equipment" && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <p className="text-xs text-muted-foreground sm:col-span-2">
-                Minimum recommendation: Intel i3 8th gen or newer (or AMD Ryzen 3 equivalent), 8 GB
-                RAM, stable camera and microphone, and the internet speed configured by E4CC.
-                Candidate self-reported speed: {candidate.internetSpeed ?? "—"} Mbps.
-              </p>
+              <div className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground sm:col-span-2">
+                <p className="font-medium text-foreground">Minimum recommendation</p>
+                <ul className="mt-1 list-disc pl-4">
+                  {ONLINE_MINIMUM_SPECS.map((spec) => (
+                    <li key={spec}>{spec}</li>
+                  ))}
+                </ul>
+                <p className="mt-2">
+                  Candidate self-reported speed: {candidate.internetSpeed ?? "—"} Mbps.
+                </p>
+              </div>
+              {str("equipment", "meets_requirements") === "No" && (
+                <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive sm:col-span-2">
+                  The candidate does not meet the PC or internet requirements. Document it here and
+                  continue the interview — this does not reject the candidate automatically.
+                </p>
+              )}
               <Field label="Download speed (Mbps)">
                 <Input
                   value={str("equipment", "download")}
@@ -669,7 +743,12 @@ function EvaluationForm() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Main job schedule">
+              {str("profile", "main_schedule") === "Variable" && (
+                <p className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive sm:col-span-2">
+                  {VARIABLE_SCHEDULE_WARNING}
+                </p>
+              )}
+              <Field label="Is the current work schedule fixed every week or variable (business needs / on-call)?">
                 <Select
                   value={str("profile", "main_schedule")}
                   onValueChange={(v) => set("profile", "main_schedule", v)}
@@ -678,8 +757,8 @@ function EvaluationForm() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Fixed">Fixed</SelectItem>
-                    <SelectItem value="Variable">Variable</SelectItem>
+                    <SelectItem value="Fixed">Fixed schedule</SelectItem>
+                    <SelectItem value="Variable">Variable main-job schedule</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -724,13 +803,13 @@ function EvaluationForm() {
                   onChange={(e) => set("profile", "training_start", e.target.value)}
                 />
               </Field>
-              <Field label="Teaching with positive energy after a difficult day">
+              <Field label="It is 7:30 p.m., they are tired after their main job — what would they do to be ready to teach with positive energy at 8:05 p.m.?">
                 <Textarea
                   value={str("profile", "energy_answer")}
                   onChange={(e) => set("profile", "energy_answer", e.target.value)}
                 />
               </Field>
-              <Field label="Routine before teaching">
+              <Field label="Daily routine from leaving the other job until teaching at 8:05 p.m. (place, dinner, late/tired/sick)">
                 <Textarea
                   value={str("profile", "routine_answer")}
                   onChange={(e) => set("profile", "routine_answer", e.target.value)}
@@ -756,6 +835,9 @@ function EvaluationForm() {
 
           {current.key === "english" && (
             <div className="space-y-5">
+              <p className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                Read to the candidate: “{ENGLISH_INTRO}”
+              </p>
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Irregular verbs (5 to 10)</h3>
                 <p className="text-xs text-muted-foreground">
@@ -765,18 +847,25 @@ function EvaluationForm() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {verbs.map((v, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <Input
-                        placeholder={`Verb ${i + 1}`}
+                      <Select
                         value={v.verb}
-                        maxLength={60}
-                        onChange={(e) =>
+                        onValueChange={(val) =>
                           setVerbs((prev) =>
-                            prev.map((row, idx) =>
-                              idx === i ? { ...row, verb: e.target.value } : row,
-                            ),
+                            prev.map((row, idx) => (idx === i ? { ...row, verb: val } : row)),
                           )
                         }
-                      />
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder={`Verb ${i + 1}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VERB_BANK.map((verb) => (
+                            <SelectItem key={verb} value={verb}>
+                              {verb}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Select
                         value={v.correct ? "Correct" : "Incorrect"}
                         onValueChange={(val) =>
@@ -821,6 +910,29 @@ function EvaluationForm() {
                 ))}
               </div>
 
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <h3 className="text-sm font-semibold">Class roleplay</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {(
+                    [
+                      ["roleplay_topic", "Topic assigned"],
+                      ["roleplay_notes", "Evaluator observations"],
+                      ["roleplay_clarity", "Teaching clarity"],
+                      ["roleplay_confidence", "Confidence"],
+                      ["roleplay_grammar", "Grammar accuracy"],
+                      ["roleplay_coach", "Coach profile"],
+                    ] as Array<[string, string]>
+                  ).map(([key, label]) => (
+                    <Field key={key} label={label}>
+                      <Textarea
+                        value={str("english", key)}
+                        onChange={(e) => set("english", key, e.target.value)}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Three-minute writing test — topic">
                   <Select
@@ -839,7 +951,17 @@ function EvaluationForm() {
                     </SelectContent>
                   </Select>
                 </Field>
-                <Field label="Writing test notes">
+                <Field
+                  label="Candidate's writing (8–10 lines, three-minute limit)"
+                  hint="Paste or type exactly what the candidate wrote."
+                >
+                  <Textarea
+                    rows={6}
+                    value={str("english", "writing_text")}
+                    onChange={(e) => set("english", "writing_text", e.target.value)}
+                  />
+                </Field>
+                <Field label="Writing test observations">
                   <Textarea
                     value={str("english", "writing_notes")}
                     onChange={(e) => set("english", "writing_notes", e.target.value)}
@@ -909,10 +1031,22 @@ function EvaluationForm() {
                   onChange={(e) => set("studies", "major", e.target.value)}
                 />
               </Field>
-              <Field label="Years attended">
+              <Field label="Start year">
                 <Input
-                  value={str("studies", "years")}
-                  onChange={(e) => set("studies", "years", e.target.value)}
+                  value={str("studies", "start_year")}
+                  onChange={(e) => set("studies", "start_year", e.target.value)}
+                />
+              </Field>
+              <Field label="End year">
+                <Input
+                  value={str("studies", "end_year")}
+                  onChange={(e) => set("studies", "end_year", e.target.value)}
+                />
+              </Field>
+              <Field label="Evaluator notes">
+                <Textarea
+                  value={str("studies", "notes")}
+                  onChange={(e) => set("studies", "notes", e.target.value)}
                 />
               </Field>
               <Field label="Additional studies, courses or certifications">
@@ -1021,6 +1155,9 @@ function EvaluationForm() {
                   </div>
                 </div>
               ))}
+              <p className="text-xs text-muted-foreground">
+                Does the candidate have additional job experience? Add another position (up to 5).
+              </p>
               {jobs.length < 5 && (
                 <Button
                   type="button"
@@ -1070,7 +1207,7 @@ function EvaluationForm() {
                       <SelectContent>
                         {[1, 2, 3, 4, 5].map((n) => (
                           <SelectItem key={n} value={String(n)}>
-                            {n}
+                            {VALUE_RATING_LABELS[n]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1078,12 +1215,32 @@ function EvaluationForm() {
                   </Field>
                 ))}
               </div>
-              <Field label="Private evaluator notes">
-                <Textarea
-                  value={str("values", "private_notes")}
-                  onChange={(e) => set("values", "private_notes", e.target.value)}
-                />
-              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Strengths">
+                  <Textarea
+                    value={str("values", "strengths")}
+                    onChange={(e) => set("values", "strengths", e.target.value)}
+                  />
+                </Field>
+                <Field label="Concerns">
+                  <Textarea
+                    value={str("values", "concerns")}
+                    onChange={(e) => set("values", "concerns", e.target.value)}
+                  />
+                </Field>
+                <Field label="Red flags">
+                  <Textarea
+                    value={str("values", "red_flags")}
+                    onChange={(e) => set("values", "red_flags", e.target.value)}
+                  />
+                </Field>
+                <Field label="General evaluator comments (private)">
+                  <Textarea
+                    value={str("values", "private_notes")}
+                    onChange={(e) => set("values", "private_notes", e.target.value)}
+                  />
+                </Field>
+              </div>
             </div>
           )}
 
@@ -1184,6 +1341,12 @@ function EvaluationForm() {
                       onChange={(e) => set("result", "retake_reason", e.target.value)}
                     />
                   </Field>
+                  <Field label="Areas the candidate must improve">
+                    <Textarea
+                      value={str("result", "retake_improvements")}
+                      onChange={(e) => set("result", "retake_improvements", e.target.value)}
+                    />
+                  </Field>
                   <Field label="Retake date">
                     <Input
                       type="date"
@@ -1217,9 +1380,14 @@ function EvaluationForm() {
                       </label>
                     ))}
                   </div>
-                  <Field label="Comments">
-                    <Textarea value={comments} onChange={(e) => setComments(e.target.value)} />
-                  </Field>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Final interview comments">
+                      <Textarea value={comments} onChange={(e) => setComments(e.target.value)} />
+                    </Field>
+                    <Field label="Red flags identified">
+                      <Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} />
+                    </Field>
+                  </div>
                 </div>
               )}
 
