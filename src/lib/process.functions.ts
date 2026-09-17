@@ -133,7 +133,15 @@ async function loadState(db: Db, applicationId: string) {
   await db
     .from("recruitment_progress")
     .upsert({ application_id: applicationId }, { onConflict: "application_id", ignoreDuplicates: true });
-  for (const slot of REFERENCE_SLOTS) {
+  const { data: progressRow } = await db
+    .from("recruitment_progress")
+    .select("jobs_count")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+  // How many past jobs the candidate declared drives how many reference forms
+  // exist (1 to 4). Until they answer we keep the historic two slots.
+  const wanted = Math.min(MAX_REFERENCES, Math.max(1, progressRow?.jobs_count ?? 2));
+  for (let slot = 1; slot <= wanted; slot += 1) {
     await db
       .from("work_references")
       .upsert(
@@ -147,13 +155,17 @@ async function loadState(db: Db, applicationId: string) {
       .from("work_references")
       .select("*")
       .eq("application_id", applicationId)
+      .lte("slot", wanted)
       .order("slot"),
   ]);
   const refs = (references ?? []).map((r) => {
     const { verification_notes: _notes, ...safe } = r;
     return safe;
   });
-  const complete = refs.length === 2 && refs.every((r) => referenceComplete(r));
+  const complete =
+    Boolean(progressRow?.jobs_count) &&
+    refs.length === wanted &&
+    refs.every((r) => referenceComplete(r));
   const { items, unlocked } = requirementsFor(progress!, complete);
   return { progress: progress!, references: refs, requirements: items, unlocked };
 }
