@@ -188,7 +188,23 @@ function InterviewsPage() {
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-lg font-semibold">Booked interviews</h2>
+            <div className="flex items-end gap-3">
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                disabled={syncMutation.isPending}
+                onClick={() => syncMutation.mutate()}
+              >
+                {syncMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Sync Calendly
+              </Button>
+            </div>
             <div className="w-48">
+
               <Label className="text-xs">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="mt-1 rounded-2xl">
