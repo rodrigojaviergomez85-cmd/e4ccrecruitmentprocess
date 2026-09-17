@@ -117,7 +117,7 @@ export function requirementsFor(
       done: progress.grammar_topics_confirmed,
     },
     { key: "resume", label: "Resume uploaded", done: Boolean(progress.resume_path) },
-    { key: "references", label: "Both work references completed", done: referencesComplete },
+    { key: "references", label: "Work references completed", done: referencesComplete },
     {
       key: "declaration",
       label: "Reference accuracy declaration accepted",
