@@ -573,6 +573,8 @@ function DeviceCard({
 const REFERENCE_TITLES = [
   "Work Reference 1 — Most Recent Position",
   "Work Reference 2 — Previous Position",
+  "Work Reference 3 — Previous Position",
+  "Work Reference 4 — Previous Position",
 ];
 
 function ReferencesCard({
