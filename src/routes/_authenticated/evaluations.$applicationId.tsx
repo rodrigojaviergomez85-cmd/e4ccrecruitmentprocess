@@ -146,7 +146,27 @@ function EvaluationForm() {
     if (!evaluation || hydrated) return;
     setSections((evaluation.sections as Sections) ?? {});
     setVerbs(evaluation.verbs?.length ? evaluation.verbs : Array.from({ length: 5 }, () => ({ verb: "", correct: false })));
-    setJobs(evaluation.jobs?.length ? (evaluation.jobs as unknown as JobRow[]) : [emptyJob(1)]);
+    // Prefill the job history from the references the candidate submitted; the
+    // evaluator can edit every field afterwards.
+    const fromReferences = (candidate?.references ?? [])
+      .filter((r) => (r.company ?? "").trim() || (r.position ?? "").trim())
+      .map((r, i) => ({
+        ...emptyJob(i + 1),
+        company: r.company ?? "",
+        position: r.position ?? "",
+        start_date: r.startDate ?? "",
+        end_date: r.endDate ?? "",
+        supervisor_name: r.supervisorName ?? "",
+        supervisor_contact: [r.supervisorPhone, r.supervisorEmail].filter(Boolean).join(" · "),
+        reason_for_leaving: r.reasonForLeaving ?? "",
+      }));
+    setJobs(
+      evaluation.jobs?.length
+        ? (evaluation.jobs as unknown as JobRow[])
+        : fromReferences.length
+          ? fromReferences
+          : [emptyJob(1)],
+    );
     setLiveCefr(evaluation.live_cefr ?? "");
     setFinalResult(evaluation.final_result ?? "");
     setNotApprovedReasons((evaluation.not_approved_reasons as string[]) ?? []);
