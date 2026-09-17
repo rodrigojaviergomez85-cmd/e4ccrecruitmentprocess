@@ -1,0 +1,554 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  DEFAULT_WEIGHTS,
+  STATUS_FOR_RESULT,
+  complianceScore,
+  missingRequired,
+  totalScore,
+  type Weights,
+} from "./evaluations";
+
+async function getAdmin() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
+}
+
+type Db = Awaited<ReturnType<typeof getAdmin>>;
+
+/** Server-side permission resolution. Hiding links is never the security boundary. */
+async function evaluatorContext(userId: string) {
+  const db = await getAdmin();
+  const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", userId),
+    db.from("staff_profiles").select("active, email, full_name").eq("user_id", userId).maybeSingle(),
+    db.from("staff_countries").select("country_code").eq("user_id", userId),
+  ]);
+  const roleNames = (roles ?? []).map((r) => r.role as string);
+  if (!roleNames.length) throw new Error("You do not have staff access.");
+  if (profile && profile.active === false) throw new Error("Your account is deactivated.");
+  const isAdmin = roleNames.includes("admin");
+  const isEvaluator = isAdmin || roleNames.includes("evaluator");
+  const canView = isEvaluator || roleNames.includes("recruiter") || roleNames.includes("viewer");
+  return {
+    db,
+    roles: roleNames,
+    isAdmin,
+    isEvaluator,
+    canView,
+    email: profile?.email ?? null,
+    fullName: profile?.full_name ?? "",
+    allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+  };
+}
+
+async function audit(
+  db: Db,
+  entry: {
+    evaluationId: string;
+    actorId: string;
+    actorEmail?: string | null;
+    action: string;
+    details?: Record<string, unknown>;
+  },
+) {
+  await db.from("evaluation_audit").insert({
+    evaluation_id: entry.evaluationId,
+    actor_id: entry.actorId,
+    actor_email: entry.actorEmail ?? null,
+    action: entry.action,
+    details: (entry.details ?? {}) as never,
+  });
+  await db.from("audit_logs").insert({
+    actor_id: entry.actorId,
+    actor_email: entry.actorEmail ?? null,
+    action: `evaluation.${entry.action}`,
+    entity_type: "interview_evaluation",
+    entity_id: entry.evaluationId,
+    details: (entry.details ?? {}) as never,
+  });
+}
+
+async function loadWeights(db: Db): Promise<Weights> {
+  const { data } = await db.from("scorecard_weights").select("weights").eq("id", true).maybeSingle();
+  return { ...DEFAULT_WEIGHTS, ...((data?.weights as Partial<Weights>) ?? {}) };
+}
+
+export const getEvaluatorAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    try {
+      const ctx = await evaluatorContext(context.userId);
+      return {
+        canView: ctx.canView,
+        canEvaluate: ctx.isEvaluator,
+        isAdmin: ctx.isAdmin,
+        roles: ctx.roles,
+        fullName: ctx.fullName,
+      };
+    } catch {
+      return { canView: false, canEvaluate: false, isAdmin: false, roles: [], fullName: "" };
+    }
+  });
+
+const queueFilters = z
+  .object({
+    search: z.string().max(120).optional(),
+    country: z.string().max(8).optional(),
+    city: z.string().max(80).optional(),
+    lob: z.string().max(20).optional(),
+    evaluator: z.string().max(60).optional(),
+    status: z.string().max(30).optional(),
+    from: z.string().max(30).optional(),
+    to: z.string().max(30).optional(),
+  })
+  .default({});
+
+export const listEvaluationQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => queueFilters.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.canView) throw new Error("You do not have access to interview evaluations.");
+    const { db, allowedCountries } = ctx;
+
+    let query = db
+      .from("applications")
+      .select(
+        "id, full_name, email, phone, country, country_code, city, city_other, status, submitted_at, cities(name), ai_evaluations(cefr, overall_score), appointments(id, starts_at, status), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(id, status, final_result, evaluator_id, total_score, compliance_score, submitted_at, retake_date, interview_date)",
+      )
+      .not("submitted_at", "is", null)
+      .order("submitted_at", { ascending: false })
+      .limit(400);
+
+    if (allowedCountries) {
+      if (allowedCountries.length === 0) return { rows: [], evaluators: [] };
+      query = query.in("country_code", allowedCountries);
+    }
+    if (data.country) query = query.eq("country_code", data.country);
+    if (data.search) {
+      const term = data.search.replace(/[%,]/g, " ").trim();
+      query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+    }
+
+    const { data: apps, error } = await query;
+    if (error) throw new Error(error.message);
+
+    const { data: staff } = await db.from("staff_profiles").select("user_id, full_name, email");
+    const staffById = new Map((staff ?? []).map((s) => [s.user_id, s.full_name || s.email]));
+
+    const rows = (apps ?? []).map((a) => {
+      const appt = (a.appointments ?? [])
+        .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
+        .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
+      const evaluation = (a.interview_evaluations ?? [])[0];
+      const progress = (a.recruitment_progress ?? [])[0];
+      const ai = (a.ai_evaluations ?? [])[0];
+      return {
+        applicationId: a.id,
+        fullName: a.full_name,
+        email: a.email,
+        phone: a.phone,
+        country: a.country,
+        countryCode: a.country_code,
+        city: a.cities?.name ?? a.city_other ?? a.city,
+        lob: progress?.work_modality ?? null,
+        previousCefr: ai?.cefr ?? null,
+        previousScore: ai?.overall_score ?? null,
+        grammarTestScore: progress?.grammar_test_score ?? null,
+        appointmentAt: appt?.starts_at ?? null,
+        appointmentStatus: appt?.status ?? null,
+        pipelineStatus: a.status,
+        evaluationId: evaluation?.id ?? null,
+        evaluationStatus: (evaluation?.status as string) ?? "Not started",
+        finalResult: evaluation?.final_result ?? null,
+        totalScore: evaluation?.total_score ?? null,
+        complianceScore: evaluation?.compliance_score ?? null,
+        retakeDate: evaluation?.retake_date ?? null,
+        evaluatorName: evaluation?.evaluator_id
+          ? (staffById.get(evaluation.evaluator_id) ?? "")
+          : "",
+        evaluatorId: evaluation?.evaluator_id ?? null,
+      };
+    });
+
+    const filtered = rows.filter((r) => {
+      if (data.city && (r.city ?? "") !== data.city) return false;
+      if (data.lob && (r.lob ?? "") !== data.lob) return false;
+      if (data.evaluator && r.evaluatorId !== data.evaluator) return false;
+      if (data.status && r.evaluationStatus !== data.status) return false;
+      const ref = r.appointmentAt ?? null;
+      if (data.from && (!ref || ref < data.from)) return false;
+      if (data.to && (!ref || ref > `${data.to}T23:59:59Z`)) return false;
+      return true;
+    });
+
+    return {
+      rows: filtered,
+      evaluators: (staff ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email })),
+    };
+  });
+
+/** Opens (or creates) the single evaluation for an application and loads existing candidate data. */
+export const openEvaluation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.canView) throw new Error("You do not have access to interview evaluations.");
+    const { db } = ctx;
+
+    const { data: app, error } = await db
+      .from("applications")
+      .select(
+        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, interviewers(full_name)), recruitment_progress(*), work_references(*)",
+      )
+      .eq("id", data.applicationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!app) throw new Error("Candidate not found.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) {
+      throw new Error("This candidate is outside the countries assigned to your account.");
+    }
+
+    let { data: evaluation } = await db
+      .from("interview_evaluations")
+      .select("*")
+      .eq("application_id", app.id)
+      .maybeSingle();
+
+    const appt = (app.appointments ?? [])
+      .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
+      .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
+
+    if (!evaluation && ctx.isEvaluator) {
+      const { data: created, error: insertError } = await db
+        .from("interview_evaluations")
+        .insert({
+          application_id: app.id,
+          appointment_id: appt?.id ?? null,
+          evaluator_id: context.userId,
+          last_edited_by: context.userId,
+          status: "In progress",
+          interview_date: appt?.starts_at ? appt.starts_at.slice(0, 10) : null,
+        })
+        .select("*")
+        .single();
+      if (insertError) {
+        // Another evaluator won the race: reuse their evaluation instead of duplicating.
+        const { data: existing } = await db
+          .from("interview_evaluations")
+          .select("*")
+          .eq("application_id", app.id)
+          .maybeSingle();
+        evaluation = existing ?? null;
+      } else {
+        evaluation = created;
+        await audit(db, {
+          evaluationId: created.id,
+          actorId: context.userId,
+          actorEmail: ctx.email,
+          action: "created",
+        });
+      }
+    }
+
+    const [verbs, jobs, auditRows] = evaluation
+      ? await Promise.all([
+          db
+            .from("evaluation_verbs")
+            .select("verb, correct, position")
+            .eq("evaluation_id", evaluation.id)
+            .order("position"),
+          db
+            .from("evaluation_jobs")
+            .select("*")
+            .eq("evaluation_id", evaluation.id)
+            .order("slot"),
+          db
+            .from("evaluation_audit")
+            .select("action, actor_email, details, created_at")
+            .eq("evaluation_id", evaluation.id)
+            .order("created_at", { ascending: false })
+            .limit(20),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+    const { data: staffRow } = evaluation?.evaluator_id
+      ? await db
+          .from("staff_profiles")
+          .select("full_name, email")
+          .eq("user_id", evaluation.evaluator_id)
+          .maybeSingle()
+      : { data: null };
+
+    const progress = (app.recruitment_progress ?? [])[0] ?? null;
+    const ai = (app.ai_evaluations ?? [])[0] ?? null;
+
+    return {
+      access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView },
+      weights: await loadWeights(db),
+      candidate: {
+        id: app.id,
+        fullName: app.full_name,
+        email: app.email,
+        phone: app.phone_e164 ?? app.phone,
+        country: app.country,
+        countryCode: app.country_code,
+        city: app.cities?.name ?? app.city_other ?? app.city,
+        pipelineStatus: app.status,
+        teachingExperience: app.teaching_experience,
+        callcenterExperience: app.callcenter_experience,
+        callcenterExperienceLevel: app.callcenter_experience_level,
+        previousCefr: ai?.cefr ?? null,
+        previousScore: ai?.overall_score ?? null,
+        appointmentAt: appt?.starts_at ?? null,
+        appointmentStatus: appt?.status ?? null,
+        interviewer: appt?.interviewers?.full_name ?? null,
+        lob: progress?.work_modality ?? null,
+        internetSpeed: progress?.internet_speed_mbps ?? null,
+        resumeFilename: progress?.resume_filename ?? null,
+        grammarTestStatus: progress?.grammar_test_status ?? null,
+        grammarTestScore: progress?.grammar_test_score ?? null,
+        grammarTestVerified: progress?.grammar_test_verified ?? false,
+        references: (app.work_references ?? []).map((r) => ({
+          slot: r.slot,
+          company: r.company,
+          position: r.position,
+          supervisorName: r.supervisor_name,
+          supervisorPhone: r.supervisor_phone,
+          supervisorEmail: r.supervisor_email,
+          verificationStatus: r.verification_status,
+        })),
+      },
+      evaluation: evaluation
+        ? {
+            ...evaluation,
+            evaluatorName: staffRow?.full_name ?? staffRow?.email ?? "",
+            verbs: (verbs.data ?? []).map((v) => ({ verb: v.verb, correct: v.correct })),
+            jobs: jobs.data ?? [],
+            auditTrail: auditRows.data ?? [],
+          }
+        : null,
+    };
+  });
+
+const jobSchema = z.object({
+  slot: z.number().int().min(1).max(5),
+  company: z.string().max(160).default(""),
+  start_date: z.string().max(40).default(""),
+  end_date: z.string().max(40).default(""),
+  position: z.string().max(160).default(""),
+  hired_to_do: z.string().max(2000).default(""),
+  accomplishment: z.string().max(2000).default(""),
+  biggest_mistake: z.string().max(2000).default(""),
+  supervisor_name: z.string().max(160).default(""),
+  supervisor_contact: z.string().max(160).default(""),
+  supervisor_rating: z.number().int().min(1).max(10).nullable().default(null),
+  rating_reason: z.string().max(2000).default(""),
+  reason_for_leaving: z.string().max(2000).default(""),
+  gap_explanation: z.string().max(2000).default(""),
+});
+
+const savePayload = z.object({
+  evaluationId: z.string().uuid(),
+  sections: z.record(z.string(), z.record(z.string(), z.unknown())).default({}),
+  verbs: z
+    .array(z.object({ verb: z.string().max(60), correct: z.boolean() }))
+    .max(10)
+    .default([]),
+  jobs: z.array(jobSchema).max(5).default([]),
+  liveCefr: z.string().max(10).nullable().default(null),
+  finalResult: z.string().max(40).nullable().default(null),
+  notApprovedReasons: z.array(z.string().max(80)).max(12).default([]),
+  retakeDate: z.string().max(20).nullable().default(null),
+  hiringBonus: z.string().max(160).nullable().default(null),
+  lastRoleplayDate: z.string().max(20).nullable().default(null),
+  interviewDate: z.string().max(20).nullable().default(null),
+  comments: z.string().max(4000).nullable().default(null),
+  redFlags: z.string().max(4000).nullable().default(null),
+  categoryScores: z.record(z.string(), z.number()).default({}),
+  submit: z.boolean().default(false),
+});
+
+async function loadEditable(db: Db, evaluationId: string) {
+  const { data: evaluation } = await db
+    .from("interview_evaluations")
+    .select("*")
+    .eq("id", evaluationId)
+    .maybeSingle();
+  if (!evaluation) throw new Error("Evaluation not found.");
+  if (evaluation.status === "Submitted")
+    throw new Error("This evaluation was submitted and is read-only. An admin must reopen it.");
+  return evaluation;
+}
+
+export const saveEvaluation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => savePayload.parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required to edit evaluations.");
+    const { db } = ctx;
+    const current = await loadEditable(db, data.evaluationId);
+
+    const { data: app } = await db
+      .from("applications")
+      .select("id, country_code, recruitment_progress(work_modality)")
+      .eq("id", current.application_id)
+      .maybeSingle();
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app?.country_code ?? "")) {
+      throw new Error("This candidate is outside the countries assigned to your account.");
+    }
+
+    const sections = { ...(current.sections as Record<string, Record<string, unknown>>), ...data.sections };
+    const lobFromSection = String(sections["candidate"]?.["lob"] ?? "").toLowerCase();
+    const isOnline =
+      lobFromSection === "online" ||
+      (!lobFromSection && (app?.recruitment_progress?.[0]?.work_modality ?? "") === "online");
+
+    const weights = await loadWeights(db);
+    const verbs = data.verbs.filter((v) => v.verb.trim().length > 0);
+    const jobs = data.jobs.filter((j) => j.company.trim() || j.position.trim());
+
+    const complianceInput = {
+      sections,
+      isOnline,
+      verbs,
+      jobsCount: jobs.length,
+      finalResult: data.finalResult,
+      comments: data.comments,
+      redFlags: data.redFlags,
+      lastRoleplayDate: data.lastRoleplayDate,
+      retakeDate: data.retakeDate,
+    };
+    const missing = missingRequired(complianceInput);
+    if (data.submit && missing.length) return { ok: false as const, missing };
+
+    const total = totalScore(data.categoryScores, weights);
+    const compliance = complianceScore(complianceInput);
+
+    const { error } = await db
+      .from("interview_evaluations")
+      .update({
+        sections: sections as never,
+        live_cefr: data.liveCefr,
+        final_result: data.finalResult,
+        not_approved_reasons: data.notApprovedReasons as never,
+        retake_reason: (sections["result"]?.["retake_reason"] as string) ?? null,
+        retake_date: data.retakeDate || null,
+        hiring_bonus: data.hiringBonus,
+        last_roleplay_date: data.lastRoleplayDate || null,
+        interview_date: data.interviewDate || current.interview_date,
+        comments: data.comments,
+        red_flags: data.redFlags,
+        category_scores: data.categoryScores as never,
+        total_score: total,
+        compliance_score: compliance,
+        last_edited_by: context.userId,
+        status: data.submit ? "Submitted" : current.status === "Reopened" ? "Reopened" : "In progress",
+        submitted_at: data.submit ? new Date().toISOString() : current.submitted_at,
+      })
+      .eq("id", data.evaluationId);
+    if (error) throw new Error(error.message);
+
+    await db.from("evaluation_verbs").delete().eq("evaluation_id", data.evaluationId);
+    if (verbs.length) {
+      await db.from("evaluation_verbs").insert(
+        verbs.map((v, i) => ({
+          evaluation_id: data.evaluationId,
+          verb: v.verb.trim(),
+          correct: v.correct,
+          position: i + 1,
+        })),
+      );
+    }
+    await db.from("evaluation_jobs").delete().eq("evaluation_id", data.evaluationId);
+    if (jobs.length) {
+      await db
+        .from("evaluation_jobs")
+        .insert(jobs.map((j) => ({ ...j, evaluation_id: data.evaluationId })));
+    }
+
+    if (data.submit) {
+      const nextStatus = STATUS_FOR_RESULT[data.finalResult ?? ""];
+      if (nextStatus) {
+        await db.from("applications").update({ status: nextStatus }).eq("id", current.application_id);
+      }
+      await audit(db, {
+        evaluationId: data.evaluationId,
+        actorId: context.userId,
+        actorEmail: ctx.email,
+        action: "submitted",
+        details: { finalResult: data.finalResult, total, compliance },
+      });
+    }
+
+    return { ok: true as const, total, compliance, missing: [] as string[] };
+  });
+
+export const reopenEvaluation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ evaluationId: z.string().uuid(), reason: z.string().trim().min(5).max(500) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isAdmin) throw new Error("Only an admin can reopen a submitted evaluation.");
+    const { error } = await ctx.db
+      .from("interview_evaluations")
+      .update({
+        status: "Reopened",
+        reopened_at: new Date().toISOString(),
+        last_edited_by: context.userId,
+      })
+      .eq("id", data.evaluationId);
+    if (error) throw new Error(error.message);
+    await audit(ctx.db, {
+      evaluationId: data.evaluationId,
+      actorId: context.userId,
+      actorEmail: ctx.email,
+      action: "reopened",
+      details: { reason: data.reason },
+    });
+    return { ok: true };
+  });
+
+export const getScorecardWeights = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await evaluatorContext(context.userId);
+    const { data } = await ctx.db.from("scorecard_weights").select("*").eq("id", true).maybeSingle();
+    return {
+      weights: { ...DEFAULT_WEIGHTS, ...((data?.weights as Partial<Weights>) ?? {}) },
+      thresholds: (data?.thresholds as Record<string, number>) ?? { approve: 80, retake: 65 },
+      isAdmin: ctx.isAdmin,
+    };
+  });
+
+export const updateScorecardWeights = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        weights: z.record(z.string(), z.number().min(0).max(100)),
+        thresholds: z.record(z.string(), z.number().min(0).max(100)),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isAdmin) throw new Error("Admin access required.");
+    const { error } = await ctx.db
+      .from("scorecard_weights")
+      .update({
+        weights: data.weights as never,
+        thresholds: data.thresholds as never,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
