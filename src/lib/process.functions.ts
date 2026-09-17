@@ -271,7 +271,7 @@ const referenceSchema = ownerSchema.extend({
   currently_working: z.boolean(),
   supervisor_name: z.string().trim().max(120),
   supervisor_phone: z.string().trim().max(40),
-  supervisor_email: z.string().trim().max(255),
+  supervisor_email: z.string().trim().max(255).optional().default(""),
   reason_for_leaving: z.string().trim().max(500),
   may_contact: z.boolean(),
 });
