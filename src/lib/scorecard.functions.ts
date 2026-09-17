@@ -4,6 +4,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { levelDifference } from "./evaluations";
 
+/** Embedded Supabase relations arrive as a row or an array depending on the relationship. */
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
@@ -99,9 +105,9 @@ async function buildRows(userId: string, data: z.infer<typeof filters>) {
       .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
       .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
     const ev = (a.interview_evaluations ?? [])[0];
-    const progress = (a.recruitment_progress ?? [])[0];
+    const progress = one(a.recruitment_progress);
     const sections = (ev?.sections ?? {}) as Record<string, Record<string, unknown>>;
-    const previousCefr = (a.ai_evaluations ?? [])[0]?.cefr ?? null;
+    const previousCefr = one(a.ai_evaluations)?.cefr ?? null;
     const liveCefr = ev?.live_cefr ?? null;
     const submittedAt = ev?.submitted_at ?? null;
     const interviewDate = ev?.interview_date ?? (appt?.starts_at ? appt.starts_at.slice(0, 10) : null);
