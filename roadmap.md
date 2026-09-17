@@ -33,3 +33,7 @@
 - [ ] Email provider secret (`RESEND_API_KEY`, `EMAIL_FROM`) — until then emails are logged as "Email not configured"
 - [ ] WhatsApp secrets (`WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`) — UI shows "WhatsApp not configured"
 - [ ] Schedule the cron POST to `/api/public/cron/reminders` (bearer `LOVABLE_CRON_SECRET`)
+
+- [x] Interview Evaluations module (evaluator access, guided form, scoring, compliance)
+- [x] Recruitment Scorecard with CSV export
+- [x] Answer credits-to-money question (20 credits)
