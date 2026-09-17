@@ -18,6 +18,12 @@ async function getAdmin() {
 
 type Db = Awaited<ReturnType<typeof getAdmin>>;
 
+/** Embedded Supabase relations arrive as a row or an array depending on the relationship. */
+function one<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
 /** Server-side permission resolution. Hiding links is never the security boundary. */
 async function evaluatorContext(userId: string) {
   const db = await getAdmin();
@@ -144,8 +150,8 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
         .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
         .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
       const evaluation = (a.interview_evaluations ?? [])[0];
-      const progress = (a.recruitment_progress ?? [])[0];
-      const ai = (a.ai_evaluations ?? [])[0];
+      const progress = one(a.recruitment_progress);
+      const ai = one(a.ai_evaluations);
       return {
         applicationId: a.id,
         fullName: a.full_name,
@@ -284,8 +290,8 @@ export const openEvaluation = createServerFn({ method: "POST" })
           .maybeSingle()
       : { data: null };
 
-    const progress = (app.recruitment_progress ?? [])[0] ?? null;
-    const ai = (app.ai_evaluations ?? [])[0] ?? null;
+    const progress = one(app.recruitment_progress);
+    const ai = one(app.ai_evaluations);
 
     return {
       access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView },
@@ -407,7 +413,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     const lobFromSection = String(sections["candidate"]?.["lob"] ?? "").toLowerCase();
     const isOnline =
       lobFromSection === "online" ||
-      (!lobFromSection && (app?.recruitment_progress?.[0]?.work_modality ?? "") === "online");
+      (!lobFromSection && (one(app?.recruitment_progress)?.work_modality ?? "") === "online");
 
     const weights = await loadWeights(db);
     const verbs = data.verbs.filter((v) => v.verb.trim().length > 0);
