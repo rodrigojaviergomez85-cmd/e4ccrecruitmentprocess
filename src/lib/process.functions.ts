@@ -223,6 +223,7 @@ const confirmSchema = ownerSchema.extend({
   grammar_test_opened: z.boolean().optional(),
   grammar_topics_confirmed: z.boolean().optional(),
   references_declaration: z.boolean().optional(),
+  jobs_count: z.number().int().min(1).max(MAX_REFERENCES).optional(),
 });
 
 export const saveRecruitmentProgress = createServerFn({ method: "POST" })
