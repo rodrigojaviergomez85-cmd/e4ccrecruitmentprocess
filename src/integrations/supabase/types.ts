@@ -754,6 +754,7 @@ export type Database = {
           grammar_test_verified: boolean
           grammar_topics_confirmed: boolean
           internet_speed_mbps: number | null
+          jobs_count: number | null
           references_declaration: boolean
           resume_filename: string | null
           resume_path: string | null
@@ -777,6 +778,7 @@ export type Database = {
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
           internet_speed_mbps?: number | null
+          jobs_count?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
@@ -800,6 +802,7 @@ export type Database = {
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
           internet_speed_mbps?: number | null
+          jobs_count?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
