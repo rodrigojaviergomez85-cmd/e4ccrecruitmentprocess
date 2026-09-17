@@ -50,7 +50,13 @@ async function assertEligible(applicationId: string, token: string) {
   return { app, cefr: evaluation?.cefr ?? null, db };
 }
 
-const REFERENCE_SLOTS = [1, 2] as const;
+export const MAX_REFERENCES = 4;
+
+/** A supervisor phone must look like a real international number. */
+export function validSupervisorPhone(phone: string) {
+  const digits = phone.replace(/[^\d]/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
 
 function referenceComplete(row: {
   company: string;
@@ -60,7 +66,6 @@ function referenceComplete(row: {
   currently_working: boolean;
   supervisor_name: string;
   supervisor_phone: string;
-  supervisor_email: string;
   reason_for_leaving: string;
 }) {
   return Boolean(
@@ -69,8 +74,7 @@ function referenceComplete(row: {
       row.start_date &&
       (row.currently_working || row.end_date) &&
       row.supervisor_name.trim() &&
-      row.supervisor_phone.trim() &&
-      row.supervisor_email.trim() &&
+      validSupervisorPhone(row.supervisor_phone) &&
       row.reason_for_leaving.trim(),
   );
 }
@@ -113,7 +117,7 @@ export function requirementsFor(
       done: progress.grammar_topics_confirmed,
     },
     { key: "resume", label: "Resume uploaded", done: Boolean(progress.resume_path) },
-    { key: "references", label: "Both work references completed", done: referencesComplete },
+    { key: "references", label: "Work references completed", done: referencesComplete },
     {
       key: "declaration",
       label: "Reference accuracy declaration accepted",
@@ -129,7 +133,15 @@ async function loadState(db: Db, applicationId: string) {
   await db
     .from("recruitment_progress")
     .upsert({ application_id: applicationId }, { onConflict: "application_id", ignoreDuplicates: true });
-  for (const slot of REFERENCE_SLOTS) {
+  const { data: progressRow } = await db
+    .from("recruitment_progress")
+    .select("jobs_count")
+    .eq("application_id", applicationId)
+    .maybeSingle();
+  // How many past jobs the candidate declared drives how many reference forms
+  // exist (1 to 4). Until they answer we keep the historic two slots.
+  const wanted = Math.min(MAX_REFERENCES, Math.max(1, progressRow?.jobs_count ?? 2));
+  for (let slot = 1; slot <= wanted; slot += 1) {
     await db
       .from("work_references")
       .upsert(
@@ -143,13 +155,17 @@ async function loadState(db: Db, applicationId: string) {
       .from("work_references")
       .select("*")
       .eq("application_id", applicationId)
+      .lte("slot", wanted)
       .order("slot"),
   ]);
   const refs = (references ?? []).map((r) => {
     const { verification_notes: _notes, ...safe } = r;
     return safe;
   });
-  const complete = refs.length === 2 && refs.every((r) => referenceComplete(r));
+  const complete =
+    Boolean(progressRow?.jobs_count) &&
+    refs.length === wanted &&
+    refs.every((r) => referenceComplete(r));
   const { items, unlocked } = requirementsFor(progress!, complete);
   return { progress: progress!, references: refs, requirements: items, unlocked };
 }
@@ -207,6 +223,7 @@ const confirmSchema = ownerSchema.extend({
   grammar_test_opened: z.boolean().optional(),
   grammar_topics_confirmed: z.boolean().optional(),
   references_declaration: z.boolean().optional(),
+  jobs_count: z.number().int().min(1).max(MAX_REFERENCES).optional(),
 });
 
 export const saveRecruitmentProgress = createServerFn({ method: "POST" })
@@ -246,7 +263,7 @@ export const saveRecruitmentProgress = createServerFn({ method: "POST" })
   });
 
 const referenceSchema = ownerSchema.extend({
-  slot: z.number().int().min(1).max(2),
+  slot: z.number().int().min(1).max(MAX_REFERENCES),
   company: z.string().trim().max(120),
   position: z.string().trim().max(120),
   start_date: z.string().trim().max(20).nullable(),
@@ -254,7 +271,7 @@ const referenceSchema = ownerSchema.extend({
   currently_working: z.boolean(),
   supervisor_name: z.string().trim().max(120),
   supervisor_phone: z.string().trim().max(40),
-  supervisor_email: z.string().trim().max(255),
+  supervisor_email: z.string().trim().max(255).optional().default(""),
   reason_for_leaving: z.string().trim().max(500),
   may_contact: z.boolean(),
 });
@@ -264,9 +281,12 @@ export const saveWorkReference = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { db } = await assertEligible(data.applicationId, data.token);
     const { applicationId, token: _t, ...fields } = data;
-    if (fields.supervisor_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.supervisor_email)) {
+    if (fields.supervisor_phone && !validSupervisorPhone(fields.supervisor_phone)) {
       const current = await loadState(db, applicationId);
-      return { ...current, error: "Please enter a valid supervisor email." };
+      return {
+        ...current,
+        error: "Please enter a valid supervisor phone number in international format.",
+      };
     }
     await db.from("work_references").upsert(
       {

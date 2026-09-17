@@ -573,6 +573,8 @@ function DeviceCard({
 const REFERENCE_TITLES = [
   "Work Reference 1 — Most Recent Position",
   "Work Reference 2 — Previous Position",
+  "Work Reference 3 — Previous Position",
+  "Work Reference 4 — Previous Position",
 ];
 
 function ReferencesCard({
@@ -588,15 +590,37 @@ function ReferencesCard({
 }) {
   const save = useServerFn(saveWorkReference);
   const saveProgress = useServerFn(saveRecruitmentProgress);
-  
+  const jobsCount = (state.progress as { jobs_count?: number | null }).jobs_count ?? null;
+  const slots = Array.from({ length: jobsCount ?? 0 }, (_, i) => i + 1);
 
   return (
     <section className="space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
       <h2 className="text-lg font-bold">Work references</h2>
       <p className="text-sm text-muted-foreground">
-        Provide two work references for your two most recent positions.
+        Tell us how many jobs you have had, then provide one work reference for each of them (up to
+        four).
       </p>
-      {[1, 2].map((slot) => (
+      <div className="space-y-2">
+        <Label className="text-xs">How many jobs have you had?</Label>
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3, 4].map((n) => (
+            <Button
+              key={n}
+              type="button"
+              variant={jobsCount === n ? "default" : "outline"}
+              className="rounded-2xl"
+              onClick={() => {
+                void saveProgress({ data: { applicationId: id, token, jobs_count: n } }).then(
+                  (next) => onState(next as State),
+                );
+              }}
+            >
+              {n === 4 ? "4 or more" : n}
+            </Button>
+          ))}
+        </div>
+      </div>
+      {slots.map((slot) => (
         <ReferenceForm
           key={slot}
           title={REFERENCE_TITLES[slot - 1]!}
@@ -717,14 +741,6 @@ function ReferenceForm({
             maxLength={40}
             placeholder="+503 7777 7777"
             onChange={(e) => set({ supervisor_phone: e.target.value })}
-          />
-        </Row>
-        <Row label="Supervisor's email">
-          <Input
-            type="email"
-            value={values.supervisor_email}
-            maxLength={255}
-            onChange={(e) => set({ supervisor_email: e.target.value })}
           />
         </Row>
       </div>

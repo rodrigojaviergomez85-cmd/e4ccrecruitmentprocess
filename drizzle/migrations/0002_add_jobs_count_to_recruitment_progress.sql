@@ -1,0 +1,1 @@
+ALTER TABLE public.recruitment_progress ADD COLUMN IF NOT EXISTS jobs_count integer;
