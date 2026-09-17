@@ -743,14 +743,6 @@ function ReferenceForm({
             onChange={(e) => set({ supervisor_phone: e.target.value })}
           />
         </Row>
-        <Row label="Supervisor's email">
-          <Input
-            type="email"
-            value={values.supervisor_email}
-            maxLength={255}
-            onChange={(e) => set({ supervisor_email: e.target.value })}
-          />
-        </Row>
       </div>
       <Row label="Reason for leaving">
         <Textarea
