@@ -21,7 +21,7 @@ import { useCountries } from "@/hooks/useLocations";
 import { getEvaluatorAccess, listEvaluationQueue } from "@/lib/evaluations.functions";
 import { EVALUATION_STATUSES } from "@/lib/evaluations";
 
-export const Route = createFileRoute("/_authenticated/evaluations")({
+export const Route = createFileRoute("/_authenticated/evaluations/")({
   head: () => ({
     meta: [
       { title: "Interview Evaluations — E4CC" },
