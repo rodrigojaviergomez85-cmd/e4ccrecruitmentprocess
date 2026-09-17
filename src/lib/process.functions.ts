@@ -431,3 +431,21 @@ export const markSchedulingOpened = createServerFn({ method: "POST" })
     await syncStatus(db, data.applicationId, true, true);
     return { ok: true };
   });
+
+/**
+ * Called by the candidate's browser right after the Calendly embed confirms a
+ * booking, so the interview shows up for recruiters without waiting for a sync.
+ */
+export const recordCalendlyBooking = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => ownerSchema.parse(d))
+  .handler(async ({ data }) => {
+    try {
+      await assertEligible(data.applicationId, data.token);
+      const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
+      if (!calendlyConfigured()) return { ok: false as const };
+      const result = await syncCalendly({ applicationId: data.applicationId, sinceDays: 1 });
+      return { ok: true as const, created: result.created, updated: result.updated };
+    } catch {
+      return { ok: false as const };
+    }
+  });

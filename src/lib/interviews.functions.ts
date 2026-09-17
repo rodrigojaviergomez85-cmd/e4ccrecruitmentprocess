@@ -430,3 +430,24 @@ export const sendSchedulingLink = createServerFn({ method: "POST" })
       email: "email" in result ? result.email.detail : (result as { reason?: string }).reason,
     };
   });
+
+/* --------------------------------- calendly ---------------------------------- */
+
+/** Pulls Calendly bookings into the appointments list. Admin/recruiter only. */
+export const syncCalendlyAppointments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { db, email, isViewer } = await staffCtx(context.userId);
+    if (isViewer) throw new Error("Read-only access.");
+    const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
+    if (!calendlyConfigured()) throw new Error("Calendly is not connected yet.");
+    const result = await syncCalendly({ sinceDays: 60 });
+    await audit(db, {
+      actorId: context.userId,
+      actorEmail: email,
+      action: "calendly_synced",
+      entityType: "appointment",
+      details: { ...result },
+    });
+    return result;
+  });

@@ -29,6 +29,7 @@ import {
   createSystemInfoUploadTarget,
   getRecruitmentProcess,
   markSchedulingOpened,
+  recordCalendlyBooking,
   saveRecruitmentProgress,
   saveResume,
   saveSystemInfo,
@@ -249,7 +250,7 @@ function Content({
 
       <ReferencesCard state={state} id={id} token={token} onState={onState} />
 
-      <SchedulingCard state={state} />
+      <SchedulingCard state={state} id={id} token={token} />
     </>
   );
 }
@@ -793,7 +794,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-function SchedulingCard({ state }: { state: State }) {
+function SchedulingCard({ state, id, token }: { state: State; id: string; token: string }) {
+  const notifyBooking = useServerFn(recordCalendlyBooking);
+  const [booked, setBooked] = useState(false);
   const [embedFailed, setEmbedFailed] = useState(false);
   const url = useMemo(() => {
     const u = new URL(CALENDLY_URL);
@@ -802,6 +805,21 @@ function SchedulingCard({ state }: { state: State }) {
     u.searchParams.set("hide_gdpr_banner", "1");
     return u.toString();
   }, [state.candidate]);
+
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      const data = e.data as { event?: string } | null;
+      if (!data || typeof data.event !== "string") return;
+      if (data.event !== "calendly.event_scheduled") return;
+      setBooked(true);
+      // Pull the booking into the recruiter dashboard right away.
+      setTimeout(() => {
+        void notifyBooking({ data: { applicationId: id, token } }).catch(() => undefined);
+      }, 3000);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [notifyBooking, id, token]);
 
   useEffect(() => {
     if (!state.unlocked) return;
@@ -848,6 +866,11 @@ function SchedulingCard({ state }: { state: State }) {
         <CheckCircle2 className="h-5 w-5" />
         <h2 className="text-lg font-bold text-foreground">5. Schedule Your Interview</h2>
       </div>
+      {booked && (
+        <p className="rounded-2xl bg-success/10 p-3 text-sm text-foreground">
+          Your interview is booked. Check your email for the confirmation and the Zoom link.
+        </p>
+      )}
       <p className="text-sm">
         Excellent! You have completed all the requirements. You may now select the date and time for
         your LIVE ZOOM INTERVIEW.

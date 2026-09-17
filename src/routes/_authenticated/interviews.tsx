@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BellRing, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, BellRing, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -25,6 +25,7 @@ import {
   removeBlockedDate,
   saveInterviewSettings,
   sendManualReminder,
+  syncCalendlyAppointments,
   updateAppointmentStatus,
   upsertInterviewer,
 } from "@/lib/interviews.functions";
@@ -81,6 +82,20 @@ function InterviewsPage() {
   const unblockDate = useServerFn(removeBlockedDate);
   const setStatus = useServerFn(updateAppointmentStatus);
   const remind = useServerFn(sendManualReminder);
+  const syncCalendly = useServerFn(syncCalendlyAppointments);
+
+  const syncMutation = useMutation({
+    mutationFn: () => syncCalendly(),
+    onSuccess: (r) => {
+      toast.success(
+        `Calendly synced: ${r.created} new, ${r.updated} updated${
+          r.unmatched.length ? `, ${r.unmatched.length} without a matching application` : ""
+        }.`,
+      );
+      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const accessQuery = useQuery({ queryKey: ["my-access"], queryFn: () => loadAccess() });
   const configQuery = useQuery({ queryKey: ["interview-config"], queryFn: () => loadConfig() });
@@ -188,7 +203,23 @@ function InterviewsPage() {
         <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-lg font-semibold">Booked interviews</h2>
+            <div className="flex items-end gap-3">
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                disabled={syncMutation.isPending}
+                onClick={() => syncMutation.mutate()}
+              >
+                {syncMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Sync Calendly
+              </Button>
+            </div>
             <div className="w-48">
+
               <Label className="text-xs">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="mt-1 rounded-2xl">
