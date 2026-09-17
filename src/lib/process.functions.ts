@@ -281,9 +281,12 @@ export const saveWorkReference = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { db } = await assertEligible(data.applicationId, data.token);
     const { applicationId, token: _t, ...fields } = data;
-    if (fields.supervisor_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(fields.supervisor_email)) {
+    if (fields.supervisor_phone && !validSupervisorPhone(fields.supervisor_phone)) {
       const current = await loadState(db, applicationId);
-      return { ...current, error: "Please enter a valid supervisor email." };
+      return {
+        ...current,
+        error: "Please enter a valid supervisor phone number in international format.",
+      };
     }
     await db.from("work_references").upsert(
       {
