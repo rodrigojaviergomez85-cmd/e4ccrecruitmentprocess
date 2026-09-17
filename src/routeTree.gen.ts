@@ -16,7 +16,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedEvaluationsRouteImport } from './routes/_authenticated/evaluations'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
@@ -24,6 +23,7 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
+import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -60,12 +60,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedEvaluationsRoute =
-  AuthenticatedEvaluationsRouteImport.update({
-    id: '/evaluations',
-    path: '/evaluations',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedInterviewsRoute = AuthenticatedInterviewsRouteImport.update({
   id: '/interviews',
   path: '/interviews',
@@ -102,6 +96,12 @@ const AuthenticatedCandidatesIdRoute =
     path: '/candidates/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEvaluationsIndexRoute =
+  AuthenticatedEvaluationsIndexRouteImport.update({
+    id: '/evaluations/',
+    path: '/evaluations/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   id: '/api/public/cron/reminders',
   path: '/api/public/cron/reminders',
@@ -115,7 +115,6 @@ export interface FileRoutesByFullPath {
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/evaluations': typeof AuthenticatedEvaluationsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
@@ -123,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRoutesByTo {
@@ -132,7 +132,6 @@ export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/evaluations': typeof AuthenticatedEvaluationsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
@@ -140,6 +139,7 @@ export interface FileRoutesByTo {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRoutesById {
@@ -151,7 +151,6 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
-  '/_authenticated/evaluations': typeof AuthenticatedEvaluationsRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
@@ -159,6 +158,7 @@ export interface FileRoutesById {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
 export interface FileRouteTypes {
@@ -170,7 +170,6 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/reset-password'
     | '/dashboard'
-    | '/evaluations'
     | '/interviews'
     | '/settings'
     | '/staff'
@@ -178,6 +177,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -187,7 +187,6 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/reset-password'
     | '/dashboard'
-    | '/evaluations'
     | '/interviews'
     | '/settings'
     | '/staff'
@@ -195,6 +194,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations'
     | '/api/public/cron/reminders'
   id:
     | '__root__'
@@ -205,7 +205,6 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/reset-password'
     | '/_authenticated/dashboard'
-    | '/_authenticated/evaluations'
     | '/_authenticated/interviews'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
@@ -213,6 +212,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/_authenticated/candidates/$id'
+    | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesById: FileRoutesById
 }
@@ -279,13 +279,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/evaluations': {
-      id: '/_authenticated/evaluations'
-      path: '/evaluations'
-      fullPath: '/evaluations'
-      preLoaderRoute: typeof AuthenticatedEvaluationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/interviews': {
       id: '/_authenticated/interviews'
       path: '/interviews'
@@ -335,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCandidatesIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/evaluations/': {
+      id: '/_authenticated/evaluations/'
+      path: '/evaluations'
+      fullPath: '/evaluations/'
+      preLoaderRoute: typeof AuthenticatedEvaluationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/cron/reminders': {
       id: '/api/public/cron/reminders'
       path: '/api/public/cron/reminders'
@@ -347,20 +347,20 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
-  AuthenticatedEvaluationsRoute: typeof AuthenticatedEvaluationsRoute
   AuthenticatedInterviewsRoute: typeof AuthenticatedInterviewsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
+  AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
-  AuthenticatedEvaluationsRoute: AuthenticatedEvaluationsRoute,
   AuthenticatedInterviewsRoute: AuthenticatedInterviewsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
+  AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
