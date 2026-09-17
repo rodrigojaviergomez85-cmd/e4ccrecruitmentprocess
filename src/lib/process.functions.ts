@@ -50,7 +50,13 @@ async function assertEligible(applicationId: string, token: string) {
   return { app, cefr: evaluation?.cefr ?? null, db };
 }
 
-const REFERENCE_SLOTS = [1, 2] as const;
+export const MAX_REFERENCES = 4;
+
+/** A supervisor phone must look like a real international number. */
+export function validSupervisorPhone(phone: string) {
+  const digits = phone.replace(/[^\d]/g, "");
+  return digits.length >= 8 && digits.length <= 15;
+}
 
 function referenceComplete(row: {
   company: string;
@@ -60,7 +66,6 @@ function referenceComplete(row: {
   currently_working: boolean;
   supervisor_name: string;
   supervisor_phone: string;
-  supervisor_email: string;
   reason_for_leaving: string;
 }) {
   return Boolean(
@@ -69,8 +74,7 @@ function referenceComplete(row: {
       row.start_date &&
       (row.currently_working || row.end_date) &&
       row.supervisor_name.trim() &&
-      row.supervisor_phone.trim() &&
-      row.supervisor_email.trim() &&
+      validSupervisorPhone(row.supervisor_phone) &&
       row.reason_for_leaving.trim(),
   );
 }
