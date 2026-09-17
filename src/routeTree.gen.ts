@@ -24,6 +24,7 @@ import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
+import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -102,6 +103,12 @@ const AuthenticatedEvaluationsIndexRoute =
     path: '/evaluations/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEvaluationsApplicationIdRoute =
+  AuthenticatedEvaluationsApplicationIdRouteImport.update({
+    id: '/evaluations/$applicationId',
+    path: '/evaluations/$applicationId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   id: '/api/public/cron/reminders',
   path: '/api/public/cron/reminders',
@@ -122,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -139,6 +147,7 @@ export interface FileRoutesByTo {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -158,6 +167,7 @@ export interface FileRoutesById {
   '/process/$id': typeof ProcessIdRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
+  '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations/$applicationId'
     | '/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesByTo: FileRoutesByTo
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/candidates/$id'
+    | '/evaluations/$applicationId'
     | '/evaluations'
     | '/api/public/cron/reminders'
   id:
@@ -212,6 +224,7 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/schedule/$token'
     | '/_authenticated/candidates/$id'
+    | '/_authenticated/evaluations/$applicationId'
     | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesById: FileRoutesById
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEvaluationsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/evaluations/$applicationId': {
+      id: '/_authenticated/evaluations/$applicationId'
+      path: '/evaluations/$applicationId'
+      fullPath: '/evaluations/$applicationId'
+      preLoaderRoute: typeof AuthenticatedEvaluationsApplicationIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/cron/reminders': {
       id: '/api/public/cron/reminders'
       path: '/api/public/cron/reminders'
@@ -351,6 +371,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
+  AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
   AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
 }
 
@@ -360,6 +381,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
+  AuthenticatedEvaluationsApplicationIdRoute:
+    AuthenticatedEvaluationsApplicationIdRoute,
   AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
 }
 
