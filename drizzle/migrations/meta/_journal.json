@@ -29,6 +29,13 @@
       "when": 1789746373794,
       "tag": "0003_candidate_archive_retakes_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789766716431,
+      "tag": "0004_simplified_process_retake_access",
+      "breakpoints": true
     }
   ]
 }
