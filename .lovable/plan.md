@@ -23,38 +23,50 @@ Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de
 - El requisito inicial configurable será **10 Mbps download / 10 Mbps upload**. El resultado mostrará el mensaje verde de aprobación o el mensaje de mejora, con **Test Again** y **Change to Onsite**.
 - Un resultado insuficiente no rechaza al candidato; solamente mantiene bloqueada la agenda.
 
-## 3. Step 2 — Quick Preparation
+## 3. Preparación previa simplificada
 
-Crear exactamente tres tarjetas compactas de igual tamaño en una cuadrícula de tres columnas:
-
-1. **Complete Grammar Test**
-   - Texto de una línea, botón **Take Test Now** al enlace de TestGorilla y **Take It Later**.
-   - Permitir marcar **“I completed the Grammar Test.”** sin afirmar verificación automática.
-   - Estados finales: Pending, Candidate marked as completed y Verified by recruiter.
-
-2. **Review Grammar Tenses**
-   - Texto de una línea, botón **Review Now** al documento E4CC indicado y **Review Later**.
-   - Permitir marcar **“I reviewed the material.”** y guardar la fecha de finalización.
-
-3. **Upload Your Resume**
-   - Conservar el flujo privado existente: PDF/DOC/DOCX, máximo 10 MB, un solo archivo activo, reemplazo y nombre visible.
-   - Mostrar estado Not uploaded, Uploaded o Replaced y check verde al completar.
-
-- Grammar Test y Grammar Review pueden quedar pendientes con badge ámbar **Pending before interview** y no bloquean el avance ni muestran advertencias repetitivas.
-- Retirar completamente Work References de esta página y del cálculo que desbloquea la agenda. Los datos existentes se conservan y permanecen visibles/editables en el perfil interno del candidato.
+- Eliminar completamente de la página pública las tarjetas, botones y confirmaciones de Grammar Test y Grammar Tenses.
+- No pedir al candidato que confirme esas actividades antes ni después de agendar.
+- Mostrar únicamente una tarjeta compacta de **Upload Your Resume** después de elegir posición y, para Online, completar el test aprobado.
+- Conservar el flujo privado existente: PDF/DOC/DOCX, máximo 10 MB, un solo archivo activo, reemplazo y nombre visible.
+- Mostrar estado Not uploaded, Uploaded o Replaced y check verde al completar.
+- Retirar completamente Work References de esta página y del cálculo que desbloquea la agenda. Los datos existentes se conservan y permanecen disponibles en el perfil interno del candidato.
 
 ## 4. Step 3 — Schedule Interview
 
-- Colocar **Schedule Your Interview** inmediatamente debajo de las tres tarjetas.
+- Colocar **Schedule Your Interview** inmediatamente después del currículum.
 - Desbloquear Calendly únicamente cuando:
   - exista una modalidad seleccionada;
   - haya currículum;
   - para Online, la última prueba cumpla ambos mínimos o exista una anulación manual autorizada.
-- Grammar Test, Grammar Review, referencias, declaración de referencias y captura de información del equipo dejan de bloquear la agenda.
+- Grammar Test, Grammar Review, referencias, declaración de referencias y captura de información del equipo no bloquean la agenda.
 - Si falta el currículum, mostrar solamente: **“Please upload your resume before scheduling your interview.”**
-- Conservar el embed y fallback de Calendly existentes.
-- Abrir o visualizar Calendly solo marcará que la agenda fue abierta. El estado **Interview scheduled** seguirá dependiendo de una reserva real recuperada desde Calendly, nunca del clic de apertura.
-- Tras una reserva confirmada, mostrar el recordatorio de completar Grammar Test/Grammar Review si continúan pendientes e incorporarlo en las confirmaciones/recordatorios existentes que controle la aplicación.
+- Conservar el embed y fallback de Calendly existentes; no construir otro calendario.
+- Abrir Calendly no cambia el estado ni muestra éxito. La página consultará el estado real y solo mostrará éxito cuando una reserva confirmada haya creado/actualizado la cita mediante el webhook de Calendly.
+
+### Confirmación posterior a la reserva
+
+Después de la confirmación real, sustituir el calendario por:
+
+- **“Your interview is scheduled!”**
+- “We have sent the next steps and preparation materials to your email. Please review them before your interview.” únicamente cuando el proveedor confirme el envío.
+- Fecha, hora, zona horaria, información de Zoom y correo parcialmente oculto.
+- Recordatorio para revisar Inbox, Spam o Junk.
+- Botón opcional **View Preparation Steps** que muestra en la misma página los pasos enviados.
+
+Si el proveedor de correo falla:
+
+- Mostrar **“Your interview is scheduled, but we could not send the preparation email. You can review the steps below.”**
+- Mostrar **Resend Preparation Email**.
+- No afirmar nunca que el correo salió si el proveedor no lo confirmó.
+
+### Correo automático de preparación
+
+- Enviar una sola vez por reserva confirmada, con asunto **“Your E4CC Interview Is Confirmed — Preparation Steps”**.
+- Usar exactamente el cuerpo suministrado: detalles reales de fecha/hora/zona, Zoom `https://zoom.us/j/97824770369`, dispositivo, TestGorilla, documento de Grammar Tenses, video Online u Onsite según la modalidad, y recordatorio de currículum/referencias.
+- Personalizar el primer nombre y las fechas usando la cita confirmada; no inventar información.
+- Registrar enviado, fallido y reenviado para evitar duplicados y permitir reintento seguro.
+- Mantener la verificación manual del Grammar Test dentro de la entrevista por parte del reclutador.
 
 ## 5. Datos y configuración aditivos
 
@@ -62,18 +74,19 @@ Ampliar `recruitment_progress` sin eliminar ni renombrar columnas:
 
 - `internet_download_mbps`, `internet_upload_mbps`, `internet_ping_ms`, `internet_tested_at`, `internet_test_passed`.
 - `internet_override`, `internet_override_note`, `internet_override_by`, `internet_override_at`.
-- `grammar_topics_completed_at`.
 - `resume_replaced_at` para distinguir Uploaded/Replaced sin perder el archivo activo.
+- Datos de entrega del correo de preparación vinculados a la cita: estado, fecha de envío, error y contador/fecha de reenvío (reutilizando `candidate_emails` cuando corresponda).
 
 Añadir a la configuración existente los mínimos de descarga y subida, inicialmente 10/10 Mbps. Mantener los campos históricos (`internet_speed_mbps`, system info, referencias y declaración) para compatibilidad, pero dejar de usarlos como bloqueos de esta pantalla.
 
 ## 6. Perfil y panel del reclutador
 
-- En la lista y ficha del candidato, añadir o conservar badges compactos para: Online/Onsite, Internet Passed/Internet Review Needed, Grammar Pending, Resume Uploaded e Interview Scheduled.
-- En la ficha mostrar descarga, subida, ping, fecha de prueba, estado/nota de override, Grammar Test, Grammar Review, currículum y estado real de cita.
+- En la lista y ficha del candidato, añadir o conservar badges compactos para: Online/Onsite, Internet Passed/Internet Review Needed, Grammar Pending, Resume Uploaded, Interview Scheduled, Preparation Email Sent/Failed/Resent.
+- En la ficha mostrar descarga, subida, ping, fecha de prueba, estado/nota de override, estado manual del Grammar Test, currículum y estado real de cita.
 - Añadir una acción de override específica del requisito de Internet para Admin/Recruiter/Evaluator autorizados; Viewer permanece en solo lectura.
 - Exigir nota para el override y registrar actor, fecha, candidato, resultado y nota en el audit log.
 - Conservar enlaces temporales firmados para abrir currículums privados.
+- Mantener Work References en la ficha interna/recruiter follow-up, sin mostrarlas ni exigirlas en la página pública.
 
 ## 7. Seguridad y compatibilidad
 
@@ -89,12 +102,16 @@ Añadir a la configuración existente los mínimos de descarga y subida, inicial
 - Evitar caché en descarga y usar un payload no comprimible de tamaño conocido; repetir muestras breves y reportar una medición estable.
 - Guardar los resultados únicamente mediante la función protegida por el token del candidato, recalculando `passed` contra la configuración vigente en servidor.
 - Actualizar `requirementsFor()` para que solo modalidad + currículum + requisito Online gobiernen el desbloqueo.
-- Mantener la sincronización existente que consulta Calendly y crea/actualiza `appointments`; el evento del navegador solo solicitará esa sincronización.
+- La integración actual solo consulta Calendly; añadir un endpoint público de webhook que valide la firma de Calendly antes de procesar una reserva.
+- Registrar la suscripción mediante la conexión existente de Calendly y enrutar sus llamadas por la conexión administrada, sin exponer credenciales al navegador.
+- Hacer idempotente el procesamiento por identificador de evento/invitado para evitar citas o correos duplicados.
+- El evento del navegador no marcará éxito; solo refrescará hasta encontrar la cita confirmada por webhook.
+- Disparar el correo después de persistir la cita y guardar la respuesta real del proveedor antes de decidir qué mensaje mostrar.
 
 ## Verificación
 
-- Probar los escenarios solicitados para Online/Onsite, retest, override, tareas pendientes, currículum único y reserva confirmada.
-- Verificar que Work References ya no aparece en la página pública y sigue disponible internamente.
+- Probar Online/Onsite, retest, override, currículum único, webhook válido/inválido, idempotencia, envío exitoso/fallido y reenvío.
+- Verificar que Grammar Test, Grammar Review y Work References no aparecen en la página pública y siguen disponibles internamente donde corresponda.
 - Verificar permisos de candidato, staff, Viewer, alcance por país, archivos privados y auditoría.
 - Comprobar visualmente escritorio y móvil con Playwright, incluyendo fila de tres tarjetas y apilado móvil.
 - Ejecutar typecheck y revisar el build automático sin errores.
