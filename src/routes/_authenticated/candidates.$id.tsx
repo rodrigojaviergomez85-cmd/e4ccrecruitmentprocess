@@ -32,6 +32,7 @@ import {
   sendFollowUpEmail,
 } from "@/lib/candidate-admin.functions";
 import { isSchedulingEligible } from "@/lib/interviews";
+import { buildFollowUpEmail } from "@/lib/candidate-emails";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cefrBand, cefrInternalLabel, scoreBand, SCORE_CATEGORIES, STATUS_OPTIONS } from "@/lib/recruitment";
@@ -250,6 +251,7 @@ function CandidateDetail() {
 
         <CandidateManagementPanel
           applicationId={id}
+          fullName={app.full_name}
           archivedAt={(app as { archived_at?: string | null }).archived_at ?? null}
           canEvaluate={Boolean(evaluatorAccess.data?.canEvaluate)}
         />
@@ -439,10 +441,12 @@ function CandidateDetail() {
 
 function CandidateManagementPanel({
   applicationId,
+  fullName,
   archivedAt,
   canEvaluate,
 }: {
   applicationId: string;
+  fullName: string;
   archivedAt: string | null;
   canEvaluate: boolean;
 }) {
@@ -456,6 +460,7 @@ function CandidateManagementPanel({
   const [reason, setReason] = useState("");
   const [areas, setAreas] = useState("");
   const [emailKind, setEmailKind] = useState<"retake" | "not_approved">("retake");
+  const [showPreview, setShowPreview] = useState(false);
 
   const attempts = useQuery({
     queryKey: ["attempts", applicationId],
@@ -575,14 +580,34 @@ function CandidateManagementPanel({
             placeholder="Area of opportunity to include in the email"
             className="min-h-20 rounded-2xl"
           />
-          <Button
-            size="sm"
-            className="rounded-2xl"
-            disabled={emailMutation.isPending || !areas.trim()}
-            onClick={() => emailMutation.mutate()}
-          >
-            Send follow-up email
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-2xl"
+              disabled={!areas.trim()}
+              onClick={() => setShowPreview((v) => !v)}
+            >
+              {showPreview ? "Hide preview" : "Preview email"}
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-2xl"
+              disabled={emailMutation.isPending || !areas.trim()}
+              onClick={() => emailMutation.mutate()}
+            >
+              Send follow-up email
+            </Button>
+          </div>
+          {showPreview && areas.trim() && (
+            <iframe
+              title="Email preview"
+              className="h-96 w-full rounded-2xl border border-border bg-white"
+              srcDoc={
+                buildFollowUpEmail({ kind: emailKind, fullName, areas }).html
+              }
+            />
+          )}
           {emails.data?.length ? (
             <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
               {emails.data.slice(0, 5).map((e) => (
