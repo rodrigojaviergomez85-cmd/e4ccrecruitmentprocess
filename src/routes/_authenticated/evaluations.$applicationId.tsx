@@ -1436,6 +1436,92 @@ function EvaluationForm() {
             )}
           </div>
         </div>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
+            <h2 className="text-sm font-semibold">Candidate</h2>
+            <p className="mt-1 font-medium">{candidate.fullName}</p>
+            <p className="text-xs text-muted-foreground">{candidate.email}</p>
+            <p className="text-xs text-muted-foreground">{candidate.phone}</p>
+            <p className="text-xs text-muted-foreground">
+              {candidate.country} / {candidate.city} · {candidate.lob ?? "LOB not set"}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Pipeline: {candidate.pipelineStatus}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
+            <h2 className="text-sm font-semibold">Interview</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {candidate.appointmentAt
+                ? new Date(candidate.appointmentAt).toLocaleString()
+                : "Not scheduled"}
+              {candidate.candidateTimezone ? ` · ${candidate.candidateTimezone}` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Interviewer: {candidate.interviewer ?? "—"} · {candidate.appointmentStatus ?? "—"}
+            </p>
+            {candidate.meetingLink && (
+              <Button asChild size="sm" className="mt-3 w-full rounded-2xl">
+                <a href={candidate.meetingLink} target="_blank" rel="noreferrer">
+                  Join meeting
+                </a>
+              </Button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
+            <h2 className="text-sm font-semibold">English and Grammar Test</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Previous level: <strong>{candidate.previousCefr ?? "—"}</strong>
+              {candidate.previousScore != null ? ` · ${candidate.previousScore}/100` : ""}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Live level: <strong>{liveCefr || "—"}</strong>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Grammar Test: {candidate.grammarTestStatus ?? "—"}
+              {candidate.grammarTestScore != null ? ` · ${candidate.grammarTestScore}` : ""}
+              {candidate.grammarTestVerified ? " · verified" : ""}
+            </p>
+            {candidate.internetSpeed != null && (
+              <p className="text-xs text-muted-foreground">
+                Internet: {candidate.internetSpeed} Mbps
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card p-4 text-sm">
+            <h2 className="text-sm font-semibold">Resume and references</h2>
+            {candidate.resumeUrl ? (
+              <Button asChild size="sm" variant="outline" className="mt-2 w-full rounded-2xl">
+                <a href={candidate.resumeUrl} target="_blank" rel="noreferrer">
+                  Open resume
+                </a>
+              </Button>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {candidate.resumeFilename ?? "No resume uploaded"}
+              </p>
+            )}
+            <ul className="mt-3 space-y-2">
+              {candidate.references.length === 0 && (
+                <li className="text-xs text-muted-foreground">No work references submitted.</li>
+              )}
+              {candidate.references.map((r) => (
+                <li key={r.slot} className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{r.company || "—"}</span>
+                  {r.position ? ` · ${r.position}` : ""}
+                  <br />
+                  {r.supervisorName || "—"}
+                  {r.supervisorPhone ? ` · ${r.supervisorPhone}` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
       </div>
     </main>
   );
