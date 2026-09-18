@@ -9,6 +9,14 @@ import { BrandMark } from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -43,6 +51,7 @@ import {
   isLockedStatus,
   complianceScore,
   levelDifference,
+  missingEarlyFinish,
   missingRequired,
   totalScore,
   verbStats,
@@ -142,6 +151,7 @@ function EvaluationForm() {
   const [categoryScores, setCategoryScores] = useState<Record<string, number>>({});
   const [step, setStep] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [finishOpen, setFinishOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -218,7 +228,7 @@ function EvaluationForm() {
   const delta = levelDifference(candidate?.previousCefr, liveCefr);
 
   const payload = useCallback(
-    (submit: boolean) => ({
+    (submit: boolean, earlyFinish = false) => ({
       evaluationId: evaluation?.id ?? "",
       sections,
       verbs,
@@ -234,6 +244,7 @@ function EvaluationForm() {
       redFlags: redFlags || null,
       categoryScores,
       submit,
+      earlyFinish,
     }),
     [
       evaluation?.id,
@@ -268,20 +279,22 @@ function EvaluationForm() {
     };
   }, [payload, hydrated, locked, evaluation?.id, saveFn]);
 
-  async function submit() {
-    if (missing.length) {
-      toast.error(`Missing required information: ${missing.join(", ")}`);
+  async function submit(earlyFinish = false) {
+    const required = earlyFinish ? missingEarlyFinish(complianceInput) : missing;
+    if (required.length) {
+      toast.error(`Missing required information: ${required.join(", ")}`);
       return;
     }
     setSaveState("saving");
     try {
-      const res = await saveFn({ data: payload(true) });
+      const res = await saveFn({ data: payload(true, earlyFinish) });
       if (!res.ok) {
         setSaveState("error");
         toast.error(`Missing required information: ${res.missing.join(", ")}`);
         return;
       }
       setSaveState("saved");
+      setFinishOpen(false);
       toast.success("Evaluation submitted. It is now read-only.");
       await refetch();
     } catch (e) {
@@ -651,63 +664,6 @@ function EvaluationForm() {
             </div>
           )}
 
-          {current.key === "grammar_test" && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <p className="text-xs text-muted-foreground sm:col-span-2">
-                From the candidate profile — status: {candidate.grammarTestStatus ?? "—"}, score:{" "}
-                {candidate.grammarTestScore ?? "—"}, verified:{" "}
-                {candidate.grammarTestVerified ? "Yes" : "No"}. Results are entered manually; there
-                is no automatic TestGorilla verification.
-              </p>
-              <Field label="Completed">
-                <Select
-                  value={str("grammar_test", "completed")}
-                  onValueChange={(v) => set("grammar_test", "completed", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YES_NO.map((v) => (
-                      <SelectItem key={v} value={v}>
-                        {v}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Score">
-                <Input
-                  value={str("grammar_test", "score")}
-                  onChange={(e) => set("grammar_test", "score", e.target.value)}
-                />
-              </Field>
-              <Field label="Verified by evaluator">
-                <Select
-                  value={str("grammar_test", "verified")}
-                  onValueChange={(v) => set("grammar_test", "verified", v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {YES_NO.map((v) => (
-                      <SelectItem key={v} value={v}>
-                        {v}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Internal notes">
-                <Textarea
-                  value={str("grammar_test", "notes")}
-                  onChange={(e) => set("grammar_test", "notes", e.target.value)}
-                />
-              </Field>
-            </div>
-          )}
-
           {current.key === "profile" && (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Professional English teaching experience">
@@ -836,6 +792,31 @@ function EvaluationForm() {
 
           {current.key === "english" && (
             <div className="space-y-5">
+              <div className="space-y-3 rounded-xl border border-border p-4">
+                <h3 className="text-sm font-semibold">Grammar Test</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Completed">
+                    <Select
+                      value={str("grammar_test", "completed")}
+                      onValueChange={(v) => set("grammar_test", "completed", v)}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {YES_NO.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Score">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={str("grammar_test", "score")}
+                      onChange={(e) => set("grammar_test", "score", e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
               <p className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
                 Read to the candidate: “{ENGLISH_INTRO}”
               </p>
@@ -1401,7 +1382,7 @@ function EvaluationForm() {
           )}
         </fieldset>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
             variant="outline"
             disabled={step === 0}
@@ -1409,7 +1390,12 @@ function EvaluationForm() {
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            {!locked && (
+              <Button variant="destructive" onClick={() => setFinishOpen(true)}>
+                Finish interview
+              </Button>
+            )}
             {!locked && (
               <Button
                 variant="outline"
@@ -1429,7 +1415,7 @@ function EvaluationForm() {
               </Button>
             ) : (
               !locked && (
-                <Button onClick={() => void submit()} disabled={missing.length > 0}>
+                <Button onClick={() => void submit(false)} disabled={missing.length > 0}>
                   Submit evaluation
                 </Button>
               )
@@ -1523,6 +1509,77 @@ function EvaluationForm() {
           </div>
         </aside>
       </div>
+      <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Finish interview</DialogTitle>
+            <DialogDescription>
+              Choose the result and complete only the information required for that decision.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Field label="Final result">
+              <Select value={finalResult} onValueChange={setFinalResult}>
+                <SelectTrigger><SelectValue placeholder="Select the final result" /></SelectTrigger>
+                <SelectContent>
+                  {FINAL_RESULTS.map((result) => <SelectItem key={result} value={result}>{result}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            {finalResult === "Approved for last step" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Interview comments"><Textarea value={comments} onChange={(e) => setComments(e.target.value)} /></Field>
+                <Field label="Red flags (or 'No red flags identified')"><Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} /></Field>
+                <Field label="Last roleplay interview date"><Input type="date" value={lastRoleplayDate} onChange={(e) => setLastRoleplayDate(e.target.value)} /></Field>
+                <Field label="Hiring bonus recommendation">
+                  <Select value={hiringBonus} onValueChange={setHiringBonus}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>{HIRING_BONUS_OPTIONS.map((bonus) => <SelectItem key={bonus} value={bonus}>{bonus}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            )}
+            {finalResult === "Retake required" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Retake reason"><Textarea value={str("result", "retake_reason")} onChange={(e) => set("result", "retake_reason", e.target.value)} /></Field>
+                <Field label="Areas the candidate must improve"><Textarea value={str("result", "retake_improvements")} onChange={(e) => set("result", "retake_improvements", e.target.value)} /></Field>
+                <Field label="Retake date"><Input type="date" value={retakeDate} onChange={(e) => setRetakeDate(e.target.value)} /></Field>
+                <Field label="Evaluator comments"><Textarea value={comments} onChange={(e) => setComments(e.target.value)} /></Field>
+              </div>
+            )}
+            {finalResult === "Not approved" && (
+              <div className="space-y-3">
+                <Label className="text-xs">Reasons</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {NOT_APPROVED_REASONS.map((reason) => (
+                    <label key={reason} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={notApprovedReasons.includes(reason)} onCheckedChange={(checked) => {
+                        const next = checked ? [...notApprovedReasons, reason] : notApprovedReasons.filter((item) => item !== reason);
+                        setNotApprovedReasons(next);
+                        set("result", "not_approved_reasons", next);
+                      }} />
+                      {reason}
+                    </label>
+                  ))}
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Final interview comments"><Textarea value={comments} onChange={(e) => setComments(e.target.value)} /></Field>
+                  <Field label="Red flags identified"><Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} /></Field>
+                </div>
+              </div>
+            )}
+            {missingEarlyFinish(complianceInput).length > 0 && (
+              <p className="text-xs text-destructive">Required to finish: {missingEarlyFinish(complianceInput).join(", ")}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinishOpen(false)}>Cancel</Button>
+            <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving"}>
+              Confirm and finish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

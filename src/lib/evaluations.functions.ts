@@ -7,6 +7,7 @@ import {
   isLockedStatus,
   STATUS_FOR_RESULT,
   complianceScore,
+  missingEarlyFinish,
   missingRequired,
   totalScore,
   type Weights,
@@ -400,6 +401,7 @@ const savePayload = z.object({
   redFlags: z.string().max(4000).nullable().default(null),
   categoryScores: z.record(z.string(), z.number()).default({}),
   submit: z.boolean().default(false),
+  earlyFinish: z.boolean().default(false),
 });
 
 async function loadEditable(db: Db, evaluationId: string) {
@@ -453,7 +455,9 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       lastRoleplayDate: data.lastRoleplayDate,
       retakeDate: data.retakeDate,
     };
-    const missing = missingRequired(complianceInput);
+    const missing = data.earlyFinish
+      ? missingEarlyFinish(complianceInput)
+      : missingRequired(complianceInput);
     if (data.submit && missing.length) return { ok: false as const, missing };
 
     const total = totalScore(data.categoryScores, weights);
@@ -517,7 +521,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         actorId: context.userId,
         actorEmail: ctx.email,
         action: "submitted",
-        details: { finalResult: data.finalResult, total, compliance },
+        details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
     }
 
