@@ -1,894 +1,126 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CalendarClock,
-  CheckCircle2,
-  ExternalLink,
-  FileText,
-  Loader2,
-  Lock,
-  Monitor,
-  Upload,
-} from "lucide-react";
+import { CalendarClock, CheckCircle2, ExternalLink, FileText, Loader2, Lock, RefreshCw, Upload, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { BrandMark } from "@/components/BrandMark";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  createResumeUploadTarget,
-  createSystemInfoUploadTarget,
-  getRecruitmentProcess,
-  markSchedulingOpened,
-  recordCalendlyBooking,
-  saveRecruitmentProgress,
-  saveResume,
-  saveSystemInfo,
-  saveWorkReference,
-} from "@/lib/process.functions";
-import { cn } from "@/lib/utils";
+import { createResumeUploadTarget, getRecruitmentProcess, markSchedulingOpened, recordCalendlyBooking, saveRecruitmentProgress, saveResume, saveWorkReference } from "@/lib/process.functions";
 
-const GRAMMAR_TEST_URL = "https://app.testgorilla.com/s/bnm9wczd";
-const GRAMMAR_TOPICS_URL =
-  "https://drive.google.com/file/d/1307-D5PsWy6crpyXyUCBXQM59w4aBs9P/view?usp=sharing";
 const CALENDLY_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
+const ZOOM_URL = "https://zoom.us/j/97824770369";
 
 export const Route = createFileRoute("/process/$id")({
   validateSearch: z.object({ t: z.string().optional() }),
-  head: () => ({
-    meta: [
-      { title: "E4CC Recruitment Process" },
-      {
-        name: "description",
-        content:
-          "Complete the E4CC coach recruitment requirements and schedule your live Zoom interview.",
-      },
-      { property: "og:title", content: "E4CC Recruitment Process" },
-      {
-        property: "og:description",
-        content: "Requirements checklist and interview scheduling for E4CC coach candidates.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "E4CC Recruitment Process" },
+    { name: "description", content: "Complete your E4CC interview preparation and schedule your interview." },
+    { property: "og:title", content: "E4CC Recruitment Process" },
+    { property: "og:description", content: "Complete your E4CC interview preparation and schedule your interview." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ProcessPage,
 });
 
 type State = Extract<Awaited<ReturnType<typeof getRecruitmentProcess>>, { invalid: null }>;
+type Reference = State["references"][number];
 
 function ProcessPage() {
   const { id } = Route.useParams();
-  const { t } = Route.useSearch();
-  const token = t ?? "";
-  const queryClient = useQueryClient();
+  const token = Route.useSearch().t ?? "";
   const load = useServerFn(getRecruitmentProcess);
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["process", id],
-    queryFn: () => load({ data: { applicationId: id, token } }),
-    enabled: Boolean(token),
-    retry: false,
-  });
-
-  if (!token) return <Denied />;
-  if (isLoading) {
-    return (
-      <Shell>
-        <Skeleton className="h-40 w-full rounded-3xl" />
-        <Skeleton className="h-96 w-full rounded-3xl" />
-      </Shell>
-    );
-  }
-  if (error || !data)
-    return <Denied message={error instanceof Error ? error.message : undefined} />;
-  if (data.invalid != null) return <Denied message={data.invalid} />;
-
-
-
-  return (
-    <Shell>
-      <Content
-        state={data}
-        id={id}
-        token={token}
-        onState={(next) =>
-          queryClient.setQueryData(["process", id], (prev: State | undefined) => ({
-            ...(prev ?? {}),
-            ...next,
-          }))
-        }
-      />
-    </Shell>
-  );
+  const query = useQuery({ queryKey: ["process", id], queryFn: () => load({ data: { applicationId: id, token } }), enabled: Boolean(token), retry: false, refetchInterval: (q) => (q.state.data && "appointment" in q.state.data && q.state.data.appointment ? false : 5000) });
+  if (!token || query.error || (query.data && query.data.invalid != null)) return <Denied message={query.data?.invalid ?? (query.error as Error | null)?.message} />;
+  if (!query.data) return <Shell><Skeleton className="h-96 w-full rounded-lg" /></Shell>;
+  return <Shell><Content state={query.data} id={id} token={token} /></Shell>;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-secondary/30 pb-16">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto max-w-3xl px-5 py-4">
-          <BrandMark className="h-8" />
-        </div>
-      </header>
-      <div className="mx-auto max-w-3xl space-y-5 px-5 py-7">{children}</div>
-    </main>
-  );
+  return <main className="min-h-screen bg-secondary/30 pb-16"><header className="border-b bg-background"><div className="mx-auto max-w-3xl px-5 py-4"><BrandMark className="h-8" /></div></header><div className="mx-auto max-w-3xl space-y-4 px-5 py-7">{children}</div></main>;
 }
 
-function Denied({ message }: { message?: string | undefined }) {
-  return (
-    <Shell>
-      <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold">This page is not available</h1>
-        <p className="mt-3 text-muted-foreground">
-          {message ?? "This stage is not available for your application."}
-        </p>
-        <Button asChild variant="outline" className="mt-8 rounded-2xl">
-          <Link to="/">Back to home</Link>
-        </Button>
-      </div>
-    </Shell>
-  );
+function Denied({ message }: { message?: string }) {
+  return <Shell><section className="rounded-lg border bg-card p-8 text-center"><h1 className="text-2xl font-bold">This page is not available</h1><p className="mt-3 text-muted-foreground">{message ?? "This link is not valid."}</p><Button asChild variant="outline" className="mt-6"><Link to="/">Back to home</Link></Button></section></Shell>;
 }
 
-function Content({
-  state,
-  id,
-  token,
-  onState,
-}: {
-  state: State;
-  id: string;
-  token: string;
-  onState: (next: State) => void;
-}) {
+function Content({ state, id, token }: { state: State; id: string; token: string }) {
+  const queryClient = useQueryClient();
   const save = useServerFn(saveRecruitmentProgress);
-  const openScheduling = useServerFn(markSchedulingOpened);
-  const progress = state.progress;
-  const done = state.requirements.filter((r) => r.done).length;
-  const pct = Math.round((done / state.requirements.length) * 100);
-
-  const saveMutation = useMutation({
-    mutationFn: (patch: Record<string, boolean | string | number>) =>
-      save({ data: { applicationId: id, token, ...patch } }),
-    onSuccess: (next) => onState(next as State),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const openedRef = useRef(false);
-  useEffect(() => {
-    if (!state.unlocked || openedRef.current) return;
-    if (progress.scheduling_status === "Scheduling opened") return;
-    openedRef.current = true;
-    void openScheduling({ data: { applicationId: id, token } }).catch(() => undefined);
-  }, [state.unlocked, progress.scheduling_status, id, token, openScheduling]);
-
-  return (
-    <>
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-2xl font-bold">Welcome to E4CC&apos;s Coach Recruitment Process</h1>
-        <p className="mt-3 text-muted-foreground">
-          Congratulations! You have been selected to continue to the next stage. Complete the
-          following requirements to schedule your LIVE ZOOM INTERVIEW with the E4CC Recruitment
-          Team.
-        </p>
-        <div className="mt-6 space-y-2">
-          <Progress value={pct} className="h-2" />
-          <p className="text-xs text-muted-foreground">
-            {done} of {state.requirements.length} requirements completed
-          </p>
-        </div>
-        <ul className="mt-5 grid gap-2 sm:grid-cols-2">
-          {state.requirements.map((r) => (
-            <li key={r.key} className="flex items-center gap-2 text-sm">
-              {r.done ? (
-                <CheckCircle2 className="h-4 w-4 text-success" />
-              ) : (
-                <span className="h-4 w-4 rounded-full border border-muted-foreground/40" />
-              )}
-              <span className={r.done ? "text-foreground" : "text-muted-foreground"}>{r.label}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <DeviceCard state={state} id={id} token={token} onState={onState} saveMutation={saveMutation} />
-
-      <Card icon={<FileText className="h-5 w-5" />} title="2. Grammar Test">
-        <p className="text-sm text-muted-foreground">
-          Complete the mandatory Grammar Test before your interview.
-        </p>
-        <p className="text-xs text-muted-foreground">Estimated time: 12 minutes.</p>
-        <Button
-          variant="outline"
-          className="rounded-2xl"
-          onClick={() => {
-            window.open(GRAMMAR_TEST_URL, "_blank", "noopener,noreferrer");
-            saveMutation.mutate({ grammar_test_opened: true });
-          }}
-        >
-          Take the Grammar Test <ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-        <p className="text-xs text-muted-foreground">Status: {progress.grammar_test_status}</p>
-        <Confirm
-          checked={progress.grammar_test_confirmed}
-          onChange={(v) => saveMutation.mutate({ grammar_test_confirmed: v })}
-          label="I confirm that I completed the Grammar Test."
-        />
-      </Card>
-
-      <Card icon={<FileText className="h-5 w-5" />} title="3. Review Grammar Topics">
-        <p className="text-sm text-muted-foreground">
-          During the interview, you will be asked to explain grammar tenses and verbs clearly, as if
-          you were teaching a class.
-        </p>
-        <Button
-          variant="outline"
-          className="rounded-2xl"
-          onClick={() => window.open(GRAMMAR_TOPICS_URL, "_blank", "noopener,noreferrer")}
-        >
-          Review Grammar Topics <ExternalLink className="ml-2 h-4 w-4" />
-        </Button>
-        <Confirm
-          checked={progress.grammar_topics_confirmed}
-          onChange={(v) => saveMutation.mutate({ grammar_topics_confirmed: v })}
-          label="I reviewed the grammar material and understand that I may be asked to explain these topics during my interview."
-        />
-      </Card>
-
-      <ResumeCard state={state} id={id} token={token} onState={onState} />
-
-      <ReferencesCard state={state} id={id} token={token} onState={onState} />
-
-      <SchedulingCard state={state} id={id} token={token} />
-    </>
-  );
+  const markOpened = useServerFn(markSchedulingOpened);
+  const setState = (next: State) => queryClient.setQueryData(["process", id], next);
+  const saveMutation = useMutation({ mutationFn: (patch: Record<string, string | number>) => save({ data: { applicationId: id, token, ...patch } }), onSuccess: (next) => setState(next as State), onError: (e: Error) => toast.error(e.message) });
+  const opened = useRef(false);
+  useEffect(() => { if (state.unlocked && !opened.current) { opened.current = true; void markOpened({ data: { applicationId: id, token } }); } }, [state.unlocked, id, token, markOpened]);
+  const completed = state.requirements.filter((item) => item.done).length;
+  return <>
+    <section className="rounded-lg border bg-card p-6"><p className="text-sm font-semibold text-primary">E4CC Recruitment Process</p><h1 className="mt-1 text-2xl font-bold">You’re almost ready, {state.candidate.fullName.split(/\s+/)[0]}.</h1><p className="mt-2 text-muted-foreground">Complete these simple steps, then choose your interview time.</p><p className="mt-4 text-sm font-medium">{completed} of {state.requirements.length} ready</p></section>
+    <PositionCard state={state} saveMutation={saveMutation} id={id} token={token} setState={setState} />
+    <DocumentsCard state={state} id={id} token={token} setState={setState} />
+    <SchedulingCard state={state} id={id} token={token} />
+  </>;
 }
 
-function Card({
-  icon,
-  title,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-2 text-primary">
-        {icon}
-        <h2 className="text-lg font-bold text-foreground">{title}</h2>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Confirm({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-secondary/40 p-3 text-sm">
-      <Checkbox checked={checked} onCheckedChange={(v) => onChange(v === true)} className="mt-0.5" />
-      <span>{label}</span>
-    </label>
-  );
-}
-
-function ResumeCard({
-  state,
-  id,
-  token,
-  onState,
-}: {
-  state: State;
-  id: string;
-  token: string;
-  onState: (next: State) => void;
-}) {
-  const createTarget = useServerFn(createResumeUploadTarget);
-  const commit = useServerFn(saveResume);
-  const [busy, setBusy] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function upload(file: File) {
-    const ext = (file.name.split(".").pop() ?? "").toLowerCase();
-    if (!["pdf", "doc", "docx"].includes(ext)) {
-      toast.error("Please upload a PDF, DOC or DOCX file.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("The file must be 10 MB or smaller.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const target = await createTarget({
-        data: { applicationId: id, token, ext: ext as "pdf" | "doc" | "docx", size: file.size },
-      });
-      const { error } = await supabase.storage
-        .from("candidate-media")
-        .uploadToSignedUrl(target.path, target.token, file);
-      if (error) throw new Error(error.message);
-      const next = await commit({
-        data: { applicationId: id, token, path: target.path, filename: file.name },
-      });
-      onState(next as State);
-      toast.success("Resume uploaded");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  return (
-    <Card icon={<Upload className="h-5 w-5" />} title="4. Resume and Work References">
-      <p className="text-sm text-muted-foreground">
-        Upload your updated resume. It must include your most recent teaching, training and
-        professional experience. PDF, DOC or DOCX · max 10 MB.
-      </p>
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".pdf,.doc,.docx"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void upload(file);
-        }}
-      />
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          variant="outline"
-          className="rounded-2xl"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-        >
-          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {state.progress.resume_path ? "Replace resume" : "Upload resume"}
-        </Button>
-        {state.progress.resume_filename && (
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4 text-success" /> {state.progress.resume_filename}
-          </span>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-async function measureInternetSpeedMbps(): Promise<number> {
-  // Prefer the browser's own estimate when available.
-  const conn = (navigator as Navigator & { connection?: { downlink?: number } }).connection;
-  const hint = typeof conn?.downlink === "number" && conn.downlink > 0 ? conn.downlink : null;
-  // Timed downloads of a same-origin asset as a fallback / complement.
-  let measured: number | null = null;
-  try {
-    let bytes = 0;
-    const start = performance.now();
-    for (let i = 0; i < 6; i++) {
-      const res = await fetch(`/favicon.png?sb=${Date.now()}-${i}`, { cache: "no-store" });
-      const blob = await res.blob();
-      bytes += blob.size;
-    }
-    const seconds = (performance.now() - start) / 1000;
-    if (seconds > 0.05 && bytes > 0) measured = (bytes * 8) / seconds / 1_000_000;
-  } catch {
-    measured = null;
-  }
-  const best = Math.max(hint ?? 0, measured ?? 0);
-  return Math.round(best * 10) / 10;
-}
-
-function DeviceCard({
-  state,
-  id,
-  token,
-  onState,
-  saveMutation,
-}: {
-  state: State;
-  id: string;
-  token: string;
-  onState: (next: State) => void;
-  saveMutation: {
-    mutate: (fields: {
-      device_confirmed?: boolean;
-      work_modality?: "online" | "onsite";
-      internet_speed_mbps?: number;
-    }) => void;
-    isPending: boolean;
-  };
-}) {
-  const createTarget = useServerFn(createSystemInfoUploadTarget);
-  const commit = useServerFn(saveSystemInfo);
-  const [busy, setBusy] = useState(false);
+function PositionCard({ state, saveMutation, id, token, setState }: { state: State; saveMutation: ReturnType<typeof useMutation>; id: string; token: string; setState: (s: State) => void }) {
+  const modality = state.progress.work_modality;
   const [testing, setTesting] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const progress = state.progress;
-  const modality = progress.work_modality;
-  const isOnline = modality === "online";
-
-  async function runSpeedTest() {
+  async function speedTest() {
     setTesting(true);
     try {
-      const mbps = await measureInternetSpeedMbps();
-      const next = await saveRecruitmentProgress({
-        data: { applicationId: id, token, internet_speed_mbps: mbps },
-      });
-      onState(next as State);
-      toast.success(`Estimated speed: ${mbps} Mbps`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not measure your internet speed");
-    } finally {
-      setTesting(false);
-    }
+      const pingStart = performance.now();
+      await fetch(`/api/public/speed-test?ping=${Date.now()}`, { cache: "no-store" });
+      const ping = performance.now() - pingStart;
+      const downStart = performance.now();
+      const download = await fetch(`/api/public/speed-test?download=${Date.now()}`, { cache: "no-store" }).then((r) => r.arrayBuffer());
+      const downSeconds = (performance.now() - downStart) / 1000;
+      const uploadBytes = new Uint8Array(1024 * 1024);
+      const upStart = performance.now();
+      await fetch("/api/public/speed-test", { method: "POST", body: uploadBytes });
+      const upSeconds = (performance.now() - upStart) / 1000;
+      const next = await saveRecruitmentProgress({ data: { applicationId: id, token, internet_download_mbps: Math.round((download.byteLength * 8 / downSeconds / 1_000_000) * 10) / 10, internet_upload_mbps: Math.round((uploadBytes.byteLength * 8 / upSeconds / 1_000_000) * 10) / 10, internet_ping_ms: Math.round(ping) } });
+      setState(next as State);
+    } catch { toast.error("We could not complete the speed test. Please try again."); } finally { setTesting(false); }
   }
-
-  async function uploadScreenshot(file: File) {
-    const ext = (file.name.split(".").pop() ?? "").toLowerCase();
-    if (!["jpg", "jpeg", "png"].includes(ext)) {
-      toast.error("Please upload a JPG or PNG screenshot.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("The file must be 10 MB or smaller.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const target = await createTarget({
-        data: { applicationId: id, token, ext: ext as "jpg" | "jpeg" | "png", size: file.size },
-      });
-      const { error } = await supabase.storage
-        .from("candidate-media")
-        .uploadToSignedUrl(target.path, target.token, file);
-      if (error) throw new Error(error.message);
-      const next = await commit({
-        data: { applicationId: id, token, path: target.path, filename: file.name },
-      });
-      onState(next as State);
-      toast.success("System information uploaded");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  return (
-    <Card icon={<Monitor className="h-5 w-5" />} title="1. Device Requirement">
-      <p className="text-sm text-muted-foreground">
-        Online coaches must attend their interview using a laptop or desktop computer with a working
-        camera and microphone, and a stable internet connection. This does not apply to onsite
-        coaches.
-      </p>
-      <div className="space-y-1.5">
-        <Label className="text-xs">How will you work with E4CC?</Label>
-        <div className="flex gap-2">
-          {(["online", "onsite"] as const).map((m) => (
-            <Button
-              key={m}
-              type="button"
-              variant={modality === m ? "default" : "outline"}
-              className="rounded-2xl capitalize"
-              disabled={saveMutation.isPending}
-              onClick={() => saveMutation.mutate({ work_modality: m })}
-            >
-              {m === "online" ? "Online coach" : "Onsite coach"}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {isOnline && (
-        <div className="space-y-3 rounded-2xl bg-secondary/40 p-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Internet speed</Label>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-2xl"
-                disabled={testing || saveMutation.isPending}
-                onClick={() => void runSpeedTest()}
-              >
-                {testing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {progress.internet_speed_mbps != null ? "Run speed test again" : "Run speed test"}
-              </Button>
-              {progress.internet_speed_mbps != null && (
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  {progress.internet_speed_mbps} Mbps
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Computer processor and RAM</Label>
-            <p className="text-xs text-muted-foreground">
-              Open your computer's System Information (on Windows: press Windows key, type "System
-              Information"; on Mac: Apple menu → About This Mac), take a screenshot showing your
-              processor and RAM memory, and upload it here. JPG or PNG · max 10 MB.
-            </p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".jpg,.jpeg,.png"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadScreenshot(file);
-              }}
-            />
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-2xl"
-                disabled={busy}
-                onClick={() => inputRef.current?.click()}
-              >
-                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {progress.system_info_path ? "Replace screenshot" : "Upload screenshot"}
-              </Button>
-              {progress.system_info_filename && (
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="h-4 w-4 text-success" /> {progress.system_info_filename}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <Confirm
-        checked={progress.device_confirmed}
-        onChange={(v) => saveMutation.mutate({ device_confirmed: v })}
-        label="I confirm that I have access to a laptop or desktop computer with a working camera and microphone."
-      />
-    </Card>
-  );
+  const p = state.progress;
+  return <section className="rounded-lg border bg-card p-6"><h2 className="text-lg font-bold">1. Choose your position</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{(["online", "onsite"] as const).map((value) => <Button key={value} variant={modality === value ? "default" : "outline"} className="h-auto justify-start p-4 text-left" onClick={() => saveMutation.mutate({ work_modality: value })}><span><strong className="block">{value === "online" ? "Online Coach" : "Onsite Coach"}</strong><small>{value === "online" ? "Work from home" : "Work at an E4CC site"}</small></span></Button>)}</div>
+    {modality === "online" && <div className="mt-5 rounded-lg bg-secondary/50 p-4"><div className="flex items-center gap-2"><Wifi className="h-5 w-5 text-primary"/><h3 className="font-semibold">Internet Speed Test</h3></div><p className="mt-1 text-sm text-muted-foreground">Online positions require at least 10 Mbps download and 10 Mbps upload.</p><Button variant="outline" className="mt-3" disabled={testing} onClick={() => void speedTest()}>{testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}{p.internet_tested_at ? "Test again" : "Start test"}</Button>{p.internet_tested_at && <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm"><Metric label="Download" value={`${p.internet_download_mbps ?? 0} Mbps`}/><Metric label="Upload" value={`${p.internet_upload_mbps ?? 0} Mbps`}/><Metric label="Ping" value={`${p.internet_ping_ms ?? 0} ms`}/></div>}{p.internet_tested_at && !p.internet_test_passed && !p.internet_override && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>Your connection needs review.</span><Button size="sm" variant="outline" onClick={() => saveMutation.mutate({ work_modality: "onsite" })}>Change to Onsite</Button></div>}</div>}
+  </section>;
 }
 
-const REFERENCE_TITLES = [
-  "Work Reference 1 — Most Recent Position",
-  "Work Reference 2 — Previous Position",
-  "Work Reference 3 — Previous Position",
-  "Work Reference 4 — Previous Position",
-];
+function Metric({ label, value }: { label: string; value: string }) { return <div className="rounded-md border bg-background p-2"><span className="block font-semibold">{value}</span><span className="text-xs text-muted-foreground">{label}</span></div>; }
 
-function ReferencesCard({
-  state,
-  id,
-  token,
-  onState,
-}: {
-  state: State;
-  id: string;
-  token: string;
-  onState: (next: State) => void;
-}) {
-  const save = useServerFn(saveWorkReference);
-  const saveProgress = useServerFn(saveRecruitmentProgress);
-  const jobsCount = (state.progress as { jobs_count?: number | null }).jobs_count ?? null;
-  const slots = Array.from({ length: jobsCount ?? 0 }, (_, i) => i + 1);
-
-  return (
-    <section className="space-y-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
-      <h2 className="text-lg font-bold">Work references</h2>
-      <p className="text-sm text-muted-foreground">
-        Tell us how many jobs you have had, then provide one work reference for each of them (up to
-        four).
-      </p>
-      <div className="space-y-2">
-        <Label className="text-xs">How many jobs have you had?</Label>
-        <div className="flex flex-wrap gap-2">
-          {[1, 2, 3, 4].map((n) => (
-            <Button
-              key={n}
-              type="button"
-              variant={jobsCount === n ? "default" : "outline"}
-              className="rounded-2xl"
-              onClick={() => {
-                void saveProgress({ data: { applicationId: id, token, jobs_count: n } }).then(
-                  (next) => onState(next as State),
-                );
-              }}
-            >
-              {n === 4 ? "4 or more" : n}
-            </Button>
-          ))}
-        </div>
-      </div>
-      {slots.map((slot) => (
-        <ReferenceForm
-          key={slot}
-          title={REFERENCE_TITLES[slot - 1]!}
-          
-          initial={state.references.find((r) => r.slot === slot)}
-          onSave={async (values) => {
-            const next = (await save({
-              data: { applicationId: id, token, slot, ...values },
-            })) as State & { error?: string };
-            onState(next as State);
-            if (next.error) toast.error(next.error);
-            else toast.success("Reference saved");
-          }}
-        />
-      ))}
-      <Confirm
-        checked={state.progress.references_declaration}
-        onChange={(v) => {
-          void saveProgress({
-            data: { applicationId: id, token, references_declaration: v },
-          }).then((next) => onState(next as State));
-        }}
-        label="I confirm that the information and work references provided are accurate, recent and may be verified by E4CC."
-      />
-    </section>
-  );
+function DocumentsCard({ state, id, token, setState }: { state: State; id: string; token: string; setState: (s: State) => void }) {
+  const createTarget = useServerFn(createResumeUploadTarget); const commit = useServerFn(saveResume); const saveRef = useServerFn(saveWorkReference);
+  const input = useRef<HTMLInputElement>(null); const [busy, setBusy] = useState(false); const [count, setCount] = useState(Math.max(1, state.references.length));
+  async function upload(file: File) { const ext = (file.name.split(".").pop() ?? "").toLowerCase(); if (!["pdf","doc","docx"].includes(ext) || file.size > 10 * 1024 * 1024) return toast.error("Use one PDF, DOC or DOCX file up to 10 MB."); setBusy(true); try { const target = await createTarget({ data: { applicationId: id, token, ext: ext as "pdf"|"doc"|"docx", size: file.size } }); const result = await supabase.storage.from("candidate-media").uploadToSignedUrl(target.path, target.token, file); if (result.error) throw result.error; setState(await commit({ data: { applicationId: id, token, path: target.path, filename: file.name } }) as State); toast.success("Resume uploaded"); } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed"); } finally { setBusy(false); } }
+  return <section className="rounded-lg border bg-card p-6"><h2 className="text-lg font-bold">2. Resume and Work References</h2><p className="mt-1 text-sm text-muted-foreground">Upload one resume and complete at least Reference 1. You may add up to five.</p><input ref={input} className="hidden" type="file" accept=".pdf,.doc,.docx" onChange={(e) => { const f=e.target.files?.[0]; if(f) void upload(f); }}/><Button variant="outline" className="mt-4" disabled={busy} onClick={() => input.current?.click()}><Upload className="mr-2 h-4 w-4"/>{state.progress.resume_path ? "Replace resume" : "Upload resume"}</Button>{state.progress.resume_filename && <span className="ml-3 text-sm text-success"><CheckCircle2 className="mr-1 inline h-4 w-4"/>{state.progress.resume_filename}</span>}
+    <div className="mt-5 flex items-center justify-between"><h3 className="font-semibold">Work References</h3><span className="rounded-full bg-secondary px-3 py-1 text-xs">{count} of 5</span></div>
+    <Accordion type="single" collapsible defaultValue="reference-1" className="mt-2">{Array.from({ length: count }, (_, i) => i + 1).map((slot) => <AccordionItem key={slot} value={`reference-${slot}`}><AccordionTrigger>Reference {slot} {slot === 1 ? "(required)" : "(optional)"}</AccordionTrigger><AccordionContent><ReferenceForm initial={state.references.find((r) => r.slot === slot)} onSave={async (values) => { const next = await saveRef({ data: { applicationId: id, token, slot, ...values } }); setState(next as State); if ("error" in next && next.error) toast.error(next.error); else toast.success("Reference saved"); }}/></AccordionContent></AccordionItem>)}</Accordion>
+    {count < 5 && <Button size="sm" variant="outline" className="mt-3" onClick={() => setCount((c) => c + 1)}>Add another reference</Button>}
+  </section>;
 }
 
-type ReferenceValues = {
-  company: string;
-  position: string;
-  start_date: string | null;
-  end_date: string | null;
-  currently_working: boolean;
-  supervisor_name: string;
-  supervisor_phone: string;
-  supervisor_email: string;
-  reason_for_leaving: string;
-  may_contact: boolean;
-};
-
-function ReferenceForm({
-  title,
-  initial,
-  onSave,
-}: {
-  title: string;
-  initial: State["references"][number] | undefined;
-  onSave: (values: ReferenceValues) => Promise<void>;
-}) {
-  const [values, setValues] = useState<ReferenceValues>(() => ({
-    company: initial?.company ?? "",
-    position: initial?.position ?? "",
-    start_date: initial?.start_date ?? "",
-    end_date: initial?.end_date ?? "",
-    currently_working: initial?.currently_working ?? false,
-    supervisor_name: initial?.supervisor_name ?? "",
-    supervisor_phone: initial?.supervisor_phone ?? "",
-    supervisor_email: initial?.supervisor_email ?? "",
-    reason_for_leaving: initial?.reason_for_leaving ?? "",
-    may_contact: initial?.may_contact ?? true,
-  }));
-  const [busy, setBusy] = useState(false);
-  const set = (patch: Partial<ReferenceValues>) => setValues((v) => ({ ...v, ...patch }));
-
-  return (
-    <div className="space-y-3 rounded-2xl border border-border p-4">
-      <h3 className="font-semibold">{title}</h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Row label="Company name">
-          <Input
-            value={values.company}
-            maxLength={120}
-            onChange={(e) => set({ company: e.target.value })}
-          />
-        </Row>
-        <Row label="Your position">
-          <Input
-            value={values.position}
-            maxLength={120}
-            onChange={(e) => set({ position: e.target.value })}
-          />
-        </Row>
-        <Row label="Start date">
-          <Input
-            type="date"
-            value={values.start_date ?? ""}
-            onChange={(e) => set({ start_date: e.target.value })}
-          />
-        </Row>
-        <Row label="End date">
-          <Input
-            type="date"
-            disabled={values.currently_working}
-            value={values.end_date ?? ""}
-            onChange={(e) => set({ end_date: e.target.value })}
-          />
-        </Row>
-      </div>
-      <label className="flex cursor-pointer items-center gap-2 text-sm">
-        <Checkbox
-          checked={values.currently_working}
-          onCheckedChange={(v) => set({ currently_working: v === true, end_date: "" })}
-        />
-        Currently working here
-      </label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Row label="Supervisor's full name">
-          <Input
-            value={values.supervisor_name}
-            maxLength={120}
-            onChange={(e) => set({ supervisor_name: e.target.value })}
-          />
-        </Row>
-        <Row label="Supervisor's phone / WhatsApp (international format)">
-          <Input
-            value={values.supervisor_phone}
-            maxLength={40}
-            placeholder="+503 7777 7777"
-            onChange={(e) => set({ supervisor_phone: e.target.value })}
-          />
-        </Row>
-      </div>
-      <Row label="Reason for leaving">
-        <Textarea
-          value={values.reason_for_leaving}
-          maxLength={500}
-          onChange={(e) => set({ reason_for_leaving: e.target.value })}
-        />
-      </Row>
-      <label className="flex cursor-pointer items-center gap-2 text-sm">
-        <Checkbox
-          checked={values.may_contact}
-          onCheckedChange={(v) => set({ may_contact: v === true })}
-        />
-        May E4CC contact this person?
-      </label>
-      <Button
-        className="rounded-2xl"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            await onSave({
-              ...values,
-              supervisor_phone: values.supervisor_phone.trim(),
-              start_date: values.start_date || null,
-              end_date: values.end_date || null,
-            });
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Could not save this reference");
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        Save reference
-      </Button>
-    </div>
-  );
+type RefValues = { company:string; position:string; start_date:string|null; end_date:string|null; currently_working:boolean; supervisor_name:string; supervisor_position:string; supervisor_phone:string; supervisor_email:string; reason_for_leaving:string; may_contact:boolean };
+function ReferenceForm({ initial, onSave }: { initial?: Reference; onSave: (v: RefValues) => Promise<void> }) {
+  const [v,setV]=useState<RefValues>({company:initial?.company??"",position:initial?.position??"",start_date:initial?.start_date??"",end_date:initial?.end_date??"",currently_working:initial?.currently_working??false,supervisor_name:initial?.supervisor_name??"",supervisor_position:initial?.supervisor_position??"",supervisor_phone:initial?.supervisor_phone??"",supervisor_email:initial?.supervisor_email??"",reason_for_leaving:initial?.reason_for_leaving??"",may_contact:initial?.may_contact??true}); const [busy,setBusy]=useState(false); const set=(p:Partial<RefValues>)=>setV((x)=>({...x,...p}));
+  return <div className="space-y-3"><div className="grid gap-3 sm:grid-cols-2"><Field label="Company"><Input value={v.company} onChange={(e)=>set({company:e.target.value})}/></Field><Field label="Your position"><Input value={v.position} onChange={(e)=>set({position:e.target.value})}/></Field><Field label="Start date"><Input type="date" value={v.start_date??""} onChange={(e)=>set({start_date:e.target.value})}/></Field><Field label="End date"><Input type="date" disabled={v.currently_working} value={v.end_date??""} onChange={(e)=>set({end_date:e.target.value})}/></Field><Field label="Supervisor name"><Input value={v.supervisor_name} onChange={(e)=>set({supervisor_name:e.target.value})}/></Field><Field label="Supervisor position"><Input value={v.supervisor_position} onChange={(e)=>set({supervisor_position:e.target.value})}/></Field><Field label="Phone / WhatsApp (international)"><Input placeholder="+503 7777 7777" value={v.supervisor_phone} onChange={(e)=>set({supervisor_phone:e.target.value})}/></Field><Field label="Email (optional)"><Input type="email" value={v.supervisor_email} onChange={(e)=>set({supervisor_email:e.target.value})}/></Field></div><label className="flex items-center gap-2 text-sm"><Checkbox checked={v.currently_working} onCheckedChange={(x)=>set({currently_working:x===true,end_date:""})}/>Currently working here</label><Field label="Reason for leaving"><Textarea value={v.reason_for_leaving} onChange={(e)=>set({reason_for_leaving:e.target.value})}/></Field><label className="flex items-center gap-2 text-sm"><Checkbox checked={v.may_contact} onCheckedChange={(x)=>set({may_contact:x===true})}/>E4CC may contact this person</label><Button disabled={busy} onClick={async()=>{setBusy(true);try{await onSave({...v,start_date:v.start_date||null,end_date:v.currently_working?null:v.end_date||null});}finally{setBusy(false);}}}>Save reference</Button></div>;
 }
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
-      {children}
-    </div>
-  );
-}
+function Field({label,children}:{label:string;children:React.ReactNode}){return <div className="space-y-1"><Label className="text-xs">{label}</Label>{children}</div>}
 
 function SchedulingCard({ state, id, token }: { state: State; id: string; token: string }) {
-  const notifyBooking = useServerFn(recordCalendlyBooking);
-  const [booked, setBooked] = useState(false);
-  const [embedFailed, setEmbedFailed] = useState(false);
-  const url = useMemo(() => {
-    const u = new URL(CALENDLY_URL);
-    if (state.candidate?.fullName) u.searchParams.set("name", state.candidate.fullName);
-    if (state.candidate?.email) u.searchParams.set("email", state.candidate.email);
-    u.searchParams.set("hide_gdpr_banner", "1");
-    return u.toString();
-  }, [state.candidate]);
-
-  useEffect(() => {
-    const onMessage = (e: MessageEvent) => {
-      const data = e.data as { event?: string } | null;
-      if (!data || typeof data.event !== "string") return;
-      if (data.event !== "calendly.event_scheduled") return;
-      setBooked(true);
-      // Pull the booking into the recruiter dashboard right away.
-      setTimeout(() => {
-        void notifyBooking({ data: { applicationId: id, token } }).catch(() => undefined);
-      }, 3000);
-    };
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-  }, [notifyBooking, id, token]);
-
-  useEffect(() => {
-    if (!state.unlocked) return;
-    const script = document.createElement("script");
-    script.src = "https://assets.calendly.com/assets/external/widget.js";
-    script.async = true;
-    script.onerror = () => setEmbedFailed(true);
-    document.body.appendChild(script);
-    const timer = setTimeout(() => {
-      const widget = document.querySelector(".calendly-inline-widget iframe");
-      if (!widget) setEmbedFailed(true);
-    }, 6000);
-    return () => {
-      clearTimeout(timer);
-      script.remove();
-    };
-  }, [state.unlocked]);
-
-  if (!state.unlocked) {
-    const missing = state.requirements.filter((r) => !r.done);
-    return (
-      <section className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Lock className="h-5 w-5" />
-          <h2 className="text-lg font-bold text-foreground">5. Schedule Your Interview</h2>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Scheduling unlocks once every requirement above is complete. Still missing:
-        </p>
-        <ul className="space-y-1 text-sm">
-          {missing.map((r) => (
-            <li key={r.key} className={cn("text-destructive")}>
-              • {r.label}
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
-  }
-
-  return (
-    <section className="space-y-3 rounded-3xl border border-success/40 bg-card p-6 shadow-sm">
-      <div className="flex items-center gap-2 text-success">
-        <CheckCircle2 className="h-5 w-5" />
-        <h2 className="text-lg font-bold text-foreground">5. Schedule Your Interview</h2>
-      </div>
-      {booked && (
-        <p className="rounded-2xl bg-success/10 p-3 text-sm text-foreground">
-          Your interview is booked. Check your email for the confirmation and the Zoom link.
-        </p>
-      )}
-      <p className="text-sm">
-        Excellent! You have completed all the requirements. You may now select the date and time for
-        your LIVE ZOOM INTERVIEW.
-      </p>
-      {!embedFailed && (
-        <div
-          className="calendly-inline-widget rounded-2xl"
-          data-url={url}
-          style={{ minWidth: "320px", height: "760px" }}
-        />
-      )}
-      {embedFailed && (
-        <Button asChild size="lg" className="rounded-2xl">
-          <a href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
-            Schedule Your Interview <ExternalLink className="ml-2 h-4 w-4" />
-          </a>
-        </Button>
-      )}
-    </section>
-  );
+  const sync = useServerFn(recordCalendlyBooking); const queryClient=useQueryClient(); const [waiting,setWaiting]=useState(false);
+  useEffect(()=>{const listener=(event:MessageEvent)=>{const d=event.data as {event?:string}|null;if(d?.event!=="calendly.event_scheduled")return;setWaiting(true);setTimeout(async()=>{await sync({data:{applicationId:id,token}});await queryClient.invalidateQueries({queryKey:["process",id]});},3000)};window.addEventListener("message",listener);return()=>window.removeEventListener("message",listener)},[id,token,sync,queryClient]);
+  if(state.appointment){const email=state.preparationEmail;const masked=state.candidate.email.replace(/^(.).*(?=@)/,"$1***");return <section className="rounded-lg border border-success/40 bg-card p-6"><CheckCircle2 className="h-8 w-8 text-success"/><h2 className="mt-3 text-2xl font-bold">Your interview is scheduled!</h2><p className="mt-2 text-muted-foreground">{email?.status==="sent"?"We have sent the next steps and preparation materials to your email. Please review them before your interview.":"Your interview is scheduled, but we could not send the preparation email. You can review the steps below."}</p><dl className="mt-4 grid gap-2 text-sm"><div><b>Date and time:</b> {new Date(state.appointment.starts_at).toLocaleString(undefined,{timeZone:state.appointment.candidate_timezone})}</div><div><b>Timezone:</b> {state.appointment.candidate_timezone}</div><div><b>Zoom:</b> <a className="text-primary underline" href={ZOOM_URL}>{ZOOM_URL}</a></div></dl><p className="mt-4 text-sm">Preparation instructions {email?.status==="sent"?"were sent":"will be available"} to {masked}. Please check your Inbox, Spam or Junk folder.</p><Button asChild variant="outline" className="mt-4"><a href={ZOOM_URL} target="_blank" rel="noreferrer">View Preparation Steps</a></Button></section>}
+  if(!state.unlocked)return <section className="rounded-lg border bg-card p-6"><div className="flex items-center gap-2"><Lock className="h-5 w-5"/><h2 className="text-lg font-bold">3. Schedule your interview</h2></div><p className="mt-2 text-sm text-muted-foreground">Complete the items above to unlock scheduling.</p><ul className="mt-3 text-sm text-destructive">{state.requirements.filter((r)=>!r.done).map((r)=><li key={r.key}>• {r.label}</li>)}</ul></section>;
+  const url=new URL(CALENDLY_URL);url.searchParams.set("name",state.candidate.fullName);url.searchParams.set("email",state.candidate.email);return <section className="rounded-lg border border-success/40 bg-card p-6"><div className="flex items-center gap-2 text-success"><CalendarClock className="h-5 w-5"/><h2 className="text-lg font-bold text-foreground">3. Schedule your interview</h2></div>{waiting&&<p className="mt-3 rounded-md bg-secondary p-3 text-sm">Confirming your booking… This page will update when Calendly confirms it.</p>}<div className="calendly-inline-widget mt-4 min-w-[280px]" data-url={url.toString()} style={{height:720}}/><script async src="https://assets.calendly.com/assets/external/widget.js"/><Button asChild variant="outline" className="mt-3"><a href={url.toString()} target="_blank" rel="noreferrer">Open Calendly <ExternalLink className="ml-2 h-4 w-4"/></a></Button></section>;
 }
