@@ -123,8 +123,7 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
       const { data: existing } = await db
         .from("appointments")
         .select("id, status, starts_at, notes")
-        .eq("application_id", application.id)
-        .ilike("notes", `%${event.uri}%`)
+        .eq("calendly_invitee_uri", invitee.uri)
         .maybeSingle();
 
       const payload = {
@@ -135,6 +134,8 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
         candidate_timezone: invitee.timezone ?? "UTC",
         meeting_link: meetingLink(event),
         notes: marker,
+        calendly_event_uri: event.uri,
+        calendly_invitee_uri: invitee.uri,
         canceled_at: canceled ? new Date().toISOString() : (null as string | null),
       };
 
@@ -146,13 +147,49 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
           result.updated += 1;
         }
       } else {
-        const { error } = await db.from("appointments").insert(payload);
+        const { data: appointment, error } = await db.from("appointments").insert(payload).select("id").single();
         if (error) throw new Error(error.message);
         result.created += 1;
         await db
           .from("recruitment_progress")
           .update({ scheduling_status: "Interview scheduled" })
           .eq("application_id", application.id);
+        if (!canceled) {
+          const { data: progress } = await db
+            .from("recruitment_progress")
+            .select("work_modality")
+            .eq("application_id", application.id)
+            .maybeSingle();
+          const { data: candidate } = await db
+            .from("applications")
+            .select("full_name, email")
+            .eq("id", application.id)
+            .single();
+          if (candidate) {
+            const formatter = (options: Intl.DateTimeFormatOptions) =>
+              new Intl.DateTimeFormat("en-US", { timeZone: invitee.timezone ?? "UTC", ...options }).format(new Date(event.start_time));
+            const { buildPreparationEmail } = await import("./candidate-emails");
+            const { sendEmail } = await import("./notify.server");
+            const message = buildPreparationEmail({
+              fullName: candidate.full_name,
+              interviewDate: formatter({ weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+              interviewTime: formatter({ hour: "numeric", minute: "2-digit" }),
+              timezone: invitee.timezone ?? "UTC",
+              modality: progress?.work_modality === "onsite" ? "onsite" : "online",
+            });
+            const delivery = await sendEmail({ to: candidate.email, ...message });
+            await db.from("candidate_emails").insert({
+              application_id: application.id,
+              kind: "preparation",
+              to_email: candidate.email,
+              subject: message.subject,
+              body: message.html,
+              status: delivery.ok ? "sent" : "failed",
+              error_message: delivery.ok ? null : delivery.detail,
+            });
+            if (!delivery.ok) console.error(`Preparation email failed for appointment ${appointment.id}: ${delivery.detail}`);
+          }
+        }
       }
     }
   }
