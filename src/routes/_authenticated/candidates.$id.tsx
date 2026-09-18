@@ -580,14 +580,34 @@ function CandidateManagementPanel({
             placeholder="Area of opportunity to include in the email"
             className="min-h-20 rounded-2xl"
           />
-          <Button
-            size="sm"
-            className="rounded-2xl"
-            disabled={emailMutation.isPending || !areas.trim()}
-            onClick={() => emailMutation.mutate()}
-          >
-            Send follow-up email
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-2xl"
+              disabled={!areas.trim()}
+              onClick={() => setShowPreview((v) => !v)}
+            >
+              {showPreview ? "Hide preview" : "Preview email"}
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-2xl"
+              disabled={emailMutation.isPending || !areas.trim()}
+              onClick={() => emailMutation.mutate()}
+            >
+              Send follow-up email
+            </Button>
+          </div>
+          {showPreview && areas.trim() && (
+            <iframe
+              title="Email preview"
+              className="h-96 w-full rounded-2xl border border-border bg-white"
+              srcDoc={
+                buildFollowUpEmail({ kind: emailKind, fullName, areas }).html
+              }
+            />
+          )}
           {emails.data?.length ? (
             <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
               {emails.data.slice(0, 5).map((e) => (
