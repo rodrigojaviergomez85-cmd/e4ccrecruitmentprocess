@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, ClipboardList, Sparkles, Video } from "lucide-react";
+import { ArrowRight, ClipboardList, RefreshCw, Sparkles, Video } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -100,11 +100,27 @@ function Welcome() {
             ))}
           </ol>
 
-          <Button asChild size="lg" className="mt-8 h-14 w-full rounded-2xl text-base sm:w-auto sm:px-10">
-            <Link to="/apply">
-              Start Application <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
+          <div className="mt-8">
+            <h2 className="text-xl font-bold">Have you applied to E4CC before?</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <section className="rounded-lg border border-border bg-background p-5">
+                <ClipboardList className="h-6 w-6 text-primary" />
+                <h3 className="mt-3 font-bold">This is my first application</h3>
+                <p className="mt-1 min-h-10 text-sm text-muted-foreground">Start your application and complete the English evaluation.</p>
+                <Button asChild className="mt-4 w-full">
+                  <Link to="/apply">Start My Application <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </section>
+              <section className="rounded-lg border border-border bg-background p-5">
+                <RefreshCw className="h-6 w-6 text-primary" />
+                <h3 className="mt-3 font-bold">I’m returning for a Retake</h3>
+                <p className="mt-1 min-h-10 text-sm text-muted-foreground">Access your previous application and schedule your next interview.</p>
+                <Button asChild variant="outline" className="mt-4 w-full">
+                  <Link to="/retake">Continue My Retake <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </section>
+            </div>
+          </div>
           <p className="mt-4 text-xs text-muted-foreground">
             You will need a working camera and microphone. Videos must be recorded here — uploads
             are not accepted.
