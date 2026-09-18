@@ -32,6 +32,7 @@ import {
   sendFollowUpEmail,
 } from "@/lib/candidate-admin.functions";
 import { isSchedulingEligible } from "@/lib/interviews";
+import { buildFollowUpEmail } from "@/lib/candidate-emails";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { cefrBand, cefrInternalLabel, scoreBand, SCORE_CATEGORIES, STATUS_OPTIONS } from "@/lib/recruitment";
@@ -250,6 +251,7 @@ function CandidateDetail() {
 
         <CandidateManagementPanel
           applicationId={id}
+          fullName={app.full_name}
           archivedAt={(app as { archived_at?: string | null }).archived_at ?? null}
           canEvaluate={Boolean(evaluatorAccess.data?.canEvaluate)}
         />
