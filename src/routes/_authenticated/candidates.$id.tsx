@@ -23,6 +23,7 @@ import {
   updateReferenceVerification,
 } from "@/lib/recruiter.functions";
 import { overrideEligibility, sendSchedulingLink } from "@/lib/interviews.functions";
+import { getEvaluatorAccess } from "@/lib/evaluations.functions";
 import { isSchedulingEligible } from "@/lib/interviews";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,12 @@ function CandidateDetail() {
   const fetchCandidate = useServerFn(getCandidate);
   const setStatus = useServerFn(updateCandidateStatus);
   const rerun = useServerFn(rerunAnalysis);
+  const loadEvaluatorAccess = useServerFn(getEvaluatorAccess);
+
+  const evaluatorAccess = useQuery({
+    queryKey: ["evaluator-access"],
+    queryFn: () => loadEvaluatorAccess(),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["candidate", id],
@@ -152,6 +159,14 @@ function CandidateDetail() {
           >
             <ArrowLeft className="h-4 w-4" /> All candidates
           </Link>
+          <div className="flex items-center gap-2">
+          {evaluatorAccess.data?.canEvaluate && (
+            <Button asChild size="sm">
+              <Link to="/evaluations/$applicationId" params={{ applicationId: id }}>
+                Start interview
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -165,6 +180,7 @@ function CandidateDetail() {
             )}
             Re-run AI analysis
           </Button>
+          </div>
         </div>
       </header>
 

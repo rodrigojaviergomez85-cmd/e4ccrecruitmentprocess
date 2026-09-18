@@ -216,7 +216,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
     const { data: app, error } = await db
       .from("applications")
       .select(
-        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, interviewers(full_name)), recruitment_progress(*), work_references(*)",
+        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
       )
       .eq("id", data.applicationId)
       .maybeSingle();
@@ -300,6 +300,15 @@ export const openEvaluation = createServerFn({ method: "POST" })
     const progress = one(app.recruitment_progress);
     const ai = one(app.ai_evaluations);
 
+    // Short-lived signed link so the evaluator can open the resume from the side panel.
+    let resumeUrl: string | null = null;
+    if (progress?.resume_path) {
+      const { data: signed } = await db.storage
+        .from("candidate-media")
+        .createSignedUrl(progress.resume_path, 3600);
+      resumeUrl = signed?.signedUrl ?? null;
+    }
+
     return {
       access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView },
       weights: await loadWeights(db),
@@ -320,6 +329,9 @@ export const openEvaluation = createServerFn({ method: "POST" })
         appointmentAt: appt?.starts_at ?? null,
         appointmentStatus: appt?.status ?? null,
         interviewer: appt?.interviewers?.full_name ?? null,
+        meetingLink: appt?.meeting_link ?? null,
+        candidateTimezone: appt?.candidate_timezone ?? null,
+        resumeUrl,
         lob: progress?.work_modality ?? null,
         internetSpeed: progress?.internet_speed_mbps ?? null,
         resumeFilename: progress?.resume_filename ?? null,

@@ -107,6 +107,8 @@ function InterviewsPage() {
   });
 
   const isAdmin = (accessQuery.data?.roles ?? []).includes("admin");
+  const canEvaluate =
+    isAdmin || (accessQuery.data?.roles ?? []).includes("evaluator");
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [newInterviewer, setNewInterviewer] = useState({ full_name: "", email: "", meeting_link: "", country_codes: "" });
   const [newBlocked, setNewBlocked] = useState({ blocked_on: "", reason: "" });
@@ -274,6 +276,18 @@ function InterviewsPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
+                  {canEvaluate && a.candidate_id && (
+                    <Button asChild variant="default" className="rounded-2xl">
+                      <Link to="/evaluations/$applicationId" params={{ applicationId: a.candidate_id }}>
+                        {a.evaluation_status === "Submitted" ||
+                        a.evaluation_status === "Retake pending"
+                          ? "View interview"
+                          : a.evaluation_status
+                            ? "Continue interview"
+                            : "Start interview"}
+                      </Link>
+                    </Button>
+                  )}
                   <Select
                     value={a.status}
                     onValueChange={(status) =>
