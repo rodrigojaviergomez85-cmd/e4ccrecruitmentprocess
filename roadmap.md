@@ -1,5 +1,5 @@
-- [ ] Simplify candidate process: position, speed test, resume, compact references, scheduling
-- [ ] Add confirmed Calendly booking email and delivery states
-- [ ] Add public first-time vs retake recovery flow
-- [ ] Add recruiter badges and internet override
-- [ ] Verify desktop/mobile, permissions, tests, and build
+- [x] Simplify candidate process: position, speed test, resume, compact references, scheduling
+- [x] Add confirmed Calendly booking email and delivery states
+- [x] Add public first-time vs retake recovery flow
+- [x] Add recruiter badges and internet override
+- [x] Verify desktop/mobile, permissions, tests, and build
