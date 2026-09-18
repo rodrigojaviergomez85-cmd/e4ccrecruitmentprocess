@@ -6,8 +6,8 @@ Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de
 
 - Sustituir el checklist largo por un indicador simple: **Position → Preparation → Schedule**.
 - Usar el encabezado y mensaje solicitados, textos breves y estados visibles.
-- Mantener la identidad visual actual, pero ampliar el área útil para que las tres tarjetas quepan en una fila en escritorio.
-- En móvil, apilar las tarjetas sin espacios excesivos.
+- Mantener la identidad visual actual con secciones compactas, estados claros y formularios de referencia en dos columnas en escritorio.
+- En móvil, usar una sola columna sin espacios excesivos.
 
 ## 2. Step 1 — Choose Position
 
@@ -23,24 +23,36 @@ Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de
 - El requisito inicial configurable será **10 Mbps download / 10 Mbps upload**. El resultado mostrará el mensaje verde de aprobación o el mensaje de mejora, con **Test Again** y **Change to Onsite**.
 - Un resultado insuficiente no rechaza al candidato; solamente mantiene bloqueada la agenda.
 
-## 3. Preparación previa simplificada
+## 3. Step 2 — Resume and Work References
 
 - Eliminar completamente de la página pública las tarjetas, botones y confirmaciones de Grammar Test y Grammar Tenses.
 - No pedir al candidato que confirme esas actividades antes ni después de agendar.
-- Mostrar únicamente una tarjeta compacta de **Upload Your Resume** después de elegir posición y, para Online, completar el test aprobado.
-- Conservar el flujo privado existente: PDF/DOC/DOCX, máximo 10 MB, un solo archivo activo, reemplazo y nombre visible.
-- Mostrar estado Not uploaded, Uploaded o Replaced y check verde al completar.
-- Retirar completamente Work References de esta página y del cálculo que desbloquea la agenda. Los datos existentes se conservan y permanecen disponibles en el perfil interno del candidato.
+- Reunir currículum y referencias bajo **“Resume and Work References”** con el texto: **“Upload your resume and add at least one recent work reference.”**
+- Conservar el flujo privado del currículum: PDF/DOC/DOCX, máximo 10 MB, un solo archivo activo, reemplazo, nombre visible y estado Not uploaded/Uploaded/Replaced.
+
+### Referencias compactas
+
+- Mostrar siempre **“Work Reference 1 — Most Recent Position”**, inicialmente expandida.
+- Eliminar la pregunta previa sobre cantidad de trabajos.
+- Añadir **“+ Add Another Reference”** para crear referencias 2–5 una por una; al llegar a cinco, ocultar/desactivar el botón y mostrar **“Maximum of five references added.”**
+- Usar acordeones compactos: una referencia expandida a la vez cuando sea posible; una nueva abre automáticamente; al guardarse se colapsa en un resumen con empresa, puesto, supervisor, estado y acciones **Edit** / **Remove**.
+- Reference 1 solo puede eliminarse si ya existe otra referencia completa; al eliminar, mantener slots únicos y sin duplicar candidatos.
+- Mostrar badge Incomplete/Complete, check verde al completar y contador automático **“N of 5 references added”**.
+- Campos: empresa, puesto del candidato, fechas de inicio/fin, “Currently working here”, nombre/cargo/teléfono o WhatsApp del supervisor, email opcional, razón de salida y permiso de contacto Yes/No.
+- Validar teléfono internacional; deshabilitar fecha final si continúa trabajando.
+- Mantener estado de verificación y notas internas separados y nunca devolver las notas internas al candidato.
 
 ## 4. Step 3 — Schedule Interview
 
-- Colocar **Schedule Your Interview** inmediatamente después del currículum.
+- Colocar **Schedule Your Interview** inmediatamente después de la sección compacta de currículum y referencias.
 - Desbloquear Calendly únicamente cuando:
   - exista una modalidad seleccionada;
   - haya currículum;
+  - exista al menos una referencia completa;
   - para Online, la última prueba cumpla ambos mínimos o exista una anulación manual autorizada.
-- Grammar Test, Grammar Review, referencias, declaración de referencias y captura de información del equipo no bloquean la agenda.
+- Grammar Test, Grammar Review, referencias opcionales 2–5, declaración de referencias y captura de información del equipo no bloquean la agenda.
 - Si falta el currículum, mostrar solamente: **“Please upload your resume before scheduling your interview.”**
+- Si no hay una referencia completa, mostrar solamente: **“Please complete one work reference before scheduling your interview.”**
 - Conservar el embed y fallback de Calendly existentes; no construir otro calendario.
 - Abrir Calendly no cambia el estado ni muestra éxito. La página consultará el estado real y solo mostrará éxito cuando una reserva confirmada haya creado/actualizado la cita mediante el webhook de Calendly.
 
@@ -79,6 +91,8 @@ Ampliar `recruitment_progress` sin eliminar ni renombrar columnas:
 
 Añadir a la configuración existente los mínimos de descarga y subida, inicialmente 10/10 Mbps. Mantener los campos históricos (`internet_speed_mbps`, system info, referencias y declaración) para compatibilidad, pero dejar de usarlos como bloqueos de esta pantalla.
 
+Ampliar el límite de referencias de cuatro a cinco en validación y presentación, preservando todos los registros existentes. El scheduling comprobará al menos una referencia completa, sin depender de `jobs_count` ni de un slot específico.
+
 ## 6. Perfil y panel del reclutador
 
 - En la lista y ficha del candidato, añadir o conservar badges compactos para: Online/Onsite, Internet Passed/Internet Review Needed, Grammar Pending, Resume Uploaded, Interview Scheduled, Preparation Email Sent/Failed/Resent.
@@ -86,7 +100,7 @@ Añadir a la configuración existente los mínimos de descarga y subida, inicial
 - Añadir una acción de override específica del requisito de Internet para Admin/Recruiter/Evaluator autorizados; Viewer permanece en solo lectura.
 - Exigir nota para el override y registrar actor, fecha, candidato, resultado y nota en el audit log.
 - Conservar enlaces temporales firmados para abrir currículums privados.
-- Mantener Work References en la ficha interna/recruiter follow-up, sin mostrarlas ni exigirlas en la página pública.
+- Mostrar en la ficha interna todas las referencias añadidas (hasta cinco), con su verificación y notas internas para el equipo.
 
 ## 7. Seguridad y compatibilidad
 
@@ -94,14 +108,14 @@ Añadir a la configuración existente los mínimos de descarga y subida, inicial
 - Mantener el bucket privado y las URLs firmadas actuales.
 - Validar permisos y alcance por país antes de aplicar un override.
 - Preservar las políticas RLS existentes; la migración será aditiva y no borrará solicitudes, referencias, archivos, grabaciones, evaluaciones ni citas.
-- No modificar el perfil de solicitud, autenticación, grabaciones, entrevista/evaluación ni la integración de Calendly.
+- No modificar el perfil de solicitud, autenticación, grabaciones ni entrevista/evaluación; ampliar Calendly únicamente con la confirmación segura de reservas requerida.
 
 ## Detalles técnicos
 
 - Crear endpoints limitados de medición para ping, descarga y subida. No almacenarán el payload; solo permitirán cronometrar una transferencia real.
 - Evitar caché en descarga y usar un payload no comprimible de tamaño conocido; repetir muestras breves y reportar una medición estable.
 - Guardar los resultados únicamente mediante la función protegida por el token del candidato, recalculando `passed` contra la configuración vigente en servidor.
-- Actualizar `requirementsFor()` para que solo modalidad + currículum + requisito Online gobiernen el desbloqueo.
+- Actualizar `requirementsFor()` para que solo modalidad + currículum + una referencia completa + requisito Online gobiernen el desbloqueo.
 - La integración actual solo consulta Calendly; añadir un endpoint público de webhook que valide la firma de Calendly antes de procesar una reserva.
 - Registrar la suscripción mediante la conexión existente de Calendly y enrutar sus llamadas por la conexión administrada, sin exponer credenciales al navegador.
 - Hacer idempotente el procesamiento por identificador de evento/invitado para evitar citas o correos duplicados.
@@ -111,8 +125,9 @@ Añadir a la configuración existente los mínimos de descarga y subida, inicial
 ## Verificación
 
 - Probar Online/Onsite, retest, override, currículum único, webhook válido/inválido, idempotencia, envío exitoso/fallido y reenvío.
-- Verificar que Grammar Test, Grammar Review y Work References no aparecen en la página pública y siguen disponibles internamente donde corresponda.
+- Verificar que Grammar Test y Grammar Review no aparecen en la página pública; las referencias aparecen como acordeones compactos y siguen disponibles internamente.
+- Probar añadir hasta cinco referencias, guardado/colapso, edición, eliminación segura, validación del teléfono y que solo una referencia completa sea obligatoria.
 - Verificar permisos de candidato, staff, Viewer, alcance por país, archivos privados y auditoría.
-- Comprobar visualmente escritorio y móvil con Playwright, incluyendo fila de tres tarjetas y apilado móvil.
+- Comprobar visualmente escritorio y móvil con Playwright, incluyendo acordeones, cuadrícula de campos y estados compactos.
 - Ejecutar typecheck y revisar el build automático sin errores.
 - Entregar capturas finales de escritorio y móvil junto con un resumen breve.
