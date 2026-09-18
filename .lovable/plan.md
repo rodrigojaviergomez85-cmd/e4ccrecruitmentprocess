@@ -6,8 +6,8 @@ Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de
 
 - Sustituir el checklist largo por un indicador simple: **Position → Preparation → Schedule**.
 - Usar el encabezado y mensaje solicitados, textos breves y estados visibles.
-- Mantener la identidad visual actual, pero ampliar el área útil para que las tres tarjetas quepan en una fila en escritorio.
-- En móvil, apilar las tarjetas sin espacios excesivos.
+- Mantener la identidad visual actual con secciones compactas, estados claros y formularios de referencia en dos columnas en escritorio.
+- En móvil, usar una sola columna sin espacios excesivos.
 
 ## 2. Step 1 — Choose Position
 
@@ -44,7 +44,7 @@ Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de
 
 ## 4. Step 3 — Schedule Interview
 
-- Colocar **Schedule Your Interview** inmediatamente después del currículum.
+- Colocar **Schedule Your Interview** inmediatamente después de la sección compacta de currículum y referencias.
 - Desbloquear Calendly únicamente cuando:
   - exista una modalidad seleccionada;
   - haya currículum;
@@ -108,14 +108,14 @@ Ampliar el límite de referencias de cuatro a cinco en validación y presentaci�
 - Mantener el bucket privado y las URLs firmadas actuales.
 - Validar permisos y alcance por país antes de aplicar un override.
 - Preservar las políticas RLS existentes; la migración será aditiva y no borrará solicitudes, referencias, archivos, grabaciones, evaluaciones ni citas.
-- No modificar el perfil de solicitud, autenticación, grabaciones, entrevista/evaluación ni la integración de Calendly.
+- No modificar el perfil de solicitud, autenticación, grabaciones ni entrevista/evaluación; ampliar Calendly únicamente con la confirmación segura de reservas requerida.
 
 ## Detalles técnicos
 
 - Crear endpoints limitados de medición para ping, descarga y subida. No almacenarán el payload; solo permitirán cronometrar una transferencia real.
 - Evitar caché en descarga y usar un payload no comprimible de tamaño conocido; repetir muestras breves y reportar una medición estable.
 - Guardar los resultados únicamente mediante la función protegida por el token del candidato, recalculando `passed` contra la configuración vigente en servidor.
-- Actualizar `requirementsFor()` para que solo modalidad + currículum + requisito Online gobiernen el desbloqueo.
+- Actualizar `requirementsFor()` para que solo modalidad + currículum + una referencia completa + requisito Online gobiernen el desbloqueo.
 - La integración actual solo consulta Calendly; añadir un endpoint público de webhook que valide la firma de Calendly antes de procesar una reserva.
 - Registrar la suscripción mediante la conexión existente de Calendly y enrutar sus llamadas por la conexión administrada, sin exponer credenciales al navegador.
 - Hacer idempotente el procesamiento por identificador de evento/invitado para evitar citas o correos duplicados.
@@ -128,6 +128,6 @@ Ampliar el límite de referencias de cuatro a cinco en validación y presentaci�
 - Verificar que Grammar Test y Grammar Review no aparecen en la página pública; las referencias aparecen como acordeones compactos y siguen disponibles internamente.
 - Probar añadir hasta cinco referencias, guardado/colapso, edición, eliminación segura, validación del teléfono y que solo una referencia completa sea obligatoria.
 - Verificar permisos de candidato, staff, Viewer, alcance por país, archivos privados y auditoría.
-- Comprobar visualmente escritorio y móvil con Playwright, incluyendo fila de tres tarjetas y apilado móvil.
+- Comprobar visualmente escritorio y móvil con Playwright, incluyendo acordeones, cuadrícula de campos y estados compactos.
 - Ejecutar typecheck y revisar el build automático sin errores.
 - Entregar capturas finales de escritorio y móvil junto con un resumen breve.
