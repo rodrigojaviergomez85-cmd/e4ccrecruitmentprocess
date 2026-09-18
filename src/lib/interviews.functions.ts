@@ -228,7 +228,7 @@ export const listAppointments = createServerFn({ method: "POST" })
     let query = db
       .from("appointments")
       .select(
-        "id, starts_at, ends_at, status, meeting_link, reschedule_count, candidate_timezone, interviewers(id, full_name), applications(id, full_name, email, country_code, city, city_other, status)",
+        "id, starts_at, ends_at, status, meeting_link, reschedule_count, candidate_timezone, interviewers(id, full_name), applications(id, full_name, email, country_code, city, city_other, status, interview_evaluations(id, status))",
       )
       .order("starts_at", { ascending: true })
       .limit(500);
@@ -262,6 +262,8 @@ export const listAppointments = createServerFn({ method: "POST" })
           candidate: application?.full_name ?? "",
           candidate_id: application?.id ?? "",
           country_code: application?.country_code ?? null,
+          evaluation_status:
+            ((application?.interview_evaluations ?? [])[0]?.status as string | undefined) ?? null,
           city: application?.city_other ?? application?.city ?? null,
           reminder_status: own.length
             ? `${own.filter((r) => r.status === "sent").length}/${own.length} sent`
