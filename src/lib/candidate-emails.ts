@@ -9,6 +9,75 @@ export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
   not_approved: "Process closed",
 };
 
+/**
+ * Fixed resource links for the official retake template.
+ * Edit here when the recruitment team updates a link.
+ */
+export const RETAKE_LINKS = {
+  interviewPrepTips: "https://youtu.be/9bPKeiEZhgo",
+  grammarTopicsGettingStarted:
+    "https://drive.google.com/file/d/1dTPBjAG9v4WZ-BRjr73AWgrKPb5dUoKW/view?usp=drive_link",
+  grammarReinforcement: [
+    ["Simple Present", "https://youtu.be/TTVZngDp7Vc"],
+    ["Simple Future (Will)", "https://youtu.be/FWVka9ko6Fs"],
+    ["Simple Future (Going To)", "https://youtu.be/nFIWTH9TDWA"],
+    ["Simple Past", "https://youtu.be/_58ToSgbVkA"],
+    ["ED Endings", "https://youtu.be/hZNBvBOSfss"],
+    ["ED Endings (extra)", "https://youtu.be/AZEV1szwY7g"],
+    ["Present Perfect", "https://youtu.be/-g8Xv6lKVxU"],
+    ["Present Perfect Continuous", "https://youtu.be/NLXjbPNxpMA"],
+    ["Modal Verbs", "https://youtu.be/OSqzmHaU3zQ"],
+    ["Comparatives", "https://youtu.be/WPZ_js5cr9g"],
+    ["Superlatives", "https://youtu.be/PDMLXbNHjYY"],
+    ["Zero & First Conditional", "https://youtu.be/UPYrH1PF7gk"],
+    ["Second Conditional", "https://youtu.be/1Q7Lupv4rjQ"],
+    ["Past Perfect", "https://youtu.be/R97P1tmaYFs"],
+    ["Past Progressive", "https://youtu.be/DzF-tVijWNk"],
+    ["Simple Present (3rd Person)", "https://youtu.be/mFUB7q3MCTk"],
+    ["Simple Present Questions", "https://youtu.be/9RkzLAA-SkE"],
+    ["Simple Present vs Present Progressive", "https://youtu.be/ACto_VHJ4s0"],
+    ["Verb To Be", "https://youtu.be/lq9DKEetZko"],
+    ["Common Mistakes", "https://youtu.be/S7aYLtirRyg"],
+    ["Prepositions of Time (In, At, On)", "https://youtu.be/3K5jlHw3o0c"],
+    ["Contractions", "https://youtu.be/hyS-khex73A"],
+    ["Gerunds vs Infinitives", "https://youtu.be/-s1gu725tA4"],
+  ] as Array<[string, string]>,
+  pronunciation: [
+    ["R Sound", "https://youtu.be/9zS7dmNY7N0"],
+    ["Th Sound", "https://youtu.be/KcGvj2tbvBo"],
+    ["M, N & G Sounds", "https://youtu.be/QImKduLK_kk"],
+    ["M, N & G Sounds (extra 1)", "https://youtu.be/20aCUvD9HkM"],
+    ["M, N & G Sounds (extra 2)", "https://youtu.be/m5UkmmtFVnw"],
+    ["Final Sounds", "https://youtu.be/nEUcZPdNfOk"],
+    ["Intonation", "https://youtu.be/wbE1ae27AUA"],
+    ["A Sound", "https://youtu.be/PAoGCAJhO8I"],
+    ["E Sound", "https://youtu.be/8FpUUdgD3tg"],
+    ["I Sound", "https://youtu.be/9RuMwRtfXqU"],
+    ["O Sound", "https://youtu.be/KKlNtKDzxVU"],
+    ["U Sound", "https://youtu.be/S8McPhkDT0c"],
+    ["Simple Past Rules", "https://youtu.be/Ps-Vx1OXEQY"],
+    ["Ch Sound", "https://youtu.be/zpGWfnyobws"],
+    ["H Sound", "https://youtu.be/lzxT-OP9EPg"],
+    ["J Sound", "https://youtu.be/TdEQrh-DwnQ"],
+    ["L Sound", "https://youtu.be/U1C5cPG-MPw"],
+    ["S & Z Sounds", "https://youtu.be/Dy2CoQ3N4Tc"],
+    ["Sh Sound", "https://youtu.be/zNKjAC-7CYE"],
+    ["V & F Sounds", "https://youtu.be/SxmyxifDXNw"],
+    ["W Sound", "https://youtu.be/AzD_CN1gzTI"],
+    ["Y Sound", "https://youtu.be/fBbK7qQga7k"],
+    ["Final Tips", "https://youtu.be/s5R_X_Kbc1o"],
+  ] as Array<[string, string]>,
+  grammarTopicsReview:
+    "https://drive.google.com/file/d/1NWJ1ktyJsHc9SKCgA9ZdMlSIzrKqC0-N/view?usp=sharing",
+  sampleClassOnline: "https://youtu.be/9-YaNY1K_qs?si=TiE0yAib_c3UrhiM",
+  sampleClassOnsite: "https://youtu.be/TrrbSmQAOuU?si=5meUTy_NHhbhaoas",
+  personalInfoForm:
+    "https://docs.google.com/forms/d/e/1FAIpQLSfc4RtAq7qeNMUXyS4jrlOmjE-H4GZ3cDGk6ZQOeORIDMaZBA/viewform",
+  grammarTest: "https://app.testgorilla.com/s/bnm9wczd",
+  zoom: "https://zoom.us/j/97824770369",
+  nextInterviewTiming: "2 MONTHS FROM NOW",
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -26,6 +95,96 @@ function paragraphs(text: string) {
     .join("");
 }
 
+function linkList(items: Array<[string, string]>) {
+  return items
+    .map(
+      ([label, url]) =>
+        `<li style="margin:0 0 4px"><a href="${url}" style="color:#0f766e">${escapeHtml(label)}</a></li>`,
+    )
+    .join("");
+}
+
+function section(title: string, inner: string) {
+  return `
+    <h3 style="margin:20px 0 8px;font-size:14px;color:#0f766e">${title}</h3>
+    ${inner}`;
+}
+
+/**
+ * Official E4CC retake template. Fixed wording and resources; only the
+ * candidate's first name, the feedback area and the scheduling link change.
+ */
+function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl: string }) {
+  const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
+  const areas = input.areas.trim() || "General interview performance";
+  const L = RETAKE_LINKS;
+  const link = input.scheduleUrl;
+
+  const subject = "E4CC — Your interview results and next steps";
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">
+        I trust this message finds you well. Thank you for your recent interview with
+        English4CallCenters (E4CC). We appreciate the opportunity to learn more about your
+        qualifications and your potential fit for our team.
+      </p>
+      <p style="margin:0 0 12px">
+        Following your interview, we would like to provide you with some constructive
+        feedback to help enhance your application. Please note that this feedback is intended
+        to support your continued growth and development.
+      </p>
+      <p style="margin:0 0 6px"><strong>Area of opportunity:</strong></p>
+      ${paragraphs(areas)}
+      ${section(
+        "Grammar &amp; Pronunciation Resources",
+        `<p style="margin:0 0 8px">To assist you in addressing these areas, please take some time to review the following materials:</p>`,
+      )}
+      ${section(
+        "Getting Started",
+        `<ul style="margin:0 0 8px;padding-left:20px">
+          <li style="margin:0 0 4px"><a href="${L.interviewPrepTips}" style="color:#0f766e">Interview Prep Tips</a></li>
+          <li style="margin:0 0 4px"><a href="${L.grammarTopicsGettingStarted}" style="color:#0f766e">Grammar Topics Document</a></li>
+        </ul>`,
+      )}
+      ${section("Grammar Reinforcement", `<ul style="margin:0 0 8px;padding-left:20px">${linkList(L.grammarReinforcement)}</ul>`)}
+      ${section("Pronunciation Lessons", `<ul style="margin:0 0 8px;padding-left:20px">${linkList(L.pronunciation)}</ul>`)}
+      ${section(
+        "Before Your Next Interview",
+        `<p style="margin:0 0 8px">Please complete the following before your next session:</p>
+        <ul style="margin:0 0 8px;padding-left:20px">
+          <li style="margin:0 0 4px"><a href="${L.grammarTopicsReview}" style="color:#0f766e">Review Grammar Topics</a></li>
+          <li style="margin:0 0 4px">Prepare to Teach a Sample Class —
+            <a href="${L.sampleClassOnline}" style="color:#0f766e">Online Candidates</a> ·
+            <a href="${L.sampleClassOnsite}" style="color:#0f766e">Onsite Candidates</a>
+          </li>
+          <li style="margin:0 0 4px"><a href="${L.personalInfoForm}" style="color:#0f766e">Send us your personal information and resume adding job references (1 per job performed)</a></li>
+          <li style="margin:0 0 4px">If you have not completed the GRAMMAR TEST, complete it here:
+            <a href="${L.grammarTest}" style="color:#0f766e">Test Link</a>
+            (You will receive an email from TestGorilla. Check your Spam folder if needed. The test takes ~12 minutes.)
+          </li>
+        </ul>`,
+      )}
+      ${section(
+        "Next Interview Details",
+        `<p style="margin:0 0 8px"><strong>${escapeHtml(L.nextInterviewTiming)}</strong></p>
+        <p style="margin:0 0 8px">Zoom Link: <a href="${L.zoom}" style="color:#0f766e">${L.zoom}</a></p>
+        <p style="margin:0 0 16px">
+          <a href="${link}" style="background:#0f766e;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none">
+            Schedule my retake interview
+          </a>
+        </p>
+        <p style="margin:0 0 12px">If the button does not work, copy this link: ${escapeHtml(link)}</p>`,
+      )}
+      <p style="margin:0 0 12px">
+        We appreciate your interest in the Coach position and look forward to seeing how you
+        integrate this feedback into your next interview.
+      </p>
+      <p style="margin:0">Best regards,<br/>Recruitment Team<br/>E4CC</p>
+    </div>`;
+  return { subject, html, scheduleUrl: link };
+}
+
 /**
  * The wording of both templates is fixed; only the candidate name and the area
  * of opportunity change from one interview to the next.
@@ -41,29 +200,7 @@ export function buildFollowUpEmail(input: {
 
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
-    const subject = "E4CC — Your interview results and next steps";
-    const html = `
-      <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
-        <p style="margin:0 0 12px">Hi ${escapeHtml(name)},</p>
-        <p style="margin:0 0 12px">
-          Thank you for taking the time to interview with English4Call Centers. We enjoyed
-          getting to know you and we would like to give you a second opportunity to show us
-          your potential.
-        </p>
-        <p style="margin:0 0 6px"><strong>Area of opportunity to work on:</strong></p>
-        ${paragraphs(areas)}
-        <p style="margin:0 0 12px">
-          Please practice this area and book your retake interview using the link below:
-        </p>
-        <p style="margin:0 0 16px">
-          <a href="${link}" style="background:#0f766e;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none">
-            Schedule my retake interview
-          </a>
-        </p>
-        <p style="margin:0 0 12px">If the button does not work, copy this link: ${escapeHtml(link)}</p>
-        <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
-      </div>`;
-    return { subject, html, scheduleUrl: link };
+    return buildRetakeEmail({ fullName: input.fullName, areas: input.areas, scheduleUrl: link });
   }
 
   const subject = "E4CC — Update on your application";
