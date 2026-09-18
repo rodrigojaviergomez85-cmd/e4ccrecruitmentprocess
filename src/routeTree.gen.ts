@@ -30,6 +30,7 @@ import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
 import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
+import { Route as ApiPublicWebhooksCalendlyRouteImport } from './routes/api/public/webhooks/calendly'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -139,6 +140,12 @@ const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   path: '/api/public/cron/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksCalendlyRoute =
+  ApiPublicWebhooksCalendlyRouteImport.update({
+    id: '/api/public/webhooks/calendly',
+    path: '/api/public/webhooks/calendly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -183,6 +191,7 @@ export interface FileRoutesByTo {
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -207,6 +216,7 @@ export interface FileRoutesById {
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/api/public/speed-test'
     | '/evaluations/'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/api/public/speed-test'
     | '/evaluations'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   id:
     | '__root__'
     | '/'
@@ -276,6 +288,7 @@ export interface FileRouteTypes {
     | '/api/public/speed-test'
     | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -290,6 +303,7 @@ export interface RootRouteChildren {
   ScheduleTokenRoute: typeof ScheduleTokenRoute
   ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
+  ApiPublicWebhooksCalendlyRoute: typeof ApiPublicWebhooksCalendlyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -441,6 +455,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/calendly': {
+      id: '/api/public/webhooks/calendly'
+      path: '/api/public/webhooks/calendly'
+      fullPath: '/api/public/webhooks/calendly'
+      preLoaderRoute: typeof ApiPublicWebhooksCalendlyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -494,6 +515,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScheduleTokenRoute: ScheduleTokenRoute,
   ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
+  ApiPublicWebhooksCalendlyRoute: ApiPublicWebhooksCalendlyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
