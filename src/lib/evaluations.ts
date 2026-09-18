@@ -111,19 +111,12 @@ export const WRITING_TOPICS = [
 export const ENGLISH_ACTIVITIES = [
   { key: "past_question", label: "Question in past (previous job, favorite movie…)" },
   { key: "tenses", label: "Grammar tenses: when, how and example" },
-  { key: "simple_progressive", label: "Simple and progressive tenses" },
-  { key: "perfect", label: "Perfect tenses" },
-  { key: "modals", label: "Modals" },
-  { key: "conditionals", label: "Conditionals" },
-  { key: "comparatives", label: "Comparatives" },
-  { key: "phrasal", label: "Phrasal verbs" },
   { key: "mistakes_wh", label: "Mistakes and WH questions roleplay" },
 ] as const;
 
 export const SECTIONS = [
   { key: "candidate", label: "Candidate and Position" },
   { key: "equipment", label: "Equipment and Internet", onlineOnly: true },
-  { key: "grammar_test", label: "Grammar Test" },
   { key: "profile", label: "Profile, Availability and Expectations" },
   { key: "english", label: "English and Grammar Evaluation" },
   { key: "studies", label: "Studies" },
@@ -311,6 +304,32 @@ export function missingRequired(input: ComplianceInput): string[] {
   }
   if (input.isOnline && !filled(get("equipment", "meets_requirements")))
     missing.push("Equipment and internet check");
+  return missing;
+}
+
+/** Result-specific requirements used when an evaluator ends an interview early. */
+export function missingEarlyFinish(input: ComplianceInput): string[] {
+  const s = input.sections ?? {};
+  const missing: string[] = [];
+  if (!filled(input.finalResult)) return ["Final result"];
+
+  if (input.finalResult === "Approved for last step") {
+    if (!filled(input.comments)) missing.push("Interview comments");
+    if (!filled(input.redFlags)) missing.push("Red flags (or 'No red flags identified')");
+    if (!filled(input.lastRoleplayDate)) missing.push("Last roleplay interview date");
+  }
+  if (input.finalResult === "Retake required") {
+    if (!filled(s["result"]?.["retake_reason"])) missing.push("Retake reason");
+    if (!filled(s["result"]?.["retake_improvements"])) missing.push("Areas to improve");
+    if (!filled(input.retakeDate)) missing.push("Retake date");
+    if (!filled(input.comments)) missing.push("Evaluator comments");
+  }
+  if (input.finalResult === "Not approved") {
+    const reasons = (s["result"]?.["not_approved_reasons"] as string[] | undefined) ?? [];
+    if (!reasons.length) missing.push("At least one rejection reason");
+    if (!filled(input.comments)) missing.push("Final interview comments");
+    if (!filled(input.redFlags)) missing.push("Red flags identified");
+  }
   return missing;
 }
 
