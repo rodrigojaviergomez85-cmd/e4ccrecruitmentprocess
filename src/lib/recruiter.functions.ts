@@ -296,6 +296,21 @@ export const updateReferenceVerification = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const overrideInternetRequirement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid(), approve: z.boolean(), note: z.string().trim().min(5).max(500) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { db, isAdmin, allowedCountries } = await staffContext(context.userId);
+    if (!isAdmin) throw new Error("Only an administrator can approve an Internet exception.");
+    const { data: app } = await db.from("applications").select("country_code").eq("id", data.applicationId).single();
+    if (allowedCountries && !allowedCountries.includes(app?.country_code ?? "")) throw new Error("You do not have access to this candidate.");
+    const now = new Date().toISOString();
+    const { error } = await db.from("recruitment_progress").upsert({ application_id: data.applicationId, internet_override: data.approve, internet_override_note: data.note, internet_override_by: context.userId, internet_override_at: now }, { onConflict: "application_id" });
+    if (error) throw new Error(error.message);
+    await db.from("audit_logs").insert({ actor_id: context.userId, action: data.approve ? "internet_override_approved" : "internet_override_removed", entity_type: "application", entity_id: data.applicationId, details: { note: data.note } });
+    return { ok: true };
+  });
+
 
 export const updateCandidateStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

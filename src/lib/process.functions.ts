@@ -407,3 +407,22 @@ export const recordCalendlyBooking = createServerFn({ method: "POST" })
       return { ok: false as const };
     }
   });
+
+export const resendPreparationEmail = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => ownerSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { app, db } = await assertEligible(data.applicationId, data.token);
+    const [{ data: appointment }, { data: progress }] = await Promise.all([
+      db.from("appointments").select("starts_at, candidate_timezone").eq("application_id", data.applicationId).in("status", ["Scheduled", "Confirmed"]).order("starts_at").limit(1).maybeSingle(),
+      db.from("recruitment_progress").select("work_modality").eq("application_id", data.applicationId).maybeSingle(),
+    ]);
+    if (!appointment) throw new Error("No confirmed interview was found.");
+    const timezone = appointment.candidate_timezone || "UTC";
+    const format = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options }).format(new Date(appointment.starts_at));
+    const { buildPreparationEmail } = await import("./candidate-emails");
+    const message = buildPreparationEmail({ fullName: app.full_name, interviewDate: format({ weekday: "long", year: "numeric", month: "long", day: "numeric" }), interviewTime: format({ hour: "numeric", minute: "2-digit" }), timezone, modality: progress?.work_modality === "onsite" ? "onsite" : "online" });
+    const { sendEmail } = await import("./notify.server");
+    const delivery = await sendEmail({ to: app.email, ...message });
+    await db.from("candidate_emails").insert({ application_id: data.applicationId, kind: "preparation", to_email: app.email, subject: message.subject, body: message.html, status: delivery.ok ? "resent" : "failed", error_message: delivery.ok ? null : delivery.detail });
+    return delivery;
+  });
