@@ -30,7 +30,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  E4CC_VALUES,
   ENGLISH_ACTIVITIES,
   FINAL_RESULTS,
   HIRING_BONUS_OPTIONS,
@@ -40,7 +39,6 @@ import {
   ONLINE_MINIMUM_SPECS,
   REFERRAL_SOURCES,
   SCHEDULE_OPTIONS,
-  VALUE_RATING_LABELS,
   VARIABLE_SCHEDULE_WARNING,
   VERB_BANK,
   WRITING_TOPICS,
@@ -1147,27 +1145,6 @@ function EvaluationForm() {
                       value={str("values", key)}
                       onChange={(e) => set("values", key, e.target.value)}
                     />
-                  </Field>
-                ))}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {E4CC_VALUES.map((v) => (
-                  <Field key={v.key} label={`${v.label} (1–5)`}>
-                    <Select
-                      value={str("values", v.key)}
-                      onValueChange={(val) => set("values", v.key, val)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Rate" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <SelectItem key={n} value={String(n)}>
-                            {VALUE_RATING_LABELS[n]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </Field>
                 ))}
               </div>

@@ -69,14 +69,6 @@ export const SCHEDULE_OPTIONS = [
 
 export const REFERRAL_SOURCES = ["Facebook", "Instagram", "Other"] as const;
 
-export const VALUE_RATING_LABELS: Record<number, string> = {
-  1: "1 — Major concern",
-  2: "2 — Below expectations",
-  3: "3 — Meets expectations",
-  4: "4 — Strong",
-  5: "5 — Superstar evidence",
-};
-
 export const ONLINE_MINIMUM_SPECS = [
   "Intel i3 8th generation or newer",
   "AMD Ryzen 3 or equivalent",
@@ -92,15 +84,6 @@ export const ENGLISH_INTRO =
   "This interview may last from 20 to 30 minutes. We will review your English, work experience, goals and aspirations. At the end, you will have an opportunity to ask questions.";
 
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B1+", "B2", "B2+", "C1", "C2"] as const;
-
-export const E4CC_VALUES = [
-  { key: "love", label: "We Do It With Love" },
-  { key: "attitude", label: "Great Attitude" },
-  { key: "superstars", label: "Super Stars Only" },
-  { key: "discipline", label: "Discipline and Persistence" },
-  { key: "improvement", label: "Continuous Improvement" },
-  { key: "candor", label: "Candor" },
-] as const;
 
 export const WRITING_TOPICS = [
   "The role of artificial intelligence in modern language education",
@@ -241,11 +224,6 @@ export function complianceItems(input: ComplianceInput) {
       done: input.verbs.filter((v) => v.verb.trim()).length >= 5,
     },
     { label: "Job history completed", applies: true, done: input.jobsCount >= 1 },
-    {
-      label: "E4CC values rated",
-      applies: true,
-      done: E4CC_VALUES.every((v) => Number(get("values", v.key)) > 0),
-    },
     { label: "Final result selected", applies: true, done: filled(input.finalResult) },
     {
       label: "Red flags or comments documented",
@@ -280,8 +258,6 @@ export function missingRequired(input: ComplianceInput): string[] {
   if (input.verbs.filter((v) => v.verb.trim()).length < 5)
     missing.push("At least 5 irregular verbs evaluated");
   if (input.jobsCount < 1) missing.push("At least one job history entry");
-  if (E4CC_VALUES.some((v) => !(Number(get("values", v.key)) > 0)))
-    missing.push("All E4CC value ratings");
   if (!filled(input.finalResult)) missing.push("Final result");
 
   if (input.finalResult === "Approved for last step") {
