@@ -441,10 +441,12 @@ function CandidateDetail() {
 
 function CandidateManagementPanel({
   applicationId,
+  fullName,
   archivedAt,
   canEvaluate,
 }: {
   applicationId: string;
+  fullName: string;
   archivedAt: string | null;
   canEvaluate: boolean;
 }) {
@@ -458,6 +460,7 @@ function CandidateManagementPanel({
   const [reason, setReason] = useState("");
   const [areas, setAreas] = useState("");
   const [emailKind, setEmailKind] = useState<"retake" | "not_approved">("retake");
+  const [showPreview, setShowPreview] = useState(false);
 
   const attempts = useQuery({
     queryKey: ["attempts", applicationId],
