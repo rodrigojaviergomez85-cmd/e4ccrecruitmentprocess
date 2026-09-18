@@ -56,6 +56,7 @@ const filterSchema = z.object({
   minScore: z.number().min(0).max(100).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
+  archived: z.boolean().optional(),
 });
 
 export const listCandidates = createServerFn({ method: "POST" })
@@ -66,11 +67,14 @@ export const listCandidates = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name))",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name))",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
       .limit(500);
+
+    // Archived candidates are hidden unless the Archived filter is on.
+    query = data.archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
 
     // Country scoping is enforced server-side, never in the UI only.
     if (allowedCountries) {
@@ -123,6 +127,8 @@ export const listCandidates = createServerFn({ method: "POST" })
           taught_children: row.taught_children,
           status: row.status,
           submitted_at: row.submitted_at,
+          archived_at: row.archived_at,
+          source: row.source,
           appointment_at: appointment?.starts_at ?? null,
           appointment_status: appointment?.status ?? null,
           interviewer: appointmentInterviewer?.full_name ?? null,

@@ -24,6 +24,13 @@ import {
 } from "@/lib/recruiter.functions";
 import { overrideEligibility, sendSchedulingLink } from "@/lib/interviews.functions";
 import { getEvaluatorAccess } from "@/lib/evaluations.functions";
+import {
+  archiveCandidate,
+  createRetakeInterview,
+  listCandidateEmails,
+  listInterviewAttempts,
+  sendFollowUpEmail,
+} from "@/lib/candidate-admin.functions";
 import { isSchedulingEligible } from "@/lib/interviews";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -241,6 +248,12 @@ function CandidateDetail() {
           systemInfoUrl={data.systemInfoUrl}
         />
 
+        <CandidateManagementPanel
+          applicationId={id}
+          archivedAt={(app as { archived_at?: string | null }).archived_at ?? null}
+          canEvaluate={Boolean(evaluatorAccess.data?.canEvaluate)}
+        />
+
         <InterviewPanel applicationId={id} cefr={evaluation?.cefr ?? null} />
 
 
@@ -421,6 +434,192 @@ function CandidateDetail() {
         ))}
       </div>
     </main>
+  );
+}
+
+function CandidateManagementPanel({
+  applicationId,
+  archivedAt,
+  canEvaluate,
+}: {
+  applicationId: string;
+  archivedAt: string | null;
+  canEvaluate: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const archive = useServerFn(archiveCandidate);
+  const retake = useServerFn(createRetakeInterview);
+  const sendEmail = useServerFn(sendFollowUpEmail);
+  const loadAttempts = useServerFn(listInterviewAttempts);
+  const loadEmails = useServerFn(listCandidateEmails);
+
+  const [reason, setReason] = useState("");
+  const [areas, setAreas] = useState("");
+  const [emailKind, setEmailKind] = useState<"retake" | "not_approved">("retake");
+
+  const attempts = useQuery({
+    queryKey: ["attempts", applicationId],
+    queryFn: () => loadAttempts({ data: { applicationId } }),
+  });
+  const emails = useQuery({
+    queryKey: ["candidate-emails", applicationId],
+    queryFn: () => loadEmails({ data: { applicationId } }),
+  });
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["candidate", applicationId] });
+    queryClient.invalidateQueries({ queryKey: ["attempts", applicationId] });
+    queryClient.invalidateQueries({ queryKey: ["candidate-emails", applicationId] });
+  };
+
+  const archiveMutation = useMutation({
+    mutationFn: () =>
+      archive({ data: { applicationId, reason, restore: Boolean(archivedAt) } }),
+    onSuccess: (r) => {
+      toast.success(r.archived ? "Candidate archived." : "Candidate restored.");
+      setReason("");
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const retakeMutation = useMutation({
+    mutationFn: () => retake({ data: { applicationId, note: reason } }),
+    onSuccess: (r) => {
+      toast.success(`Retake interview created (attempt ${r.attempt}). It starts at the Grammar Test.`);
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const emailMutation = useMutation({
+    mutationFn: () => sendEmail({ data: { applicationId, kind: emailKind, areas } }),
+    onSuccess: (r) => {
+      if (r.ok) toast.success("Follow-up email sent.");
+      else toast.error(`Email not sent: ${r.detail}`);
+      refresh();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-lg font-bold">Candidate management</h2>
+        {archivedAt && (
+          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold">
+            Archived {new Date(archivedAt).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label className="text-xs">Interview history</Label>
+          {attempts.isLoading ? (
+            <Skeleton className="h-16 w-full rounded-2xl" />
+          ) : attempts.data?.length ? (
+            <ul className="space-y-1.5 text-sm">
+              {attempts.data.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between rounded-2xl border border-border px-3 py-2"
+                >
+                  <span>
+                    Attempt {a.attempt_number ?? 1} · {a.status}
+                    {a.final_result ? ` · ${a.final_result}` : ""}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {a.interview_date ?? (a.created_at ? new Date(a.created_at).toLocaleDateString() : "")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No interviews yet.</p>
+          )}
+          {canEvaluate && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button asChild size="sm" variant="outline" className="rounded-2xl">
+                <Link to="/evaluations/$applicationId" params={{ applicationId }}>
+                  {attempts.data?.length ? "Continue interview" : "Start interview"}
+                </Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-2xl"
+                disabled={retakeMutation.isPending || !attempts.data?.length}
+                onClick={() => retakeMutation.mutate()}
+              >
+                Create retake interview
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs">Follow-up email</Label>
+          <Select value={emailKind} onValueChange={(v) => setEmailKind(v as "retake" | "not_approved")}>
+            <SelectTrigger className="rounded-2xl">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="retake">Retake — includes scheduling link</SelectItem>
+              <SelectItem value="not_approved">Not approved — no link</SelectItem>
+            </SelectContent>
+          </Select>
+          <Textarea
+            value={areas}
+            onChange={(e) => setAreas(e.target.value)}
+            placeholder="Area of opportunity to include in the email"
+            className="min-h-20 rounded-2xl"
+          />
+          <Button
+            size="sm"
+            className="rounded-2xl"
+            disabled={emailMutation.isPending || !areas.trim()}
+            onClick={() => emailMutation.mutate()}
+          >
+            Send follow-up email
+          </Button>
+          {emails.data?.length ? (
+            <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
+              {emails.data.slice(0, 5).map((e) => (
+                <li key={e.id}>
+                  {new Date(e.created_at).toLocaleString()} · {e.kind} · {e.status}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2 border-t border-border pt-4">
+        <Label className="text-xs">{archivedAt ? "Restore candidate" : "Archive candidate"}</Label>
+        <div className="flex flex-wrap gap-2">
+          <Input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason (optional)"
+            className="max-w-sm rounded-2xl"
+          />
+          <Button
+            size="sm"
+            variant={archivedAt ? "default" : "outline"}
+            className="rounded-2xl"
+            disabled={archiveMutation.isPending}
+            onClick={() => archiveMutation.mutate()}
+          >
+            {archivedAt ? "Restore" : "Archive"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Archiving hides the candidate from the main list. Videos, resume, references, interviews
+          and appointments are kept.
+        </p>
+      </div>
+    </section>
   );
 }
 

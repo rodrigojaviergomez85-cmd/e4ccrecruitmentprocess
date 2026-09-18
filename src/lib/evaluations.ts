@@ -238,7 +238,7 @@ export function complianceItems(input: ComplianceInput) {
     {
       label: "English activities documented",
       applies: true,
-      done: input.verbs.filter((v) => v.verb.trim()).length >= 5 && filled(get("english", "level")),
+      done: input.verbs.filter((v) => v.verb.trim()).length >= 5,
     },
     { label: "Job history completed", applies: true, done: input.jobsCount >= 1 },
     {
@@ -275,7 +275,6 @@ export function missingRequired(input: ComplianceInput): string[] {
   const get = (section: string, key: string) => (s[section] ?? {})[key];
   const missing: string[] = [];
   if (!filled(get("candidate", "lob"))) missing.push("LOB (Online or Onsite)");
-  if (!filled(get("english", "level"))) missing.push("Live interview English level");
   if (!filled(get("grammar_test", "completed"))) missing.push("Grammar Test answer");
   if (!filled(get("profile", "availability_required"))) missing.push("Availability confirmation");
   if (input.verbs.filter((v) => v.verb.trim()).length < 5)

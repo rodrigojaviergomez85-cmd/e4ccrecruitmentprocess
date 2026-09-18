@@ -66,6 +66,7 @@ function Dashboard() {
   const [callcenterExp, setCallcenterExp] = useState(ALL);
   const [minScore, setMinScore] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [archived, setArchived] = useState(false);
 
   const filters = useMemo(
     () => ({
@@ -76,8 +77,9 @@ function Dashboard() {
       ...(experience !== ALL ? { experience } : {}),
       ...(callcenterExp !== ALL ? { callcenterExperience: callcenterExp } : {}),
       ...(minScore ? { minScore: Number(minScore) } : {}),
+      ...(archived ? { archived: true } : {}),
     }),
-    [search, cefr, country, status, experience, callcenterExp, minScore],
+    [search, cefr, country, status, experience, callcenterExp, minScore, archived],
   );
 
   const { data, isLoading, error } = useQuery({
@@ -99,6 +101,16 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground">Recruitment dashboard</p>
           </div>
           <div className="flex items-center gap-1">
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/candidates/new">Add candidate</Link>
+            </Button>
+            <Button
+              variant={archived ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setArchived((v) => !v)}
+            >
+              {archived ? "Viewing archived" : "Archived"}
+            </Button>
             {canEvaluate && (
               <Button asChild variant="ghost" size="sm">
                 <Link to="/evaluations">
