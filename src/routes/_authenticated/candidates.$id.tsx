@@ -152,6 +152,14 @@ function CandidateDetail() {
           >
             <ArrowLeft className="h-4 w-4" /> All candidates
           </Link>
+          <div className="flex items-center gap-2">
+          {evaluatorAccess.data?.canEvaluate && (
+            <Button asChild size="sm">
+              <Link to="/evaluations/$applicationId" params={{ applicationId: id }}>
+                Start interview
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
