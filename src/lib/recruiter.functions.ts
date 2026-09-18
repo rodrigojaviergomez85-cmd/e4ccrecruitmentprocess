@@ -67,7 +67,7 @@ export const listCandidates = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name))",
+        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name)), recruitment_progress(work_modality, internet_test_passed, internet_override, grammar_test_verified, resume_path), candidate_emails(kind, status)",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
@@ -114,6 +114,8 @@ export const listCandidates = createServerFn({ method: "POST" })
             ? appointment.interviewers[0]
             : appointment.interviewers
           : null;
+        const progress = Array.isArray(row.recruitment_progress) ? row.recruitment_progress[0] : row.recruitment_progress;
+        const preparationEmail = (row.candidate_emails ?? []).filter((email) => email.kind === "preparation").at(-1);
         return {
           id: row.id,
           full_name: row.full_name,
@@ -140,6 +142,11 @@ export const listCandidates = createServerFn({ method: "POST" })
               ? ((evaluation.grammar_evidence as { assessment_status?: string })
                   .assessment_status ?? "Scored")
               : "Scored",
+          work_modality: progress?.work_modality ?? null,
+          internet_ready: Boolean(progress?.internet_test_passed || progress?.internet_override),
+          grammar_pending: !progress?.grammar_test_verified,
+          resume_uploaded: Boolean(progress?.resume_path),
+          preparation_email_status: preparationEmail?.status ?? null,
         };
       })
 
@@ -267,7 +274,7 @@ export const updateReferenceVerification = createServerFn({ method: "POST" })
     z
       .object({
         applicationId: z.string().uuid(),
-        slot: z.number().int().min(1).max(2),
+        slot: z.number().int().min(1).max(5),
         verification_status: z.enum(REFERENCE_STATUSES).optional(),
         verification_notes: z.string().max(2000).optional(),
       })
@@ -286,6 +293,21 @@ export const updateReferenceVerification = createServerFn({ method: "POST" })
       .eq("application_id", applicationId)
       .eq("slot", slot);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const overrideInternetRequirement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid(), approve: z.boolean(), note: z.string().trim().min(5).max(500) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { db, isAdmin, allowedCountries } = await staffContext(context.userId);
+    if (!isAdmin) throw new Error("Only an administrator can approve an Internet exception.");
+    const { data: app } = await db.from("applications").select("country_code").eq("id", data.applicationId).single();
+    if (allowedCountries && !allowedCountries.includes(app?.country_code ?? "")) throw new Error("You do not have access to this candidate.");
+    const now = new Date().toISOString();
+    const { error } = await db.from("recruitment_progress").upsert({ application_id: data.applicationId, internet_override: data.approve, internet_override_note: data.note, internet_override_by: context.userId, internet_override_at: now }, { onConflict: "application_id" });
+    if (error) throw new Error(error.message);
+    await db.from("audit_logs").insert({ actor_id: context.userId, action: data.approve ? "internet_override_approved" : "internet_override_removed", entity_type: "application", entity_id: data.applicationId, details: { note: data.note } });
     return { ok: true };
   });
 

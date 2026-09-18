@@ -187,6 +187,8 @@ export type Database = {
       appointments: {
         Row: {
           application_id: string
+          calendly_event_uri: string | null
+          calendly_invitee_uri: string | null
           canceled_at: string | null
           candidate_timezone: string
           created_at: string
@@ -202,6 +204,8 @@ export type Database = {
         }
         Insert: {
           application_id: string
+          calendly_event_uri?: string | null
+          calendly_invitee_uri?: string | null
           canceled_at?: string | null
           candidate_timezone?: string
           created_at?: string
@@ -217,6 +221,8 @@ export type Database = {
         }
         Update: {
           application_id?: string
+          calendly_event_uri?: string | null
+          calendly_invitee_uri?: string | null
           canceled_at?: string | null
           candidate_timezone?: string
           created_at?: string
@@ -704,6 +710,8 @@ export type Database = {
           max_booking_days: number
           max_per_slot: number
           min_notice_hours: number
+          minimum_download_mbps: number
+          minimum_upload_mbps: number
           reminder_offsets_minutes: number[]
           templates: Json
           timezone: string
@@ -722,6 +730,8 @@ export type Database = {
           max_booking_days?: number
           max_per_slot?: number
           min_notice_hours?: number
+          minimum_download_mbps?: number
+          minimum_upload_mbps?: number
           reminder_offsets_minutes?: number[]
           templates?: Json
           timezone?: string
@@ -740,6 +750,8 @@ export type Database = {
           max_booking_days?: number
           max_per_slot?: number
           min_notice_hours?: number
+          minimum_download_mbps?: number
+          minimum_upload_mbps?: number
           reminder_offsets_minutes?: number[]
           templates?: Json
           timezone?: string
@@ -831,11 +843,21 @@ export type Database = {
           grammar_test_status: string
           grammar_test_verified: boolean
           grammar_topics_confirmed: boolean
+          internet_download_mbps: number | null
+          internet_override: boolean
+          internet_override_at: string | null
+          internet_override_by: string | null
+          internet_override_note: string | null
+          internet_ping_ms: number | null
           internet_speed_mbps: number | null
+          internet_test_passed: boolean
+          internet_tested_at: string | null
+          internet_upload_mbps: number | null
           jobs_count: number | null
           references_declaration: boolean
           resume_filename: string | null
           resume_path: string | null
+          resume_replaced_at: string | null
           resume_uploaded_at: string | null
           sample_class_confirmed: boolean
           scheduling_status: string
@@ -855,11 +877,21 @@ export type Database = {
           grammar_test_status?: string
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
+          internet_download_mbps?: number | null
+          internet_override?: boolean
+          internet_override_at?: string | null
+          internet_override_by?: string | null
+          internet_override_note?: string | null
+          internet_ping_ms?: number | null
           internet_speed_mbps?: number | null
+          internet_test_passed?: boolean
+          internet_tested_at?: string | null
+          internet_upload_mbps?: number | null
           jobs_count?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
+          resume_replaced_at?: string | null
           resume_uploaded_at?: string | null
           sample_class_confirmed?: boolean
           scheduling_status?: string
@@ -879,11 +911,21 @@ export type Database = {
           grammar_test_status?: string
           grammar_test_verified?: boolean
           grammar_topics_confirmed?: boolean
+          internet_download_mbps?: number | null
+          internet_override?: boolean
+          internet_override_at?: string | null
+          internet_override_by?: string | null
+          internet_override_note?: string | null
+          internet_ping_ms?: number | null
           internet_speed_mbps?: number | null
+          internet_test_passed?: boolean
+          internet_tested_at?: string | null
+          internet_upload_mbps?: number | null
           jobs_count?: number | null
           references_declaration?: boolean
           resume_filename?: string | null
           resume_path?: string | null
+          resume_replaced_at?: string | null
           resume_uploaded_at?: string | null
           sample_class_confirmed?: boolean
           scheduling_status?: string
@@ -949,6 +991,53 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      retake_access_tokens: {
+        Row: {
+          application_id: string
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          sent_at: string
+          session_expires_at: string | null
+          session_hash: string | null
+          used_at: string | null
+        }
+        Insert: {
+          application_id: string
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          sent_at?: string
+          session_expires_at?: string | null
+          session_hash?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          application_id?: string
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          sent_at?: string
+          session_expires_at?: string | null
+          session_hash?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retake_access_tokens_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
             referencedColumns: ["id"]
           },
         ]

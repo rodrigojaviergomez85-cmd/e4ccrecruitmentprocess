@@ -280,6 +280,14 @@ function Dashboard() {
                         {candidate.interviewer ?? "Unassigned"} · {candidate.appointment_status}
                       </p>
                     )}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {candidate.work_modality && <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium capitalize">{candidate.work_modality}</span>}
+                      {candidate.work_modality === "online" && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", candidate.internet_ready ? "bg-success/15 text-success" : "bg-warning/20 text-warning-foreground")}>{candidate.internet_ready ? "Internet passed" : "Internet review needed"}</span>}
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", candidate.resume_uploaded ? "bg-success/15 text-success" : "bg-muted text-muted-foreground")}>{candidate.resume_uploaded ? "Resume uploaded" : "Resume pending"}</span>
+                      {candidate.grammar_pending && <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs font-medium text-warning-foreground">Grammar Test pending</span>}
+                      {candidate.appointment_status && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Interview scheduled</span>}
+                      {candidate.preparation_email_status && <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", candidate.preparation_email_status === "failed" ? "bg-destructive/10 text-destructive" : "bg-success/15 text-success")}>Preparation email {candidate.preparation_email_status}</span>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span

@@ -15,6 +15,7 @@ import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
 import { Route as AuthenticatedScorecardRouteImport } from './routes/_authenticated/scorecard'
@@ -27,7 +28,9 @@ import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
 import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
+import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
+import { Route as ApiPublicWebhooksCalendlyRouteImport } from './routes/api/public/webhooks/calendly'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -56,6 +59,11 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetakeRoute = RetakeRouteImport.update({
+  id: '/retake',
+  path: '/retake',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -122,11 +130,22 @@ const AuthenticatedEvaluationsApplicationIdRoute =
     path: '/evaluations/$applicationId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicSpeedTestRoute = ApiPublicSpeedTestRouteImport.update({
+  id: '/api/public/speed-test',
+  path: '/api/public/speed-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   id: '/api/public/cron/reminders',
   path: '/api/public/cron/reminders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWebhooksCalendlyRoute =
+  ApiPublicWebhooksCalendlyRouteImport.update({
+    id: '/api/public/webhooks/calendly',
+    path: '/api/public/webhooks/calendly',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -134,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
@@ -145,8 +165,10 @@ export interface FileRoutesByFullPath {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -154,6 +176,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
@@ -165,8 +188,10 @@ export interface FileRoutesByTo {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -176,6 +201,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
   '/_authenticated/scorecard': typeof AuthenticatedScorecardRoute
@@ -187,8 +213,10 @@ export interface FileRoutesById {
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
+  '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -198,6 +226,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/dashboard'
     | '/interviews'
     | '/scorecard'
@@ -209,8 +238,10 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/evaluations/'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -218,6 +249,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/dashboard'
     | '/interviews'
     | '/scorecard'
@@ -229,8 +261,10 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/evaluations'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   id:
     | '__root__'
     | '/'
@@ -239,6 +273,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/_authenticated/dashboard'
     | '/_authenticated/interviews'
     | '/_authenticated/scorecard'
@@ -250,8 +285,10 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
+    | '/api/public/webhooks/calendly'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,9 +298,12 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RetakeRoute: typeof RetakeRoute
   ProcessIdRoute: typeof ProcessIdRoute
   ScheduleTokenRoute: typeof ScheduleTokenRoute
+  ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
+  ApiPublicWebhooksCalendlyRoute: typeof ApiPublicWebhooksCalendlyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -308,6 +348,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retake': {
+      id: '/retake'
+      path: '/retake'
+      fullPath: '/retake'
+      preLoaderRoute: typeof RetakeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -394,11 +441,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEvaluationsApplicationIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/speed-test': {
+      id: '/api/public/speed-test'
+      path: '/api/public/speed-test'
+      fullPath: '/api/public/speed-test'
+      preLoaderRoute: typeof ApiPublicSpeedTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/reminders': {
       id: '/api/public/cron/reminders'
       path: '/api/public/cron/reminders'
       fullPath: '/api/public/cron/reminders'
       preLoaderRoute: typeof ApiPublicCronRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/webhooks/calendly': {
+      id: '/api/public/webhooks/calendly'
+      path: '/api/public/webhooks/calendly'
+      fullPath: '/api/public/webhooks/calendly'
+      preLoaderRoute: typeof ApiPublicWebhooksCalendlyRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -449,9 +510,12 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RetakeRoute: RetakeRoute,
   ProcessIdRoute: ProcessIdRoute,
   ScheduleTokenRoute: ScheduleTokenRoute,
+  ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
+  ApiPublicWebhooksCalendlyRoute: ApiPublicWebhooksCalendlyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

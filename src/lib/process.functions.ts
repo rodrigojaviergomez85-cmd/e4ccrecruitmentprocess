@@ -50,7 +50,7 @@ async function assertEligible(applicationId: string, token: string) {
   return { app, cefr: evaluation?.cefr ?? null, db };
 }
 
-export const MAX_REFERENCES = 4;
+export const MAX_REFERENCES = 5;
 
 /** A supervisor phone must look like a real international number. */
 export function validSupervisorPhone(phone: string) {
@@ -82,47 +82,29 @@ function referenceComplete(row: {
 /** Device requirement: onsite coaches only confirm the device; online coaches
  * also need a measured internet speed and a System Information screenshot. */
 export function deviceRequirementMet(progress: {
-  device_confirmed: boolean;
   work_modality: string | null;
-  internet_speed_mbps: number | null;
-  system_info_path: string | null;
+  internet_test_passed: boolean;
+  internet_override: boolean;
 }) {
-  if (!progress.device_confirmed) return false;
   if (progress.work_modality === "onsite") return true;
-  if (progress.work_modality === "online") {
-    return progress.internet_speed_mbps != null && Boolean(progress.system_info_path);
-  }
+  if (progress.work_modality === "online") return progress.internet_test_passed || progress.internet_override;
   return false;
 }
 
 export function requirementsFor(
   progress: {
-    device_confirmed: boolean;
     work_modality: string | null;
-    internet_speed_mbps: number | null;
-    system_info_path: string | null;
-    grammar_test_confirmed: boolean;
-    grammar_topics_confirmed: boolean;
+    internet_test_passed: boolean;
+    internet_override: boolean;
     resume_path: string | null;
-    references_declaration: boolean;
   },
   referencesComplete: boolean,
 ) {
   const items = [
-    { key: "device", label: "Device requirement confirmed", done: deviceRequirementMet(progress) },
-    { key: "grammar_test", label: "Grammar Test completed", done: progress.grammar_test_confirmed },
-    {
-      key: "grammar_topics",
-      label: "Grammar topics reviewed",
-      done: progress.grammar_topics_confirmed,
-    },
+    { key: "position", label: "Position selected", done: Boolean(progress.work_modality) },
+    { key: "internet", label: "Internet test passed", done: deviceRequirementMet(progress) },
     { key: "resume", label: "Resume uploaded", done: Boolean(progress.resume_path) },
-    { key: "references", label: "Work references completed", done: referencesComplete },
-    {
-      key: "declaration",
-      label: "Reference accuracy declaration accepted",
-      done: progress.references_declaration,
-    },
+    { key: "references", label: "One work reference completed", done: referencesComplete },
   ];
   return { items, unlocked: items.every((i) => i.done) };
 }
@@ -133,41 +115,28 @@ async function loadState(db: Db, applicationId: string) {
   await db
     .from("recruitment_progress")
     .upsert({ application_id: applicationId }, { onConflict: "application_id", ignoreDuplicates: true });
-  const { data: progressRow } = await db
-    .from("recruitment_progress")
-    .select("jobs_count")
-    .eq("application_id", applicationId)
-    .maybeSingle();
-  // How many past jobs the candidate declared drives how many reference forms
-  // exist (1 to 4). Until they answer we keep the historic two slots.
-  const wanted = Math.min(MAX_REFERENCES, Math.max(1, progressRow?.jobs_count ?? 2));
-  for (let slot = 1; slot <= wanted; slot += 1) {
-    await db
-      .from("work_references")
-      .upsert(
-        { application_id: applicationId, slot },
-        { onConflict: "application_id,slot", ignoreDuplicates: true },
-      );
-  }
-  const [{ data: progress }, { data: references }] = await Promise.all([
+  await db.from("work_references").upsert(
+    { application_id: applicationId, slot: 1 },
+    { onConflict: "application_id,slot", ignoreDuplicates: true },
+  );
+  const [{ data: progress }, { data: references }, { data: appointments }, { data: emails }] = await Promise.all([
     db.from("recruitment_progress").select("*").eq("application_id", applicationId).single(),
     db
       .from("work_references")
       .select("*")
       .eq("application_id", applicationId)
-      .lte("slot", wanted)
+      .lte("slot", MAX_REFERENCES)
       .order("slot"),
+    db.from("appointments").select("id, starts_at, ends_at, status, candidate_timezone, meeting_link").eq("application_id", applicationId).in("status", ["Scheduled", "Confirmed"]).order("starts_at").limit(1),
+    db.from("candidate_emails").select("status, error_message, created_at").eq("application_id", applicationId).eq("kind", "preparation").order("created_at", { ascending: false }).limit(1),
   ]);
   const refs = (references ?? []).map((r) => {
     const { verification_notes: _notes, ...safe } = r;
     return safe;
   });
-  const complete =
-    Boolean(progressRow?.jobs_count) &&
-    refs.length === wanted &&
-    refs.every((r) => referenceComplete(r));
+  const complete = refs.some((r) => referenceComplete(r));
   const { items, unlocked } = requirementsFor(progress!, complete);
-  return { progress: progress!, references: refs, requirements: items, unlocked };
+  return { progress: progress!, references: refs, requirements: items, unlocked, appointment: appointments?.[0] ?? null, preparationEmail: emails?.[0] ?? null };
 }
 
 /** Sync the application status with the checklist state. */
@@ -216,36 +185,24 @@ export const getRecruitmentProcess = createServerFn({ method: "POST" })
 
 
 const confirmSchema = ownerSchema.extend({
-  device_confirmed: z.boolean().optional(),
   work_modality: z.enum(["online", "onsite"]).optional(),
-  internet_speed_mbps: z.number().min(0).max(10000).optional(),
-  grammar_test_confirmed: z.boolean().optional(),
-  grammar_test_opened: z.boolean().optional(),
-  grammar_topics_confirmed: z.boolean().optional(),
-  references_declaration: z.boolean().optional(),
-  jobs_count: z.number().int().min(1).max(MAX_REFERENCES).optional(),
+  internet_download_mbps: z.number().min(0).max(10000).optional(),
+  internet_upload_mbps: z.number().min(0).max(10000).optional(),
+  internet_ping_ms: z.number().min(0).max(60000).optional(),
 });
 
 export const saveRecruitmentProgress = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => confirmSchema.parse(d))
   .handler(async ({ data }) => {
     const { db } = await assertEligible(data.applicationId, data.token);
-    const { applicationId, token: _t, grammar_test_opened, ...fields } = data;
+    const { applicationId, token: _t, ...fields } = data;
     const patch: Record<string, unknown> = { ...fields };
-
-    if (grammar_test_opened || fields.grammar_test_confirmed) {
-      const { data: current } = await db
-        .from("recruitment_progress")
-        .select("grammar_test_verified, grammar_test_status")
-        .eq("application_id", applicationId)
-        .maybeSingle();
-      if (!current?.grammar_test_verified) {
-        patch['grammar_test_status'] = fields.grammar_test_confirmed
-          ? "Candidate marked as completed"
-          : current?.grammar_test_status === "Candidate marked as completed"
-            ? current.grammar_test_status
-            : "Link opened";
-      }
+    if (fields.work_modality === "onsite") Object.assign(patch, { internet_test_passed: false });
+    if (fields.internet_download_mbps != null && fields.internet_upload_mbps != null) {
+      Object.assign(patch, {
+        internet_tested_at: new Date().toISOString(),
+        internet_test_passed: fields.internet_download_mbps >= 10 && fields.internet_upload_mbps >= 10,
+      });
     }
 
     await db
@@ -270,6 +227,7 @@ const referenceSchema = ownerSchema.extend({
   end_date: z.string().trim().max(20).nullable(),
   currently_working: z.boolean(),
   supervisor_name: z.string().trim().max(120),
+  supervisor_position: z.string().trim().max(120).optional().default(""),
   supervisor_phone: z.string().trim().max(40),
   supervisor_email: z.string().trim().max(255).optional().default(""),
   reason_for_leaving: z.string().trim().max(500),
@@ -448,4 +406,23 @@ export const recordCalendlyBooking = createServerFn({ method: "POST" })
     } catch {
       return { ok: false as const };
     }
+  });
+
+export const resendPreparationEmail = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => ownerSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { app, db } = await assertEligible(data.applicationId, data.token);
+    const [{ data: appointment }, { data: progress }] = await Promise.all([
+      db.from("appointments").select("starts_at, candidate_timezone").eq("application_id", data.applicationId).in("status", ["Scheduled", "Confirmed"]).order("starts_at").limit(1).maybeSingle(),
+      db.from("recruitment_progress").select("work_modality").eq("application_id", data.applicationId).maybeSingle(),
+    ]);
+    if (!appointment) throw new Error("No confirmed interview was found.");
+    const timezone = appointment.candidate_timezone || "UTC";
+    const format = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options }).format(new Date(appointment.starts_at));
+    const { buildPreparationEmail } = await import("./candidate-emails");
+    const message = buildPreparationEmail({ fullName: app.full_name, interviewDate: format({ weekday: "long", year: "numeric", month: "long", day: "numeric" }), interviewTime: format({ hour: "numeric", minute: "2-digit" }), timezone, modality: progress?.work_modality === "onsite" ? "onsite" : "online" });
+    const { sendEmail } = await import("./notify.server");
+    const delivery = await sendEmail({ to: app.email, ...message });
+    await db.from("candidate_emails").insert({ application_id: data.applicationId, kind: "preparation", to_email: app.email, subject: message.subject, body: message.html, status: delivery.ok ? "resent" : "failed", error_message: delivery.ok ? null : delivery.detail });
+    return delivery;
   });
