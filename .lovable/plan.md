@@ -2,6 +2,25 @@
 
 Actualizar únicamente la experiencia existente de `/process/$id`, su lógica de progreso y la presentación de esos datos en el perfil interno. No se reconstruyen la solicitud, grabaciones, evaluación, acceso del equipo ni Calendly.
 
+## 0. Entrada pública — First Application o Retake
+
+- Mantener el diseño y branding actuales de Home, reemplazando el único **Start Application** por la pregunta **“Have you applied to E4CC before?”**.
+- Mostrar dos opciones lado a lado en escritorio y apiladas en móvil:
+  - **“This is my first application”**, texto **“Start your application and complete the English evaluation.”** y botón **Start My Application** hacia el flujo existente completo `/apply`.
+  - **“I’m returning for a Retake”**, texto **“Access your previous application and schedule your next interview.”** y botón **Continue My Retake** hacia un flujo público separado de recuperación.
+- No colocar esta decisión dentro de la solicitud, el perfil ni la página normal del proceso.
+
+### Recuperación segura de Retake
+
+- Pedir únicamente el correo usado en la solicitud anterior y responder siempre con un mensaje genérico para no revelar si existe un candidato.
+- Enviar un código de un solo uso al correo coincidente; guardar solo su hash, con vencimiento corto, uso único y límites de intentos/reenvíos.
+- Después de verificarlo, emitir un enlace/sesión temporal vinculada exclusivamente al `application_id` recuperado. Un enlace seguro válido omite Home y abre directamente el flujo Retake.
+- Considerar elegible únicamente al candidato cuya última evaluación tenga resultado Retake y cuya fecha permitida ya haya llegado; mostrar un mensaje claro si todavía debe esperar o si necesita contactar al equipo.
+- Si existe una cita activa, mostrar sus detalles y no permitir otra reserva.
+- Si es elegible y no tiene cita activa, mostrar un resumen editable de sus datos previos y abrir directamente la agenda existente.
+- No repetir registro, videos, evaluación inicial, prueba de Internet, currículum, referencias ni requisitos de primera aplicación. Permitir actualizar voluntariamente los datos previos desde el resumen Retake.
+- Mantener intacto el intento anterior y el flujo interno de Retake ya existente; esta entrada pública solo recupera al candidato y le permite agendar el siguiente intento autorizado.
+
 ## 1. Flujo compacto de tres pasos
 
 - Sustituir el checklist largo por un indicador simple: **Position → Preparation → Schedule**.
@@ -93,6 +112,8 @@ Añadir a la configuración existente los mínimos de descarga y subida, inicial
 
 Ampliar el límite de referencias de cuatro a cinco en validación y presentación, preservando todos los registros existentes. El scheduling comprobará al menos una referencia completa, sin depender de `jobs_count` ni de un slot específico.
 
+Añadir almacenamiento seguro para recuperación Retake: `application_id`, hash del código/token, expiración, usado en, intentos y fechas de envío. La migración incluirá grants mínimos, RLS habilitado y políticas cerradas; la lectura/escritura pública ocurrirá solo mediante funciones servidoras validadas.
+
 ## 6. Perfil y panel del reclutador
 
 - En la lista y ficha del candidato, añadir o conservar badges compactos para: Online/Onsite, Internet Passed/Internet Review Needed, Grammar Pending, Resume Uploaded, Interview Scheduled, Preparation Email Sent/Failed/Resent.
@@ -109,6 +130,8 @@ Ampliar el límite de referencias de cuatro a cinco en validación y presentaci�
 - Validar permisos y alcance por país antes de aplicar un override.
 - Preservar las políticas RLS existentes; la migración será aditiva y no borrará solicitudes, referencias, archivos, grabaciones, evaluaciones ni citas.
 - No modificar el perfil de solicitud, autenticación, grabaciones ni entrevista/evaluación; ampliar Calendly únicamente con la confirmación segura de reservas requerida.
+- Validar y limitar todos los campos editables del Retake en cliente y servidor; el token recuperado solo puede leer/actualizar su candidato asociado.
+- Evitar enumeración de correos, almacenar códigos/tokens únicamente como hashes, expirar sesiones y registrar eventos de solicitud/verificación sin guardar el código en logs.
 
 ## Detalles técnicos
 
@@ -121,12 +144,17 @@ Ampliar el límite de referencias de cuatro a cinco en validación y presentaci�
 - Hacer idempotente el procesamiento por identificador de evento/invitado para evitar citas o correos duplicados.
 - El evento del navegador no marcará éxito; solo refrescará hasta encontrar la cita confirmada por webhook.
 - Disparar el correo después de persistir la cita y guardar la respuesta real del proveedor antes de decidir qué mensaje mostrar.
+- Crear rutas públicas separadas para solicitar/verificar el acceso Retake y para la vista recuperada; no crear cuentas de staff ni mezclar este acceso con el login interno.
+- Reutilizar las funciones de agenda y citas, añadiendo una comprobación transaccional de cita activa antes de abrir o confirmar una nueva reserva.
+- El envío del código y de la preparación posterior requiere que el correo oficial de reclutamiento esté conectado; la interfaz reportará errores reales y nunca simulará una entrega.
 
 ## Verificación
 
 - Probar Online/Onsite, retest, override, currículum único, webhook válido/inválido, idempotencia, envío exitoso/fallido y reenvío.
 - Verificar que Grammar Test y Grammar Review no aparecen en la página pública; las referencias aparecen como acordeones compactos y siguen disponibles internamente.
 - Probar añadir hasta cinco referencias, guardado/colapso, edición, eliminación segura, validación del teléfono y que solo una referencia completa sea obligatoria.
+- Probar Home en escritorio/móvil, primera aplicación intacta, correo desconocido sin filtración, código válido/inválido/expirado/usado, enlace directo, elegibilidad Retake, fecha aún no habilitada y bloqueo de cita duplicada.
+- Confirmar que un Retake elegible llega a la agenda sin repetir requisitos y puede editar voluntariamente sus datos previos sin crear otro candidato.
 - Verificar permisos de candidato, staff, Viewer, alcance por país, archivos privados y auditoría.
 - Comprobar visualmente escritorio y móvil con Playwright, incluyendo acordeones, cuadrícula de campos y estados compactos.
 - Ejecutar typecheck y revisar el build automático sin errores.
