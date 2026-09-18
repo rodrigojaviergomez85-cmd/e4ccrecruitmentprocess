@@ -4,6 +4,40 @@ export const CALENDLY_SCHEDULE_URL = "https://calendly.com/teachingjobs4callcent
 
 export type FollowUpKind = "retake" | "not_approved";
 
+export function buildPreparationEmail(input: {
+  fullName: string;
+  interviewDate: string;
+  interviewTime: string;
+  timezone: string;
+  modality: "online" | "onsite";
+}) {
+  const firstName = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
+  const sampleClassUrl =
+    input.modality === "online" ? RETAKE_LINKS.sampleClassOnline : RETAKE_LINKS.sampleClassOnsite;
+  const subject = "Your E4CC Interview Is Confirmed — Preparation Steps";
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p>Dear ${escapeHtml(firstName)},</p>
+      <p>Your LIVE ZOOM INTERVIEW with the E4CC Recruitment Team has been successfully scheduled.</p>
+      ${section("Interview Details", `<ul>
+        <li><strong>Date:</strong> ${escapeHtml(input.interviewDate)}</li>
+        <li><strong>Time:</strong> ${escapeHtml(input.interviewTime)}</li>
+        <li><strong>Timezone:</strong> ${escapeHtml(input.timezone)}</li>
+        <li><strong>Zoom Link:</strong> <a href="${RETAKE_LINKS.zoom}">${RETAKE_LINKS.zoom}</a></li>
+      </ul><p>Please connect five to ten minutes before your scheduled time.</p>`)}
+      ${section("Steps to Complete Before Your Interview", `
+        <p><strong>1. Device Requirement</strong><br/>You must attend using a laptop or desktop computer with a working camera and microphone. Mobile phones are not allowed.</p>
+        <p><strong>2. Complete the Grammar Test</strong><br/>Please complete the mandatory 12-minute Grammar Test before your interview:<br/><a href="${RETAKE_LINKS.grammarTest}">${RETAKE_LINKS.grammarTest}</a><br/>If you receive a TestGorilla email, please also check your Spam or Junk folder.</p>
+        <p><strong>3. Review Grammar Tenses</strong><br/>Review the E4CC grammar material before your interview:<br/><a href="${RETAKE_LINKS.grammarTopicsGettingStarted}">${RETAKE_LINKS.grammarTopicsGettingStarted}</a><br/>During your interview, you may be asked to explain grammar tenses and verbs as if you were teaching a class.</p>
+        <p><strong>4. Prepare a Sample Class</strong><br/><a href="${sampleClassUrl}">${input.modality === "online" ? "Online" : "Onsite"} Candidate Preparation Video</a><br/>Please be ready to teach a short sample class during your interview.</p>
+        <p><strong>5. Resume and References</strong><br/>Please make sure your uploaded resume is updated and have valid work references available for your recent positions.</p>
+      `)}
+      <p>We look forward to meeting you!</p>
+      <p>Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+  return { subject, html };
+}
+
 export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
   retake: "Retake invitation",
   not_approved: "Process closed",
