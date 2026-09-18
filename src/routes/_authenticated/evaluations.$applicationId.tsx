@@ -1382,7 +1382,7 @@ function EvaluationForm() {
           )}
         </fieldset>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <Button
             variant="outline"
             disabled={step === 0}
@@ -1390,7 +1390,7 @@ function EvaluationForm() {
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {!locked && (
               <Button variant="destructive" onClick={() => setFinishOpen(true)}>
                 Finish interview

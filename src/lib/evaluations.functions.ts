@@ -521,7 +521,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         actorId: context.userId,
         actorEmail: ctx.email,
         action: "submitted",
-        details: { finalResult: data.finalResult, total, compliance },
+        details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
     }
 

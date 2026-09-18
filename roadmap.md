@@ -37,3 +37,4 @@
 - [x] Interview Evaluations module (evaluator access, guided form, scoring, compliance)
 - [x] Recruitment Scorecard with CSV export
 - [x] Answer credits-to-money question (20 credits)
+- [x] Merge Grammar Test into English evaluation and support early interview completion
