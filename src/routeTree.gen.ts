@@ -15,6 +15,7 @@ import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
 import { Route as AuthenticatedScorecardRouteImport } from './routes/_authenticated/scorecard'
@@ -57,6 +58,11 @@ const ChangePasswordRoute = ChangePasswordRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetakeRoute = RetakeRouteImport.update({
+  id: '/retake',
+  path: '/retake',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -140,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retake': typeof RetakeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
   '/_authenticated/scorecard': typeof AuthenticatedScorecardRoute
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/dashboard'
     | '/interviews'
     | '/scorecard'
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/dashboard'
     | '/interviews'
     | '/scorecard'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/reset-password'
+    | '/retake'
     | '/_authenticated/dashboard'
     | '/_authenticated/interviews'
     | '/_authenticated/scorecard'
@@ -273,6 +285,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RetakeRoute: typeof RetakeRoute
   ProcessIdRoute: typeof ProcessIdRoute
   ScheduleTokenRoute: typeof ScheduleTokenRoute
   ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
@@ -321,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retake': {
+      id: '/retake'
+      path: '/retake'
+      fullPath: '/retake'
+      preLoaderRoute: typeof RetakeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -469,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RetakeRoute: RetakeRoute,
   ProcessIdRoute: ProcessIdRoute,
   ScheduleTokenRoute: ScheduleTokenRoute,
   ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
