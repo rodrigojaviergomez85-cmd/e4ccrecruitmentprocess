@@ -412,7 +412,14 @@ function EvaluationForm() {
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h1 className="text-lg font-semibold">{candidate.fullName}</h1>
+              <h1 className="text-lg font-semibold">
+                {candidate.fullName}
+                {(evaluation.attempt_number ?? 1) > 1 && (
+                  <span className="ml-2 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning-foreground">
+                    Retake · attempt {evaluation.attempt_number} · starts at Grammar Test
+                  </span>
+                )}
+              </h1>
               <p className="text-xs text-muted-foreground">
                 {candidate.email} · {candidate.phone} · {candidate.country} / {candidate.city}
               </p>
