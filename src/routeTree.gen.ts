@@ -27,6 +27,7 @@ import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
 import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
+import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 
 const IndexRoute = IndexRouteImport.update({
@@ -122,6 +123,11 @@ const AuthenticatedEvaluationsApplicationIdRoute =
     path: '/evaluations/$applicationId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicSpeedTestRoute = ApiPublicSpeedTestRouteImport.update({
+  id: '/api/public/speed-test',
+  path: '/api/public/speed-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronRemindersRoute = ApiPublicCronRemindersRouteImport.update({
   id: '/api/public/cron/reminders',
   path: '/api/public/cron/reminders',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
 }
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesByTo: FileRoutesByTo
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/evaluations'
     | '/api/public/cron/reminders'
   id:
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
+    | '/api/public/speed-test'
     | '/_authenticated/evaluations/'
     | '/api/public/cron/reminders'
   fileRoutesById: FileRoutesById
@@ -263,6 +275,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ProcessIdRoute: typeof ProcessIdRoute
   ScheduleTokenRoute: typeof ScheduleTokenRoute
+  ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
 }
 
@@ -394,6 +407,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEvaluationsApplicationIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/speed-test': {
+      id: '/api/public/speed-test'
+      path: '/api/public/speed-test'
+      fullPath: '/api/public/speed-test'
+      preLoaderRoute: typeof ApiPublicSpeedTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/reminders': {
       id: '/api/public/cron/reminders'
       path: '/api/public/cron/reminders'
@@ -451,6 +471,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ProcessIdRoute: ProcessIdRoute,
   ScheduleTokenRoute: ScheduleTokenRoute,
+  ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
 }
 export const routeTree = rootRouteImport
