@@ -131,9 +131,10 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, phone, country, country_code, city, city_other, status, submitted_at, cities(name), ai_evaluations(cefr, overall_score), appointments(id, starts_at, status), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(id, status, final_result, evaluator_id, total_score, compliance_score, submitted_at, retake_date, interview_date)",
+        "id, full_name, email, phone, country, country_code, city, city_other, status, submitted_at, cities(name), ai_evaluations(cefr, overall_score), appointments(id, starts_at, status), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(id, status, final_result, evaluator_id, total_score, compliance_score, submitted_at, retake_date, interview_date, attempt_number)",
       )
       .not("submitted_at", "is", null)
+      .is("archived_at", null)
       .order("submitted_at", { ascending: false })
       .limit(400);
 
@@ -157,7 +158,9 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
       const appt = (a.appointments ?? [])
         .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
         .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
-      const evaluation = (a.interview_evaluations ?? [])[0];
+      const evaluation = [...(a.interview_evaluations ?? [])].sort(
+        (x, y) => (y.attempt_number ?? 1) - (x.attempt_number ?? 1),
+      )[0];
       const progress = one(a.recruitment_progress);
       const ai = one(a.ai_evaluations);
       return {
@@ -175,6 +178,7 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
         appointmentAt: appt?.starts_at ?? null,
         appointmentStatus: appt?.status ?? null,
         pipelineStatus: a.status,
+        attemptNumber: evaluation?.attempt_number ?? 0,
         evaluationId: evaluation?.id ?? null,
         evaluationStatus: (evaluation?.status as string) ?? "Not started",
         finalResult: evaluation?.final_result ?? null,
@@ -227,10 +231,13 @@ export const openEvaluation = createServerFn({ method: "POST" })
       throw new Error("This candidate is outside the countries assigned to your account.");
     }
 
+    // Always work on the latest attempt; earlier retakes stay as history.
     let { data: evaluation } = await db
       .from("interview_evaluations")
       .select("*")
       .eq("application_id", app.id)
+      .order("attempt_number", { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     const appt = (app.appointments ?? [])
@@ -256,6 +263,8 @@ export const openEvaluation = createServerFn({ method: "POST" })
           .from("interview_evaluations")
           .select("*")
           .eq("application_id", app.id)
+          .order("attempt_number", { ascending: false })
+          .limit(1)
           .maybeSingle();
         evaluation = existing ?? null;
       } else {
@@ -511,6 +520,8 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         .insert(jobs.map((j) => ({ ...j, evaluation_id: data.evaluationId })));
     }
 
+    let emailResult: { ok: boolean; status: string; detail: string } | null = null;
+
     if (data.submit) {
       const nextStatus = STATUS_FOR_RESULT[data.finalResult ?? ""];
       if (nextStatus) {
@@ -523,9 +534,46 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         action: "submitted",
         details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
+
+      // Follow-up email for candidates who need a retake or were not approved.
+      const kind =
+        data.finalResult === "Retake required"
+          ? ("retake" as const)
+          : data.finalResult === "Not approved"
+            ? ("not_approved" as const)
+            : null;
+      if (kind) {
+        const areas =
+          kind === "retake"
+            ? String(
+                sections["result"]?.["retake_improvements"] ??
+                  sections["result"]?.["retake_reason"] ??
+                  data.comments ??
+                  "",
+              )
+            : [data.notApprovedReasons.join(", "), data.comments ?? ""]
+                .filter((s) => s.trim())
+                .join("\n");
+        try {
+          const { sendFollowUp } = await import("./candidate-admin.functions");
+          emailResult = await sendFollowUp(db, {
+            applicationId: current.application_id,
+            evaluationId: data.evaluationId,
+            kind,
+            areas,
+            actorId: context.userId,
+          });
+        } catch (err) {
+          emailResult = {
+            ok: false,
+            status: "failed" as const,
+            detail: err instanceof Error ? err.message : "email error",
+          };
+        }
+      }
     }
 
-    return { ok: true as const, total, compliance, missing: [] as string[] };
+    return { ok: true as const, total, compliance, missing: [] as string[], email: emailResult };
   });
 
 export const reopenEvaluation = createServerFn({ method: "POST" })

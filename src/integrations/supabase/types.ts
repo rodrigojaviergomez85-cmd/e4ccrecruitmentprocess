@@ -69,6 +69,9 @@ export type Database = {
       }
       applications: {
         Row: {
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           callcenter_experience: boolean
           callcenter_experience_level: string
           city: string
@@ -79,6 +82,7 @@ export type Database = {
           country: string
           country_code: string | null
           created_at: string
+          created_by: string | null
           eligibility_note: string | null
           eligibility_override: boolean | null
           eligibility_override_at: string | null
@@ -89,6 +93,7 @@ export type Database = {
           phone: string
           phone_country_code: string | null
           phone_e164: string | null
+          source: string
           status: string
           submit_token: string
           submitted_at: string | null
@@ -97,6 +102,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           callcenter_experience?: boolean
           callcenter_experience_level?: string
           city: string
@@ -107,6 +115,7 @@ export type Database = {
           country: string
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           eligibility_note?: string | null
           eligibility_override?: boolean | null
           eligibility_override_at?: string | null
@@ -117,6 +126,7 @@ export type Database = {
           phone: string
           phone_country_code?: string | null
           phone_e164?: string | null
+          source?: string
           status?: string
           submit_token?: string
           submitted_at?: string | null
@@ -125,6 +135,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           callcenter_experience?: boolean
           callcenter_experience_level?: string
           city?: string
@@ -135,6 +148,7 @@ export type Database = {
           country?: string
           country_code?: string | null
           created_at?: string
+          created_by?: string | null
           eligibility_note?: string | null
           eligibility_override?: boolean | null
           eligibility_override_at?: string | null
@@ -145,6 +159,7 @@ export type Database = {
           phone?: string
           phone_country_code?: string | null
           phone_e164?: string | null
+          source?: string
           status?: string
           submit_token?: string
           submitted_at?: string | null
@@ -293,6 +308,63 @@ export type Database = {
             columns: ["interviewer_id"]
             isOneToOne: false
             referencedRelation: "interviewers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_emails: {
+        Row: {
+          application_id: string
+          body: string
+          created_at: string
+          error_message: string | null
+          evaluation_id: string | null
+          id: string
+          kind: string
+          sent_by: string | null
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          application_id: string
+          body: string
+          created_at?: string
+          error_message?: string | null
+          evaluation_id?: string | null
+          id?: string
+          kind: string
+          sent_by?: string | null
+          status?: string
+          subject: string
+          to_email: string
+        }
+        Update: {
+          application_id?: string
+          body?: string
+          created_at?: string
+          error_message?: string | null
+          evaluation_id?: string | null
+          id?: string
+          kind?: string
+          sent_by?: string | null
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_emails_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_emails_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
             referencedColumns: ["id"]
           },
         ]
@@ -516,6 +588,7 @@ export type Database = {
         Row: {
           application_id: string
           appointment_id: string | null
+          attempt_number: number
           category_scores: Json
           comments: string | null
           compliance_score: number | null
@@ -535,6 +608,7 @@ export type Database = {
           retake_date: string | null
           retake_reason: string | null
           sections: Json
+          start_section: string | null
           started_at: string
           status: string
           submitted_at: string | null
@@ -544,6 +618,7 @@ export type Database = {
         Insert: {
           application_id: string
           appointment_id?: string | null
+          attempt_number?: number
           category_scores?: Json
           comments?: string | null
           compliance_score?: number | null
@@ -563,6 +638,7 @@ export type Database = {
           retake_date?: string | null
           retake_reason?: string | null
           sections?: Json
+          start_section?: string | null
           started_at?: string
           status?: string
           submitted_at?: string | null
@@ -572,6 +648,7 @@ export type Database = {
         Update: {
           application_id?: string
           appointment_id?: string | null
+          attempt_number?: number
           category_scores?: Json
           comments?: string | null
           compliance_score?: number | null
@@ -591,6 +668,7 @@ export type Database = {
           retake_date?: string | null
           retake_reason?: string | null
           sections?: Json
+          start_section?: string | null
           started_at?: string
           status?: string
           submitted_at?: string | null

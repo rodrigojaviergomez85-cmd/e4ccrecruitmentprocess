@@ -30,14 +30,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  CEFR_LEVELS,
-  DEFAULT_WEIGHTS,
   E4CC_VALUES,
   ENGLISH_ACTIVITIES,
   FINAL_RESULTS,
   HIRING_BONUS_OPTIONS,
   NOT_APPROVED_REASONS,
-  SCORE_CATEGORY_LABELS,
   SECTIONS,
   ENGLISH_INTRO,
   ONLINE_MINIMUM_SPECS,
@@ -50,12 +47,9 @@ import {
   complianceItems,
   isLockedStatus,
   complianceScore,
-  levelDifference,
   missingEarlyFinish,
   missingRequired,
-  totalScore,
   verbStats,
-  type Weights,
 } from "@/lib/evaluations";
 import { openEvaluation, reopenEvaluation, saveEvaluation } from "@/lib/evaluations.functions";
 
@@ -157,7 +151,6 @@ function EvaluationForm() {
 
   const evaluation = data?.evaluation ?? null;
   const candidate = data?.candidate ?? null;
-  const weights: Weights = (data?.weights as Weights) ?? DEFAULT_WEIGHTS;
   const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate;
 
   useEffect(() => {
@@ -201,6 +194,17 @@ function EvaluationForm() {
     setHydrated(true);
   }, [evaluation, candidate, hydrated]);
 
+  // Fill the equipment block with what the candidate already submitted.
+  useEffect(() => {
+    if (!hydrated || !candidate?.internetSpeed) return;
+    setSections((prev) => {
+      const eq = { ...(prev["equipment"] ?? {}) };
+      if (String(eq["download"] ?? "").trim()) return prev;
+      eq["download"] = String(candidate.internetSpeed);
+      return { ...prev, equipment: eq };
+    });
+  }, [hydrated, candidate]);
+
   const lobRaw = String(sections["candidate"]?.["lob"] ?? candidate?.lob ?? "");
   const isOnline = lobRaw.toLowerCase() === "online";
 
@@ -224,8 +228,6 @@ function EvaluationForm() {
   const compliance = complianceScore(complianceInput);
   const items = complianceItems(complianceInput);
   const missing = missingRequired(complianceInput);
-  const total = totalScore(categoryScores, weights);
-  const delta = levelDifference(candidate?.previousCefr, liveCefr);
 
   const payload = useCallback(
     (submit: boolean, earlyFinish = false) => ({
@@ -427,11 +429,7 @@ function EvaluationForm() {
                 Previous level: <strong>{candidate.previousCefr ?? "—"}</strong>
               </div>
               <div>
-                Live level: <strong>{liveCefr || "—"}</strong>{" "}
-                {delta !== null ? `(${delta > 0 ? "+" : ""}${delta} steps)` : ""}
-              </div>
-              <div>
-                Score: <strong>{total}</strong>/100 · Compliance: <strong>{compliance}%</strong>
+                Compliance: <strong>{compliance}%</strong>
               </div>
             </div>
           </div>
@@ -894,25 +892,16 @@ function EvaluationForm() {
 
               <div className="space-y-3 rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold">Class roleplay</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {(
-                    [
-                      ["roleplay_topic", "Topic assigned"],
-                      ["roleplay_notes", "Evaluator observations"],
-                      ["roleplay_clarity", "Teaching clarity"],
-                      ["roleplay_confidence", "Confidence"],
-                      ["roleplay_grammar", "Grammar accuracy"],
-                      ["roleplay_coach", "Coach profile"],
-                    ] as Array<[string, string]>
-                  ).map(([key, label]) => (
-                    <Field key={key} label={label}>
-                      <Textarea
-                        value={str("english", key)}
-                        onChange={(e) => set("english", key, e.target.value)}
-                      />
-                    </Field>
-                  ))}
-                </div>
+                <Field
+                  label="Observations"
+                  hint="Topic assigned, teaching clarity, confidence, grammar accuracy and coach profile."
+                >
+                  <Textarea
+                    rows={6}
+                    value={str("english", "roleplay_notes")}
+                    onChange={(e) => set("english", "roleplay_notes", e.target.value)}
+                  />
+                </Field>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -954,29 +943,6 @@ function EvaluationForm() {
                     value={str("english", "notes")}
                     onChange={(e) => set("english", "notes", e.target.value)}
                   />
-                </Field>
-                <Field
-                  label="Final English level (live interview)"
-                  hint={`Recorded-video level: ${candidate.previousCefr ?? "—"}. Both results are kept for comparison.`}
-                >
-                  <Select
-                    value={liveCefr}
-                    onValueChange={(v) => {
-                      setLiveCefr(v);
-                      set("english", "level", v);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CEFR_LEVELS.map((l) => (
-                        <SelectItem key={l} value={l}>
-                          {l}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </Field>
                 <Field label="Meets the required English level">
                   <Select
@@ -1159,9 +1125,10 @@ function EvaluationForm() {
                   [
                     ["looking", "Why is the candidate currently looking for a job"],
                     ["why_e4cc", "Why did they apply specifically to E4CC"],
-                    ["attracted", "What attracted them to this role"],
-                    ["goals", "Career goals for the next two to five years"],
-                    ["teaching_fit", "How does teaching fit into those goals"],
+                    [
+                      "goals",
+                      "Career goals for the next two to five years and how teaching fits into them",
+                    ],
                     ["energy", "How do they manage energy and work-life balance"],
                     ["learning", "Last book, course or resource and what they learned"],
                     ["anything_else", "Anything else E4CC should know"],
@@ -1198,18 +1165,6 @@ function EvaluationForm() {
                 ))}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Strengths">
-                  <Textarea
-                    value={str("values", "strengths")}
-                    onChange={(e) => set("values", "strengths", e.target.value)}
-                  />
-                </Field>
-                <Field label="Concerns">
-                  <Textarea
-                    value={str("values", "concerns")}
-                    onChange={(e) => set("values", "concerns", e.target.value)}
-                  />
-                </Field>
                 <Field label="Red flags">
                   <Textarea
                     value={str("values", "red_flags")}
@@ -1228,34 +1183,9 @@ function EvaluationForm() {
 
           {current.key === "result" && (
             <div className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-3">
-                {(Object.keys(weights) as Array<keyof Weights>).map((key) => (
-                  <Field key={key} label={`${SCORE_CATEGORY_LABELS[key]} (0–${weights[key]})`}>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={weights[key]}
-                      value={categoryScores[key] ?? ""}
-                      onChange={(e) =>
-                        setCategoryScores((prev) => ({
-                          ...prev,
-                          [key]: Number(e.target.value || 0),
-                        }))
-                      }
-                    />
-                  </Field>
-                ))}
-              </div>
               <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm">
                 <div>
-                  Total score: <strong>{total}</strong>/100
-                </div>
-                <div>
                   Compliance score: <strong>{compliance}%</strong>
-                </div>
-                <div>
-                  Previous level {candidate.previousCefr ?? "—"} → live level {liveCefr || "—"}
-                  {delta !== null ? ` (${delta > 0 ? "+" : ""}${delta} steps)` : ""}
                 </div>
                 <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                   {items
