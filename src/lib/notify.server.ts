@@ -73,6 +73,6 @@ export function baseUrl(): string {
   return (
     process.env["PUBLIC_SITE_URL"] ??
     process.env["VITE_PUBLIC_SITE_URL"] ??
-    "https://english-kids-spark.lovable.app"
+    "https://e4ccrecruitmentprocess.lovable.app"
   );
 }
