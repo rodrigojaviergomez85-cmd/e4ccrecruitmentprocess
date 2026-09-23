@@ -162,15 +162,24 @@ function InterviewConfirmed() {
 
 function Card({
   number,
-  emoji,
   title,
   children,
 }: {
   number: number;
-  
   title: string;
   children: React.ReactNode;
 }) {
+
+
+
+
+
+
+
+
+
+
+
   return (
     <article
       className="rounded-[14px] p-6"
