@@ -42,6 +42,8 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
       invalid: null,
 
       firstName: ctx.application.full_name.split(" ")[0] ?? ctx.application.full_name,
+      fullName: ctx.application.full_name,
+      email: ctx.application.email,
       eligible: ctx.eligible,
       organizationTimezone: settings.timezone,
       suggestedTimezone: timezoneForCountry(ctx.application.country_code),
@@ -89,6 +91,18 @@ export const bookInterview = createServerFn({ method: "POST" })
       candidateTimezone: data.timezone,
       countryCode: ctx.application.country_code,
     });
+  });
+
+/** Pulls the just-created Calendly booking into our appointments for this candidate. */
+export const recordCalendlySchedule = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => tokenSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { resolveToken } = await import("./scheduling.server");
+    const { applicationId } = await resolveToken(data.token);
+    const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
+    if (!calendlyConfigured()) return { ok: false as const };
+    const result = await syncCalendly({ applicationId, sinceDays: 1 });
+    return { ok: result.created + result.updated > 0 };
   });
 
 export const cancelInterview = createServerFn({ method: "POST" })

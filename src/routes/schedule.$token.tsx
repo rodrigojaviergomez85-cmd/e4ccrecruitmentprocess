@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,28 +7,15 @@ import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  bookInterview,
   cancelInterview,
   getSchedulingContext,
-  listSchedulingSlots,
+  recordCalendlySchedule,
 } from "@/lib/scheduling.functions";
-import {
-  buildIcs,
-  formatInTz,
-  formatTimeInTz,
-  googleCalendarUrl,
-  TIMEZONE_CHOICES,
-} from "@/lib/interviews";
+import { buildIcs, formatInTz, googleCalendarUrl } from "@/lib/interviews";
+
+const CALENDLY_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 
 export const Route = createFileRoute("/schedule/$token")({
   head: () => ({
@@ -55,12 +42,10 @@ function SchedulePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
   const loadContext = useServerFn(getSchedulingContext);
-  const loadSlots = useServerFn(listSchedulingSlots);
-  const book = useServerFn(bookInterview);
   const cancel = useServerFn(cancelInterview);
+  const syncCalendly = useServerFn(recordCalendlySchedule);
 
-  const [timezone, setTimezone] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const contextQuery = useQuery({
     queryKey: ["schedule-context", token],
@@ -74,44 +59,34 @@ function SchedulePage() {
 
   const eligible = context?.eligible === true;
   const tz =
-    timezone ??
     context?.appointment?.candidateTimezone ??
     context?.suggestedTimezone ??
     "America/El_Salvador";
 
-  const slotsQuery = useQuery({
-    queryKey: ["schedule-slots", token],
-    queryFn: () => loadSlots({ data: { token } }),
-    enabled: eligible && !context?.appointment,
-    retry: false,
-  });
-
-
-  const days = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-    for (const slot of slotsQuery.data ?? []) {
-      const key = new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date(slot.startIso));
-      grouped.set(key, [...(grouped.get(key) ?? []), slot.startIso]);
+  const calendlyUrl = useMemo(() => {
+    const url = new URL(CALENDLY_URL);
+    if (context) {
+      url.searchParams.set("name", context.fullName);
+      url.searchParams.set("email", context.email);
     }
-    return [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [slotsQuery.data, tz]);
+    return url.toString();
+  }, [context]);
 
-  const activeDay = selectedDay ?? days[0]?.[0] ?? null;
-  const daySlots = days.find(([d]) => d === activeDay)?.[1] ?? [];
-
-  const bookMutation = useMutation({
-    mutationFn: (startIso: string) => book({ data: { token, startIso, timezone: tz } }),
-    onSuccess: async () => {
-      toast.success("Your interview is confirmed.");
-      await queryClient.invalidateQueries({ queryKey: ["schedule-context", token] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // Calendly's embed posts a message once the candidate confirms a booking.
+  useEffect(() => {
+    const listener = (event: MessageEvent) => {
+      const payload = event.data as { event?: string } | null;
+      if (payload?.event !== "calendly.event_scheduled") return;
+      setConfirming(true);
+      setTimeout(async () => {
+        await syncCalendly({ data: { token } });
+        await queryClient.invalidateQueries({ queryKey: ["schedule-context", token] });
+        setConfirming(false);
+      }, 3000);
+    };
+    window.addEventListener("message", listener);
+    return () => window.removeEventListener("message", listener);
+  }, [token, syncCalendly, queryClient]);
 
   const cancelMutation = useMutation({
     mutationFn: () => cancel({ data: { token } }),
@@ -252,72 +227,26 @@ function SchedulePage() {
               it takes about {context.durationMinutes} minutes.
             </p>
 
-            <div className="mt-6 max-w-xs">
-              <Label className="text-sm font-medium">Your timezone</Label>
-              <Select value={tz} onValueChange={setTimezone}>
-                <SelectTrigger className="mt-1.5 rounded-2xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[...new Set([tz, ...TIMEZONE_CHOICES])].map((zone) => (
-                    <SelectItem key={zone} value={zone}>
-                      {zone.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {slotsQuery.isLoading && <Skeleton className="mt-6 h-40 w-full rounded-2xl" />}
-
-            {slotsQuery.data && days.length === 0 && (
-              <p className="mt-6 rounded-2xl border border-border p-4 text-sm text-muted-foreground">
-                There are no interview times available right now. Please check back soon — we add
-                new availability regularly.
+            {confirming && (
+              <p className="mt-4 rounded-2xl bg-secondary p-3 text-sm">
+                Confirming your booking… this page will update in a moment.
               </p>
             )}
 
-            {days.length > 0 && (
-              <div className="mt-6 grid gap-6 md:grid-cols-[220px_1fr]">
-                <div className="space-y-2">
-                  {days.map(([day, items]) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                        activeDay === day
-                          ? "border-primary bg-primary/10 font-semibold"
-                          : "border-border hover:bg-muted"
-                      }`}
-                    >
-                      {new Intl.DateTimeFormat("en-US", {
-                        timeZone: tz,
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                      }).format(new Date(items[0]!))}
-                      <span className="block text-xs text-muted-foreground">
-                        {items.length} times
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {daySlots.map((startIso) => (
-                    <Button
-                      key={startIso}
-                      variant="outline"
-                      className="rounded-2xl"
-                      disabled={bookMutation.isPending}
-                      onClick={() => bookMutation.mutate(startIso)}
-                    >
-                      {formatTimeInTz(startIso, tz)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div
+              className="calendly-inline-widget mt-6 min-w-[280px]"
+              data-url={calendlyUrl}
+              style={{ height: 720 }}
+            />
+            <script async src="https://assets.calendly.com/assets/external/widget.js" />
+
+            <div className="mt-3 text-center">
+              <Button asChild variant="outline" className="rounded-2xl">
+                <a href={calendlyUrl} target="_blank" rel="noreferrer">
+                  Open Calendly
+                </a>
+              </Button>
+            </div>
           </section>
         )}
       </div>
