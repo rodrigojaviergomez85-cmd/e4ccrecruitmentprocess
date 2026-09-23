@@ -204,11 +204,15 @@ function EvaluationForm() {
 
   // Fill the equipment block with what the candidate already submitted.
   useEffect(() => {
-    if (!hydrated || !candidate?.internetSpeed) return;
+    if (!hydrated || !candidate) return;
+    const dl = candidate.internetDownloadMbps ?? candidate.internetSpeed;
+    if (!dl && !candidate.internetUploadMbps) return;
     setSections((prev) => {
       const eq = { ...(prev["equipment"] ?? {}) };
-      if (String(eq["download"] ?? "").trim()) return prev;
-      eq["download"] = String(candidate.internetSpeed);
+      if (!String(eq["download"] ?? "").trim() && dl != null)
+        eq["download"] = String(dl);
+      if (!String(eq["upload"] ?? "").trim() && candidate.internetUploadMbps != null)
+        eq["upload"] = String(candidate.internetUploadMbps);
       return { ...prev, equipment: eq };
     });
   }, [hydrated, candidate]);
@@ -648,7 +652,9 @@ function EvaluationForm() {
                   ))}
                 </ul>
                 <p className="mt-2">
-                  Candidate self-reported speed: {candidate.internetSpeed ?? "—"} Mbps.
+                  {candidate.internetTestedAt != null
+                    ? `Speed test: ${candidate.internetDownloadMbps ?? 0} Mbps down / ${candidate.internetUploadMbps ?? 0} Mbps up / ${candidate.internetPingMs ?? 0} ms ping — ${candidate.internetTestPassed ? "Passed" : "Below minimum"} (tested ${new Date(candidate.internetTestedAt).toLocaleString()})`
+                    : `Candidate self-reported speed: ${candidate.internetSpeed ?? "—"} Mbps.`}
                 </p>
               </div>
               {str("equipment", "meets_requirements") === "No" && (
@@ -1480,11 +1486,15 @@ function EvaluationForm() {
               {candidate.grammarTestScore != null ? ` · ${candidate.grammarTestScore}` : ""}
               {candidate.grammarTestVerified ? " · verified" : ""}
             </p>
-            {candidate.internetSpeed != null && (
+            {candidate.internetTestedAt != null ? (
+              <p className="text-xs text-muted-foreground">
+                Internet: {candidate.internetDownloadMbps ?? 0}↓ / {candidate.internetUploadMbps ?? 0}↑ Mbps · {candidate.internetPingMs ?? 0}ms {candidate.internetTestPassed ? "✓" : "✗"}
+              </p>
+            ) : candidate.internetSpeed != null ? (
               <p className="text-xs text-muted-foreground">
                 Internet: {candidate.internetSpeed} Mbps
               </p>
-            )}
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-4 text-sm">
