@@ -98,8 +98,8 @@ function InterviewConfirmed() {
           </Card>
 
           <Card number={2} title="Grammar Test (Mandatory)">
-            <p>Complete the grammar test before your interview.</p>
-            <p className="mt-2">⏱ Estimated time: 12 minutes</p>
+            <p>You must complete the grammar test before your interview.</p>
+            <p className="mt-2">Estimated time: 12 minutes</p>
             <a
               href={GRAMMAR_TEST_URL}
               target="_blank"
@@ -107,12 +107,15 @@ function InterviewConfirmed() {
               className="mt-3 inline-block font-bold"
               style={{ color: "#f26522" }}
             >
-              👉 Complete Grammar Test
+              Sign up and take the test →
             </a>
           </Card>
 
           <Card number={3} title="Review Grammar Topics">
-            <p>You will explain grammar tenses as if teaching a class.</p>
+            <p>
+              During the interview you will explain grammar tenses and verbs clearly, as if
+              teaching a class.
+            </p>
             <a
               href={GRAMMAR_TOPICS_URL}
               target="_blank"
@@ -120,19 +123,28 @@ function InterviewConfirmed() {
               className="mt-3 inline-block font-bold"
               style={{ color: "#f26522" }}
             >
-              👉 Review Reference File
+              Open reference file →
             </a>
           </Card>
 
           <Card number={4} title="Submit Your Information">
-            <p>Upload your resume and valid references for your last two positions.</p>
-            <Link to="/apply" className="mt-3 inline-block">
-              👉 Submit Information
-            </Link>
+            <p>
+              Upload your resume and include recent and valid job references for your last two
+              positions.
+            </p>
+            <a
+              href={INFO_FORM_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block font-bold"
+              style={{ color: "#f26522" }}
+            >
+              Open the form →
+            </a>
           </Card>
 
           <Card number={5} title="Prepare a Sample Class">
-            <p>Watch the video and prepare your demo class.</p>
+            <p>Please review the video and get ready to teach.</p>
             <a
               href={SAMPLE_CLASS_ONLINE}
               target="_blank"
@@ -140,7 +152,7 @@ function InterviewConfirmed() {
               className="mt-3 inline-block font-bold"
               style={{ color: "#f26522" }}
             >
-              👉 Watch Sample Class
+              Watch sample class →
             </a>
           </Card>
         </div>
