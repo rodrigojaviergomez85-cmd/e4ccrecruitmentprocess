@@ -325,7 +325,7 @@ export const listCandidateEmails = createServerFn({ method: "POST" })
 export function statusForResult(kind: FollowUpKind, eligibleAgainDate?: string | null) {
   if (kind === "retake") return "Retake – Email Sent";
   if (kind === "approved") return "Approved – Final Filter Pending";
-  return eligibleAgainDate
+  return kind === "not_approved" && eligibleAgainDate
     ? `Not Approved – Eligible Again: ${eligibleAgainDate}`
     : "Not Approved";
 }

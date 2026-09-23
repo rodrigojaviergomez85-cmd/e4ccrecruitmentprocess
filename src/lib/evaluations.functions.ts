@@ -580,7 +580,9 @@ export const saveEvaluation = createServerFn({ method: "POST" })
             eligibleAgainDate:
               kind === "not_approved"
                 ? String(sections["result"]?.["eligible_again_date"] ?? data.retakeDate ?? "") || null
-                : null,
+                : kind === "retake"
+                  ? data.retakeDate || null
+                  : null,
           });
         } catch (e) {
           emailResult = {
@@ -714,7 +716,9 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     const eligibleAgainDate =
       kind === "not_approved"
         ? String(sections["result"]?.["eligible_again_date"] ?? evaluation.retake_date ?? "")
-        : null;
+        : kind === "retake"
+          ? evaluation.retake_date
+          : null;
 
     const { sendFollowUp } = await import("./candidate-admin.functions");
     const delivery = await sendFollowUp(db, {
