@@ -273,6 +273,17 @@ export function buildFollowUpEmail(input: {
       </p>
       <p style="margin:0 0 6px"><strong>Area of opportunity:</strong></p>
       ${paragraphs(areas)}
+      <p style="margin:0 0 6px"><strong>Action plan:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">
+        <li style="margin:0 0 4px">Practice your grammar and pronunciation daily with the E4CC resources.</li>
+        <li style="margin:0 0 4px">Record yourself teaching a short class and review your fluency.</li>
+        <li style="margin:0 0 4px">Keep your resume and work references up to date.</li>
+      </ul>
+      ${
+        input.eligibleAgainDate
+          ? `<p style="margin:0 0 12px">You are welcome to apply with us again starting <strong>${escapeHtml(input.eligibleAgainDate)}</strong>.</p>`
+          : ""
+      }
       <p style="margin:0 0 12px">
         We encourage you to keep strengthening this area. We truly appreciate your effort and
         wish you the best in your professional journey.
