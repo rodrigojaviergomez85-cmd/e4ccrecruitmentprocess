@@ -229,6 +229,7 @@ export function buildFollowUpEmail(input: {
   fullName: string;
   areas: string;
   scheduleUrl?: string | null;
+  eligibleAgainDate?: string | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
   const areas = input.areas.trim() || "General interview performance";
@@ -236,6 +237,29 @@ export function buildFollowUpEmail(input: {
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
     return buildRetakeEmail({ fullName: input.fullName, areas: input.areas, scheduleUrl: link });
+  }
+
+  if (input.kind === "approved") {
+    const subject = "Congratulations — You moved forward in the E4CC process";
+    const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">
+        Congratulations! We are glad to inform you that you successfully passed your interview
+        with the E4CC Recruitment Team.
+      </p>
+      <p style="margin:0 0 12px">
+        You have advanced to the <strong>last filter of our selection process</strong>, a final
+        interview with our <strong>Country Manager</strong>.
+      </p>
+      <p style="margin:0 0 12px">
+        Please <strong>stay attentive to your phone and WhatsApp</strong> over the next few days.
+        Our team will contact you directly to coordinate this final step.
+      </p>
+      <p style="margin:0 0 12px">Thank you for your time and effort throughout the process.</p>
+      <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+    return { subject, html, scheduleUrl: null };
   }
 
   const subject = "E4CC — Update on your application";
