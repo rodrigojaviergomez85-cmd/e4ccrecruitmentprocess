@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,28 +7,15 @@ import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  bookInterview,
   cancelInterview,
   getSchedulingContext,
-  listSchedulingSlots,
+  recordCalendlySchedule,
 } from "@/lib/scheduling.functions";
-import {
-  buildIcs,
-  formatInTz,
-  formatTimeInTz,
-  googleCalendarUrl,
-  TIMEZONE_CHOICES,
-} from "@/lib/interviews";
+import { buildIcs, formatInTz, googleCalendarUrl } from "@/lib/interviews";
+
+const CALENDLY_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 
 export const Route = createFileRoute("/schedule/$token")({
   head: () => ({
