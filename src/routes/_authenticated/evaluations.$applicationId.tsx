@@ -204,11 +204,15 @@ function EvaluationForm() {
 
   // Fill the equipment block with what the candidate already submitted.
   useEffect(() => {
-    if (!hydrated || !candidate?.internetSpeed) return;
+    if (!hydrated || !candidate) return;
+    const dl = candidate.internetDownloadMbps ?? candidate.internetSpeed;
+    if (!dl && !candidate.internetUploadMbps) return;
     setSections((prev) => {
       const eq = { ...(prev["equipment"] ?? {}) };
-      if (String(eq["download"] ?? "").trim()) return prev;
-      eq["download"] = String(candidate.internetSpeed);
+      if (!String(eq["download"] ?? "").trim() && dl != null)
+        eq["download"] = String(dl);
+      if (!String(eq["upload"] ?? "").trim() && candidate.internetUploadMbps != null)
+        eq["upload"] = String(candidate.internetUploadMbps);
       return { ...prev, equipment: eq };
     });
   }, [hydrated, candidate]);
