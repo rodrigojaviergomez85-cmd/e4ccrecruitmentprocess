@@ -77,28 +77,53 @@ function Content({ state, id, token }: { state: State; id: string; token: string
 function PositionCard({ state, onSelect, id, token, setState }: { state: State; onSelect: (value: "online" | "onsite") => void; id: string; token: string; setState: (s: State) => void }) {
   const modality = state.progress.work_modality;
   const [testing, setTesting] = useState(false);
+  const [live, setLive] = useState("");
   async function speedTest() {
     setTesting(true);
     try {
-      // Several parallel streams, a warm-up and best-of rounds give a realistic
-      // reading; the candidate's best result so far is kept.
-      const pings: number[] = [];
-      for (let i = 0; i < 4; i++) { const t = performance.now(); await fetch(`/api/public/speed-test?ping=${Date.now()}-${i}`, { method: "POST", body: "x", cache: "no-store" }); pings.push(performance.now() - t); }
-      const ping = Math.min(...pings);
-      const streams = 4;
-      async function down() { const t = performance.now(); const sizes = await Promise.all(Array.from({ length: streams }, (_, i) => fetch(`/api/public/speed-test?d=${Date.now()}-${i}`, { cache: "no-store" }).then((r) => r.arrayBuffer()).then((b) => b.byteLength))); const sec = Math.max((performance.now() - t - ping) / 1000, 0.05); return sizes.reduce((x, y) => x + y, 0) * 8 / sec / 1e6; }
-      async function up() { const chunk = new Uint8Array(2 * 1024 * 1024); const t = performance.now(); await Promise.all(Array.from({ length: streams }, () => fetch("/api/public/speed-test", { method: "POST", body: chunk, cache: "no-store" }))); const sec = Math.max((performance.now() - t - ping) / 1000, 0.05); return chunk.byteLength * streams * 8 / sec / 1e6; }
-      let dl = 0, ul = 0;
-      for (let round = 0; round < 3; round++) { dl = Math.max(dl, await down()); ul = Math.max(ul, await up()); }
+      const CF = "https://speed.cloudflare.com";
+      const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)] ?? 0; };
+      let ping = 0, dl = 0, ul = 0;
+      try {
+        // Ping: median of small requests to the nearest Cloudflare edge.
+        setLive("Measuring ping…");
+        const pings: number[] = [];
+        for (let i = 0; i < 8; i++) { const t = performance.now(); const r = await fetch(`${CF}/__down?bytes=0&r=${Math.random()}`, { cache: "no-store" }); await r.arrayBuffer(); pings.push(performance.now() - t); }
+        ping = median(pings.slice(1));
+
+        // Download: parallel streams for ~8s, counting bytes as they arrive, skipping 1s warm-up.
+        const start = performance.now(); const endAt = start + 8000; let bytes = 0; let measuredFrom = 0; let measuredBytes = 0;
+        const worker = async () => { let size = 1_000_000; while (performance.now() < endAt) { const r = await fetch(`${CF}/__down?bytes=${size}&r=${Math.random()}`, { cache: "no-store" }); const reader = r.body!.getReader(); for (;;) { const { done, value } = await reader.read(); if (done) break; bytes += value.byteLength; const now = performance.now(); if (now - start > 1000) { if (!measuredFrom) { measuredFrom = now; measuredBytes = bytes; } else { const mbps = ((bytes - measuredBytes) * 8) / ((now - measuredFrom) / 1000) / 1e6; setLive(`Testing download… ${mbps.toFixed(0)} Mbps`); } } if (now > endAt) { void reader.cancel(); break; } } size = Math.min(size * 2, 25_000_000); } };
+        setLive("Testing download…");
+        await Promise.all(Array.from({ length: 6 }, worker));
+        dl = measuredFrom ? ((bytes - measuredBytes) * 8) / ((performance.now() - measuredFrom) / 1000) / 1e6 : 0;
+
+        // Upload: parallel posts for ~6s, counting completed bytes.
+        setLive("Testing upload…");
+        const uStart = performance.now(); const uEnd = uStart + 6000; let sent = 0;
+        const blob = new Uint8Array(5_000_000);
+        const upWorker = async () => { while (performance.now() < uEnd) { const r = await fetch(`${CF}/__up?r=${Math.random()}`, { method: "POST", body: blob, cache: "no-store" }); await r.arrayBuffer(); sent += blob.byteLength; setLive(`Testing upload… ${((sent * 8) / ((performance.now() - uStart) / 1000) / 1e6).toFixed(0)} Mbps`); } };
+        await Promise.all(Array.from({ length: 4 }, upWorker));
+        ul = (sent * 8) / ((performance.now() - uStart) / 1000) / 1e6;
+        if (!dl || !ul) throw new Error("empty");
+      } catch {
+        // Fallback: our own endpoint so the candidate is never blocked.
+        setLive("Testing…");
+        const t0 = performance.now(); await fetch(`/api/public/speed-test?ping=${Date.now()}`, { method: "POST", body: "x", cache: "no-store" }); ping = performance.now() - t0;
+        const t1 = performance.now(); const sizes = await Promise.all(Array.from({ length: 4 }, (_, i) => fetch(`/api/public/speed-test?d=${Date.now()}-${i}`, { cache: "no-store" }).then((r) => r.arrayBuffer()).then((b) => b.byteLength)));
+        dl = sizes.reduce((a, b) => a + b, 0) * 8 / Math.max((performance.now() - t1) / 1000, 0.05) / 1e6;
+        const chunk = new Uint8Array(2 * 1024 * 1024); const t2 = performance.now(); await Promise.all(Array.from({ length: 4 }, () => fetch("/api/public/speed-test", { method: "POST", body: chunk, cache: "no-store" })));
+        ul = chunk.byteLength * 4 * 8 / Math.max((performance.now() - t2) / 1000, 0.05) / 1e6;
+      }
       const r1 = (n: number) => Math.round(n * 10) / 10;
       const prev = state.progress;
-      const next = await saveRecruitmentProgress({ data: { applicationId: id, token, internet_download_mbps: r1(Math.max(dl, Number(prev.internet_download_mbps ?? 0))), internet_upload_mbps: r1(Math.max(ul, Number(prev.internet_upload_mbps ?? 0))), internet_ping_ms: Math.round(prev.internet_ping_ms ? Math.min(ping, Number(prev.internet_ping_ms)) : ping) } });
+      const next = await saveRecruitmentProgress({ data: { applicationId: id, token, internet_download_mbps: Math.min(10000, r1(Math.max(dl, Number(prev.internet_download_mbps ?? 0)))), internet_upload_mbps: Math.min(10000, r1(Math.max(ul, Number(prev.internet_upload_mbps ?? 0)))), internet_ping_ms: Math.round(prev.internet_ping_ms ? Math.min(ping, Number(prev.internet_ping_ms)) : ping) } });
       setState(next as State);
-    } catch { toast.error("We could not complete the speed test. Please try again."); } finally { setTesting(false); }
+    } catch { toast.error("We could not complete the speed test. Please try again."); } finally { setTesting(false); setLive(""); }
   }
   const p = state.progress;
   return <section className="rounded-lg border bg-card p-6"><h2 className="text-lg font-bold">1. Choose your position</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{(["online", "onsite"] as const).map((value) => <Button key={value} variant={modality === value ? "default" : "outline"} className="h-auto justify-start p-4 text-left" onClick={() => onSelect(value)}><span><strong className="block">{value === "online" ? "Online Coach" : "Onsite Coach"}</strong><small>{value === "online" ? "Work from home" : "Work at an E4CC site"}</small></span></Button>)}</div>
-    {modality === "online" && <div className="mt-5 rounded-lg bg-secondary/50 p-4"><div className="flex items-center gap-2"><Wifi className="h-5 w-5 text-primary"/><h3 className="font-semibold">Internet Speed Test</h3></div><p className="mt-1 text-sm text-muted-foreground">Online positions require at least 10 Mbps download and 10 Mbps upload.</p><Button variant="outline" className="mt-3" disabled={testing} onClick={() => void speedTest()}>{testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}{p.internet_tested_at ? "Test again" : "Start test"}</Button>{p.internet_tested_at && <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm"><Metric label="Download" value={`${p.internet_download_mbps ?? 0} Mbps`}/><Metric label="Upload" value={`${p.internet_upload_mbps ?? 0} Mbps`}/><Metric label="Ping" value={`${p.internet_ping_ms ?? 0} ms`}/></div>}{p.internet_tested_at && !p.internet_test_passed && !p.internet_override && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>Your connection measured below the minimum. Close other apps or downloads and press “Test again” — we keep your best result.</span><Button size="sm" variant="outline" onClick={() => onSelect("onsite")}>Change to Onsite</Button></div>}</div>}
+    {modality === "online" && <div className="mt-5 rounded-lg bg-secondary/50 p-4"><div className="flex items-center gap-2"><Wifi className="h-5 w-5 text-primary"/><h3 className="font-semibold">Internet Speed Test</h3></div><p className="mt-1 text-sm text-muted-foreground">Online positions require at least 10 Mbps download and 10 Mbps upload.</p><Button variant="outline" className="mt-3" disabled={testing} onClick={() => void speedTest()}>{testing ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <RefreshCw className="mr-2 h-4 w-4"/>}{p.internet_tested_at ? "Test again" : "Start test"}</Button>{testing && live && <p className="mt-2 text-sm text-muted-foreground">{live}</p>}{p.internet_tested_at && <div className="mt-3 grid grid-cols-3 gap-2 text-center text-sm"><Metric label="Download" value={`${p.internet_download_mbps ?? 0} Mbps`}/><Metric label="Upload" value={`${p.internet_upload_mbps ?? 0} Mbps`}/><Metric label="Ping" value={`${p.internet_ping_ms ?? 0} ms`}/></div>}{p.internet_tested_at && !p.internet_test_passed && !p.internet_override && <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-destructive"><span>Your connection measured below the minimum. Close other apps or downloads and press “Test again” — we keep your best result.</span><Button size="sm" variant="outline" onClick={() => onSelect("onsite")}>Change to Onsite</Button></div>}</div>}
   </section>;
 }
 
