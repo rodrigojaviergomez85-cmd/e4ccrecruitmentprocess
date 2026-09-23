@@ -1486,11 +1486,15 @@ function EvaluationForm() {
               {candidate.grammarTestScore != null ? ` · ${candidate.grammarTestScore}` : ""}
               {candidate.grammarTestVerified ? " · verified" : ""}
             </p>
-            {candidate.internetSpeed != null && (
+            {candidate.internetTestedAt != null ? (
+              <p className="text-xs text-muted-foreground">
+                Internet: {candidate.internetDownloadMbps ?? 0}↓ / {candidate.internetUploadMbps ?? 0}↑ Mbps · {candidate.internetPingMs ?? 0}ms {candidate.internetTestPassed ? "✓" : "✗"}
+              </p>
+            ) : candidate.internetSpeed != null ? (
               <p className="text-xs text-muted-foreground">
                 Internet: {candidate.internetSpeed} Mbps
               </p>
-            )}
+            ) : null}
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-4 text-sm">
