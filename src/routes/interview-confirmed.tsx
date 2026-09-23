@@ -86,12 +86,12 @@ function InterviewConfirmed() {
 
         {/* 5 requirement cards grid */}
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <Card number={1} emoji="💻" title="Device Requirement">
+          <Card number={1} title="Device Requirement">
             <p>You must connect using a laptop or desktop computer.</p>
             <p className="mt-2 font-semibold">Mobile phones are NOT allowed.</p>
           </Card>
 
-          <Card number={2} emoji="📝" title="Grammar Test (Mandatory)">
+          <Card number={2} title="Grammar Test (Mandatory)">
             <p>Complete the grammar test before your interview.</p>
             <p className="mt-2">⏱ Estimated time: 12 minutes</p>
             <a
@@ -105,7 +105,7 @@ function InterviewConfirmed() {
             </a>
           </Card>
 
-          <Card number={3} emoji="📚" title="Review Grammar Topics">
+          <Card number={3} title="Review Grammar Topics">
             <p>You will explain grammar tenses as if teaching a class.</p>
             <a
               href={GRAMMAR_TOPICS_URL}
@@ -118,14 +118,14 @@ function InterviewConfirmed() {
             </a>
           </Card>
 
-          <Card number={4} emoji="📄" title="Submit Your Information">
+          <Card number={4} title="Submit Your Information">
             <p>Upload your resume and valid references for your last two positions.</p>
             <Link to="/apply" className="mt-3 inline-block">
               👉 Submit Information
             </Link>
           </Card>
 
-          <Card number={5} emoji="🎬" title="Prepare a Sample Class">
+          <Card number={5} title="Prepare a Sample Class">
             <p>Watch the video and prepare your demo class.</p>
             <a
               href={SAMPLE_CLASS_ONLINE}
@@ -167,7 +167,7 @@ function Card({
   children,
 }: {
   number: number;
-  emoji: string;
+  
   title: string;
   children: React.ReactNode;
 }) {
@@ -187,7 +187,7 @@ function Card({
         >
           {number}
         </span>
-        <span className="text-xl">{emoji}</span>
+        
         <span>{title}</span>
       </h3>
       <div className="space-y-1 text-sm" style={{ color: "#333" }}>
