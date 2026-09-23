@@ -49,7 +49,12 @@ import {
   missingRequired,
   verbStats,
 } from "@/lib/evaluations";
-import { openEvaluation, reopenEvaluation, saveEvaluation } from "@/lib/evaluations.functions";
+import {
+  openEvaluation,
+  reopenEvaluation,
+  saveEvaluation,
+  sendResultEmail,
+} from "@/lib/evaluations.functions";
 
 export const Route = createFileRoute("/_authenticated/evaluations/$applicationId")({
   head: () => ({
