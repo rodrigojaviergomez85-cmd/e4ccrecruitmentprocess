@@ -605,3 +605,90 @@ export const updateScorecardWeights = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+/**
+ * Sends the candidate-facing result email. Only runs when the evaluator
+ * presses and confirms "Send Result" — never during autosave or edits.
+ */
+export const sendResultEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ evaluationId: z.string().uuid(), force: z.boolean().optional().default(false) })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator && !ctx.isAdmin) {
+      throw new Error("Evaluator permission is required to send results.");
+    }
+    const { db } = ctx;
+    const { data: evaluation } = await db
+      .from("interview_evaluations")
+      .select(
+        "id, application_id, final_result, sections, comments, not_approved_reasons, retake_date",
+      )
+      .eq("id", data.evaluationId)
+      .maybeSingle();
+    if (!evaluation) throw new Error("Evaluation not found.");
+
+    const { data: app } = await db
+      .from("applications")
+      .select("id, country_code")
+      .eq("id", evaluation.application_id)
+      .maybeSingle();
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app?.country_code ?? "")) {
+      throw new Error("This candidate is outside the countries assigned to your account.");
+    }
+
+    const sections = (evaluation.sections ?? {}) as Record<string, Record<string, unknown>>;
+    const reasons = Array.isArray(evaluation.not_approved_reasons)
+      ? (evaluation.not_approved_reasons as string[])
+      : [];
+    const result = evaluation.final_result ?? "";
+    const kind =
+      result === "Retake required"
+        ? ("retake" as const)
+        : result === "Not approved"
+          ? ("not_approved" as const)
+          : result === "Approved for last step"
+            ? ("approved" as const)
+            : null;
+    if (!kind) throw new Error("Select a final result before sending the email.");
+
+    const areas =
+      kind === "retake"
+        ? String(
+            sections["result"]?.["retake_improvements"] ??
+              sections["result"]?.["retake_reason"] ??
+              evaluation.comments ??
+              "",
+          )
+        : [reasons.join(", "), evaluation.comments ?? ""].filter((s) => s.trim()).join("\n");
+
+    const eligibleAgainDate =
+      kind === "not_approved"
+        ? String(sections["result"]?.["eligible_again_date"] ?? evaluation.retake_date ?? "")
+        : null;
+
+    const { sendFollowUp } = await import("./candidate-admin.functions");
+    const delivery = await sendFollowUp(db, {
+      applicationId: evaluation.application_id,
+      evaluationId: evaluation.id,
+      kind,
+      areas,
+      actorId: context.userId,
+      eligibleAgainDate: eligibleAgainDate || null,
+      force: data.force,
+    });
+
+    await audit(db, {
+      evaluationId: evaluation.id,
+      actorId: context.userId,
+      actorEmail: ctx.email,
+      action: delivery.ok ? "result_email_sent" : "result_email_failed",
+      details: { kind, status: delivery.status },
+    });
+
+    return delivery;
+  });
