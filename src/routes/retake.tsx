@@ -31,7 +31,20 @@ function RetakePage() {
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [closed, setClosed] = useState<string | null>(null);
-  const requestMutation = useMutation({ mutationFn: () => request({ data: { email } }), onSuccess: () => setSent(true), onError: (e: Error) => toast.error(e.message) });
+  const normalizedEmail = email.replace(/\s+/g, "").toLowerCase();
+  const emailValid = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(normalizedEmail);
+  const requestMutation = useMutation({
+    mutationFn: () => request({ data: { email: normalizedEmail } }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        setSent(true);
+        toast.success("We sent a 6-digit verification code to your email");
+        return;
+      }
+      toast.error("We could not send your code. Please try again.");
+    },
+    onError: () => toast.error("We could not send your code. Please try again."),
+  });
   const verifyMutation = useMutation({
     mutationFn: () => verify({ data: { email, code } }),
     onSuccess: (result) => {
