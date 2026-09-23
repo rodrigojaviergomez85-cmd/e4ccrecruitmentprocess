@@ -535,42 +535,8 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
 
-      // Follow-up email for candidates who need a retake or were not approved.
-      const kind =
-        data.finalResult === "Retake required"
-          ? ("retake" as const)
-          : data.finalResult === "Not approved"
-            ? ("not_approved" as const)
-            : null;
-      if (kind) {
-        const areas =
-          kind === "retake"
-            ? String(
-                sections["result"]?.["retake_improvements"] ??
-                  sections["result"]?.["retake_reason"] ??
-                  data.comments ??
-                  "",
-              )
-            : [data.notApprovedReasons.join(", "), data.comments ?? ""]
-                .filter((s) => s.trim())
-                .join("\n");
-        try {
-          const { sendFollowUp } = await import("./candidate-admin.functions");
-          emailResult = await sendFollowUp(db, {
-            applicationId: current.application_id,
-            evaluationId: data.evaluationId,
-            kind,
-            areas,
-            actorId: context.userId,
-          });
-        } catch (err) {
-          emailResult = {
-            ok: false,
-            status: "failed" as const,
-            detail: err instanceof Error ? err.message : "email error",
-          };
-        }
-      }
+      // No email is sent here. The evaluator sends the result explicitly with
+      // the "Send Result" button (see sendResultEmail below).
     }
 
     return { ok: true as const, total, compliance, missing: [] as string[], email: emailResult };
