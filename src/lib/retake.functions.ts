@@ -147,11 +147,6 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
 
     const result = evaluation?.final_result ?? null;
     const sections = (evaluation?.sections ?? {}) as Record<string, Record<string, unknown>>;
-    const eligibleAgainDate =
-      result === "Not approved"
-        ? String(sections["result"]?.["eligible_again_date"] ?? evaluation?.retake_date ?? "")
-        : "";
-
     const formatDate = (value: string | null | undefined): string => {
       if (!value) return "";
       const d = new Date(value);
@@ -160,6 +155,10 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
       return `${dd}/${mm}/${d.getUTCFullYear()}`;
     };
+    const eligibleAgainDate =
+      result === "Not approved"
+        ? formatDate(String(sections["result"]?.["eligible_again_date"] ?? evaluation?.retake_date ?? ""))
+        : "";
     const interviewDate = formatDate(
       (evaluation?.interview_date as string | null) ?? evaluation?.submitted_at ?? null,
     );
