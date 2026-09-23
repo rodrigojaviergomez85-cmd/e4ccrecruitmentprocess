@@ -163,10 +163,22 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       (evaluation?.interview_date as string | null) ?? evaluation?.submitted_at ?? null,
     );
 
+    // Ex-coaches and candidates approved for the second filter who never showed up
+    // can schedule again right away, without a waiting date.
+    const { NOT_APPROVED_IMMEDIATE_RETRY_REASONS } = await import("@/lib/evaluations");
+    const reasons = Array.isArray(evaluation?.not_approved_reasons)
+      ? (evaluation.not_approved_reasons as string[])
+      : [];
+    const immediateRetry =
+      result === "Not approved" &&
+      reasons.some((r) => NOT_APPROVED_IMMEDIATE_RETRY_REASONS.includes(r));
+
     const outcome =
-      result === "Not approved"
+      result === "Not approved" && !immediateRetry
         ? ("not_approved" as const)
-        : result === "Retake required" || (application.status ?? "").startsWith("Retake")
+        : result === "Retake required" ||
+            immediateRetry ||
+            (application.status ?? "").startsWith("Retake")
           ? ("retake" as const)
           : ("open" as const);
 
