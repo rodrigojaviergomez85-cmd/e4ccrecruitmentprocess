@@ -13,7 +13,34 @@ import {
   type Weights,
 } from "./evaluations";
 
+/** Maps the evaluator's final result to the candidate-facing email kind. */
+const FOLLOW_UP_KIND: Record<string, "retake" | "not_approved" | "approved" | undefined> = {
+  "Retake required": "retake",
+  "Not approved": "not_approved",
+  "Approved for last step": "approved",
+};
+
+/**
+ * Feedback text for the email. Retake shares the evaluator's improvement notes;
+ * "Not approved" never shares internal comments — the template decides what may
+ * be disclosed from the selected reasons only.
+ */
+function resultAreas(
+  kind: "retake" | "not_approved" | "approved",
+  sections: Record<string, Record<string, unknown>>,
+  comments?: string | null,
+) {
+  if (kind !== "retake") return "";
+  return String(
+    sections["result"]?.["retake_improvements"] ??
+      sections["result"]?.["retake_reason"] ??
+      comments ??
+      "",
+  );
+}
+
 async function getAdmin() {
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
