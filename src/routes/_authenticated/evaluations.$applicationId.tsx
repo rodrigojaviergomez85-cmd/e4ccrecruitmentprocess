@@ -334,7 +334,7 @@ function EvaluationForm() {
       setEmailState(res.ok ? (res.status === "duplicate" ? "duplicate" : "sent") : "failed");
       setEmailDetail(res.detail);
       if (res.ok && res.status === "duplicate") {
-        toast.info("This result email was already sent. Use Resend Email to send it again.");
+        toast.info("This result email was already sent. Use Resend email to send it again.");
       } else if (res.ok) {
         toast.success("Result email sent to the candidate.");
       } else {
@@ -1376,12 +1376,12 @@ function EvaluationForm() {
                   </Button>
                   {emailState === "failed" && (
                     <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
-                      Retry Email
+                      Retry email
                     </Button>
                   )}
                   {(emailState === "sent" || emailState === "duplicate") && (
                     <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
-                      Resend Email
+                      Resend email
                     </Button>
                   )}
                 </div>

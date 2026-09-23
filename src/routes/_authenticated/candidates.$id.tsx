@@ -458,7 +458,7 @@ function CandidateManagementPanel({
 
   const [reason, setReason] = useState("");
   const [areas, setAreas] = useState("");
-  const [emailKind, setEmailKind] = useState<"retake" | "not_approved">("retake");
+  const [emailKind, setEmailKind] = useState<"retake" | "not_approved" | "approved">("retake");
   const [showPreview, setShowPreview] = useState(false);
 
   const attempts = useQuery({
@@ -497,9 +497,12 @@ function CandidateManagementPanel({
   });
 
   const emailMutation = useMutation({
-    mutationFn: () => sendEmail({ data: { applicationId, kind: emailKind, areas } }),
+    mutationFn: (force: boolean) =>
+      sendEmail({ data: { applicationId, kind: emailKind, areas, force } }),
     onSuccess: (r) => {
-      if (r.ok) toast.success("Follow-up email sent.");
+      if (r.ok && r.status === "duplicate")
+        toast.info("This email was already sent. Use Resend email to send it again.");
+      else if (r.ok) toast.success("Follow-up email sent.");
       else toast.error(`Email not sent: ${r.detail}`);
       refresh();
     },
@@ -564,13 +567,14 @@ function CandidateManagementPanel({
 
         <div className="space-y-2">
           <Label className="text-xs">Follow-up email</Label>
-          <Select value={emailKind} onValueChange={(v) => setEmailKind(v as "retake" | "not_approved")}>
+          <Select value={emailKind} onValueChange={(v) => setEmailKind(v as "retake" | "not_approved" | "approved")}>
             <SelectTrigger className="rounded-2xl">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="retake">Retake — includes scheduling link</SelectItem>
               <SelectItem value="not_approved">Not approved — no link</SelectItem>
+              <SelectItem value="approved">Approved — final filter</SelectItem>
             </SelectContent>
           </Select>
           <Textarea
@@ -584,7 +588,7 @@ function CandidateManagementPanel({
               size="sm"
               variant="outline"
               className="rounded-2xl"
-              disabled={!areas.trim()}
+              disabled={emailKind === "retake" && !areas.trim()}
               onClick={() => setShowPreview((v) => !v)}
             >
               {showPreview ? "Hide preview" : "Preview email"}
@@ -592,13 +596,22 @@ function CandidateManagementPanel({
             <Button
               size="sm"
               className="rounded-2xl"
-              disabled={emailMutation.isPending || !areas.trim()}
-              onClick={() => emailMutation.mutate()}
+              disabled={emailMutation.isPending || (emailKind === "retake" && !areas.trim())}
+              onClick={() => emailMutation.mutate(false)}
             >
-              Send follow-up email
+              Send email
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-2xl"
+              disabled={emailMutation.isPending || (emailKind === "retake" && !areas.trim())}
+              onClick={() => emailMutation.mutate(true)}
+            >
+              Resend email
             </Button>
           </div>
-          {showPreview && areas.trim() && (
+          {showPreview && (emailKind !== "retake" || areas.trim()) && (
             <iframe
               title="Email preview"
               className="h-96 w-full rounded-2xl border border-border bg-white"
@@ -608,13 +621,31 @@ function CandidateManagementPanel({
             />
           )}
           {emails.data?.length ? (
-            <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
-              {emails.data.slice(0, 5).map((e) => (
-                <li key={e.id}>
-                  {new Date(e.created_at).toLocaleString()} · {e.kind} · {e.status}
-                </li>
-              ))}
-            </ul>
+            <div className="pt-1">
+              <p className="text-xs font-semibold">
+                Email status:{" "}
+                <span
+                  className={
+                    emails.data[0]!.status === "sent"
+                      ? "text-emerald-600"
+                      : "text-destructive"
+                  }
+                >
+                  {emails.data[0]!.status === "sent" ? "Sent" : "Failed"}
+                </span>{" "}
+                <span className="font-normal text-muted-foreground">
+                  · {emails.data[0]!.to_email} ·{" "}
+                  {new Date(emails.data[0]!.created_at).toLocaleString()}
+                </span>
+              </p>
+              <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
+                {emails.data.slice(0, 5).map((e) => (
+                  <li key={e.id}>
+                    {new Date(e.created_at).toLocaleString()} · {e.kind} · {e.status}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
         </div>
       </div>
