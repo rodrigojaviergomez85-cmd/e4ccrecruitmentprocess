@@ -29,7 +29,6 @@ const GRAMMAR_TEST_URL = "https://app.testgorilla.com/s/bnm9wczd";
 const GRAMMAR_TOPICS_URL =
   "https://drive.google.com/file/d/1307-D5PsWy6crpyXyUCBXQM59w4aBs9P/view?usp=sharing";
 const SAMPLE_CLASS_ONLINE = "https://youtu.be/9-YaNY1K_qs?si=nJdVcCyBc8AmfG0a";
-const INFO_FORM_URL = "https://forms.gle/D1AXDiHxQDYZvJxu9";
 
 function InterviewConfirmed() {
   return (
