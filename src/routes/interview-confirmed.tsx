@@ -39,8 +39,13 @@ function InterviewConfirmed() {
         className="px-5 py-16 text-center"
         style={{ background: "linear-gradient(135deg, #f26522, #ff7a1a)" }}
       >
-        <div className="mb-6 flex justify-center">
-          <BrandMark className="h-12 [&_*]:!brightness-0 [&_*]:!invert" />
+        <div className="mb-7 flex justify-center">
+          <div
+            className="inline-flex items-center justify-center rounded-xl bg-white px-7 py-4"
+            style={{ boxShadow: "0 12px 30px rgba(0,0,0,0.18)" }}
+          >
+            <BrandMark className="h-14 w-auto" />
+          </div>
         </div>
         <h1
           className="font-bold text-white"
