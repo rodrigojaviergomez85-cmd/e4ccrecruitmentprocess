@@ -107,9 +107,15 @@ function InterviewConfirmed() {
 
           <Card number={3} emoji="📚" title="Review Grammar Topics">
             <p>You will explain grammar tenses as if teaching a class.</p>
-            <Link href={GRAMMAR_TOPICS_URL} className="mt-3 inline-block">
+            <a
+              href={GRAMMAR_TOPICS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block font-bold"
+              style={{ color: "#f26522" }}
+            >
               👉 Review Reference File
-            </Link>
+            </a>
           </Card>
 
           <Card number={4} emoji="📄" title="Submit Your Information">
