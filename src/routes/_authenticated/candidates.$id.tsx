@@ -860,11 +860,19 @@ function RecruitmentProcessPanel({
                   <p>
                     Internet speed:{" "}
                     <span className="font-medium text-foreground">
-                      {progress.internet_speed_mbps != null
-                        ? `${progress.internet_speed_mbps} Mbps (measured in the candidate's browser)`
-                        : "Not measured yet"}
+                      {progress.internet_tested_at != null
+                        ? `${progress.internet_download_mbps ?? 0} Mbps down / ${progress.internet_upload_mbps ?? 0} Mbps up / ${progress.internet_ping_ms ?? 0} ms ping — ${progress.internet_test_passed ? "Passed" : "Below minimum"}`
+                        : progress.internet_speed_mbps != null
+                          ? `${progress.internet_speed_mbps} Mbps (measured in the candidate's browser)`
+                          : "Not measured yet"}
                     </span>
                   </p>
+                  {progress.internet_tested_at != null && (
+                    <p className="text-xs">
+                      Tested on {new Date(progress.internet_tested_at).toLocaleString()}
+                      {progress.internet_override ? " · Manually approved by a recruiter" : ""}
+                    </p>
+                  )}
                   {progress.system_info_path && systemInfoUrl ? (
                     <p>
                       System info (processor / RAM):{" "}
