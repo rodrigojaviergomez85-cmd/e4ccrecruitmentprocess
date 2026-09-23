@@ -71,12 +71,11 @@ function referenceComplete(row: {
   return Boolean(
     row.company.trim() &&
       row.position.trim() &&
-      row.start_date &&
-      (row.currently_working || row.end_date) &&
       row.supervisor_name.trim() &&
       validSupervisorPhone(row.supervisor_phone) &&
       row.reason_for_leaving.trim(),
   );
+
 }
 
 /** Device requirement: onsite coaches only confirm the device; online coaches
