@@ -65,6 +65,40 @@ function RetakePage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  if (notFound) {
+    return (
+      <main className="min-h-screen bg-secondary/30 px-5 py-10">
+        <div className="mx-auto max-w-lg">
+          <BrandMark className="mx-auto h-9" />
+          <section className="mt-8 rounded-lg border bg-card p-6 text-center shadow-sm">
+            <SearchX className="mx-auto h-10 w-10 text-muted-foreground" />
+            <h1 className="mt-4 text-xl font-bold">We couldn&apos;t find your records</h1>
+            <p className="mt-3 text-muted-foreground">
+              We couldn&apos;t find a previous application for this email. If this is your first
+              time applying to E4CC, you can start a new application.
+            </p>
+            <Button asChild className="mt-6 w-full">
+              <Link to="/apply">
+                Start My Application <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+            <button
+              type="button"
+              className="mt-4 text-sm font-medium text-primary hover:underline"
+              onClick={() => {
+                setNotFound(false);
+                setSent(false);
+                setCode("");
+                setEmail("");
+              }}
+            >
+              Try a different email
+            </button>
+          </section>
+        </div>
+      </main>
+    );
+  }
   if (closed) {
     return (
       <main className="min-h-screen bg-secondary/30 px-5 py-10">
