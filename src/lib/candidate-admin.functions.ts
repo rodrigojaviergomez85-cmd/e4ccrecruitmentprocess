@@ -337,6 +337,7 @@ export async function sendFollowUp(
     evaluationId?: string | null;
     kind: FollowUpKind;
     areas: string;
+    reasons?: string[];
     actorId?: string | null;
     eligibleAgainDate?: string | null;
     force?: boolean;
@@ -372,8 +373,10 @@ export async function sendFollowUp(
     kind: input.kind,
     fullName: app.full_name,
     areas: input.areas,
+    reasons: input.reasons ?? [],
     eligibleAgainDate: input.eligibleAgainDate ?? null,
   });
+
 
   const { sendEmail } = await import("./notify.server");
   const result = await sendEmail({
