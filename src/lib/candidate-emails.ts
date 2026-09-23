@@ -103,7 +103,7 @@ export const RETAKE_LINKS = {
     ["Final Tips", "https://youtu.be/s5R_X_Kbc1o"],
   ] as Array<[string, string]>,
   grammarTopicsReview:
-    "https://drive.google.com/file/d/1NWJ1ktyJsHc9SKCgA9ZdMlSIzrKqC0-N/view?usp=sharing",
+    "https://drive.google.com/file/d/1307-D5PsWy6crpyXyUCBXQM59w4aBs9P/view?usp=sharing",
   sampleClassOnline: "https://youtu.be/9-YaNY1K_qs?si=TiE0yAib_c3UrhiM",
   sampleClassOnsite: "https://youtu.be/TrrbSmQAOuU?si=5meUTy_NHhbhaoas",
   personalInfoForm:
