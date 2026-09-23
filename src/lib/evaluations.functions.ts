@@ -706,26 +706,10 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     const reasons = Array.isArray(evaluation.not_approved_reasons)
       ? (evaluation.not_approved_reasons as string[])
       : [];
-    const result = evaluation.final_result ?? "";
-    const kind =
-      result === "Retake required"
-        ? ("retake" as const)
-        : result === "Not approved"
-          ? ("not_approved" as const)
-          : result === "Approved for last step"
-            ? ("approved" as const)
-            : null;
+    const kind = FOLLOW_UP_KIND[evaluation.final_result ?? ""];
     if (!kind) throw new Error("Select a final result before sending the email.");
 
-    const areas =
-      kind === "retake"
-        ? String(
-            sections["result"]?.["retake_improvements"] ??
-              sections["result"]?.["retake_reason"] ??
-              evaluation.comments ??
-              "",
-          )
-        : [reasons.join(", "), evaluation.comments ?? ""].filter((s) => s.trim()).join("\n");
+    const areas = resultAreas(kind, sections, evaluation.comments);
 
     const eligibleAgainDate =
       kind === "not_approved"
@@ -738,6 +722,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
       evaluationId: evaluation.id,
       kind,
       areas,
+      reasons,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,
