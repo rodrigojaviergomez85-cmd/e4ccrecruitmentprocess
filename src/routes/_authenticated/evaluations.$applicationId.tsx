@@ -1574,6 +1574,27 @@ function EvaluationForm() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send the result to the candidate?</DialogTitle>
+            <DialogDescription>
+              {candidate.fullName} will receive the “{finalResult}” email at {candidate.email}. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={sendingEmail} onClick={() => void sendResult(false)}>
+              {sendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm and send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
