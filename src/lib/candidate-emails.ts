@@ -228,11 +228,13 @@ export function buildFollowUpEmail(input: {
   kind: FollowUpKind;
   fullName: string;
   areas: string;
+  reasons?: string[];
   scheduleUrl?: string | null;
   eligibleAgainDate?: string | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
   const areas = input.areas.trim() || "General interview performance";
+
 
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
