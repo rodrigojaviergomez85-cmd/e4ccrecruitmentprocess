@@ -126,6 +126,7 @@ function EvaluationForm() {
   const openFn = useServerFn(openEvaluation);
   const saveFn = useServerFn(saveEvaluation);
   const reopenFn = useServerFn(reopenEvaluation);
+  const sendResultFn = useServerFn(sendResultEmail);
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -149,6 +150,10 @@ function EvaluationForm() {
   const [step, setStep] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [finishOpen, setFinishOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailState, setEmailState] = useState<"idle" | "sent" | "duplicate" | "failed">("idle");
+  const [emailDetail, setEmailDetail] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
