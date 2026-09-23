@@ -49,6 +49,11 @@ function RetakePage() {
   const verifyMutation = useMutation({
     mutationFn: () => verify({ data: { email: normalizedEmail, code } }),
     onSuccess: (result) => {
+      if (result.outcome === "invalid") {
+        setCode("");
+        toast.error("The code is invalid or expired. Request a new code and try again.");
+        return;
+      }
       if (result.outcome === "not_found") {
         setNotFound(true);
         return;
