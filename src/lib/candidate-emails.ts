@@ -228,11 +228,12 @@ export function buildFollowUpEmail(input: {
   kind: FollowUpKind;
   fullName: string;
   areas: string;
+  reasons?: string[];
   scheduleUrl?: string | null;
   eligibleAgainDate?: string | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
-  const areas = input.areas.trim() || "General interview performance";
+
 
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
@@ -262,33 +263,53 @@ export function buildFollowUpEmail(input: {
     return { subject, html, scheduleUrl: null };
   }
 
-  const subject = "E4CC — Update on your application";
+  // Privacy rule: only these reasons may be shared with the candidate. Any other
+  // reason (Overage, Other, red flags, critical motives) gets the general letter
+  // with no hint of the internal motive. Evaluator comments are never included.
+  const shareable: Record<string, string> = {
+    "No English level":
+      "We encourage you to keep strengthening your English level before applying again.",
+    "No grammar knowledge":
+      "We encourage you to keep strengthening your grammar knowledge before applying again.",
+    "No equipment or technical requirements":
+      "Please make sure you meet the equipment and technical requirements before applying again.",
+  };
+  const improvement = (input.reasons ?? [])
+    .map((r) => shareable[r.trim()])
+    .filter((v): v is string => Boolean(v));
+
+  const subject = "Thank you for interviewing with E4CC";
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
-      <p style="margin:0 0 12px">Hi ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
       <p style="margin:0 0 12px">
-        Thank you for your interest in English4Call Centers and for the time you shared with
-        us during your interview. After reviewing your evaluation, we will not be moving
-        forward with your application at this time.
+        Thank you for taking the time to interview with English4CallCenters (E4CC). We truly
+        appreciate your interest in joining our team and the opportunity to learn more about
+        your experience.
       </p>
-      <p style="margin:0 0 6px"><strong>Area of opportunity:</strong></p>
-      ${paragraphs(areas)}
-      <p style="margin:0 0 6px"><strong>Action plan:</strong></p>
-      <ul style="margin:0 0 12px;padding-left:20px">
-        <li style="margin:0 0 4px">Practice your grammar and pronunciation daily with the E4CC resources.</li>
-        <li style="margin:0 0 4px">Record yourself teaching a short class and review your fluency.</li>
-        <li style="margin:0 0 4px">Keep your resume and work references up to date.</li>
-      </ul>
+      <p style="margin:0 0 12px">
+        After careful consideration, we have decided not to move forward with your application
+        at this time.
+      </p>
+      ${
+        improvement.length
+          ? `<p style="margin:0 0 6px"><strong>Area of improvement:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">${improvement
+        .map((t) => `<li style="margin:0 0 4px">${escapeHtml(t)}</li>`)
+        .join("")}</ul>`
+          : ""
+      }
       ${
         input.eligibleAgainDate
           ? `<p style="margin:0 0 12px">You are welcome to apply with us again starting <strong>${escapeHtml(input.eligibleAgainDate)}</strong>.</p>`
           : ""
       }
       <p style="margin:0 0 12px">
-        We encourage you to keep strengthening this area. We truly appreciate your effort and
-        wish you the best in your professional journey.
+        Thank you again for considering E4CC. We appreciate the time you invested in our
+        recruitment process and wish you success in your professional journey.
       </p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
   return { subject, html, scheduleUrl: null };
+
 }

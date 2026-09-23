@@ -13,7 +13,34 @@ import {
   type Weights,
 } from "./evaluations";
 
+/** Maps the evaluator's final result to the candidate-facing email kind. */
+const FOLLOW_UP_KIND: Record<string, "retake" | "not_approved" | "approved" | undefined> = {
+  "Retake required": "retake",
+  "Not approved": "not_approved",
+  "Approved for last step": "approved",
+};
+
+/**
+ * Feedback text for the email. Retake shares the evaluator's improvement notes;
+ * "Not approved" never shares internal comments — the template decides what may
+ * be disclosed from the selected reasons only.
+ */
+function resultAreas(
+  kind: "retake" | "not_approved" | "approved",
+  sections: Record<string, Record<string, unknown>>,
+  comments?: string | null,
+) {
+  if (kind !== "retake") return "";
+  return String(
+    sections["result"]?.["retake_improvements"] ??
+      sections["result"]?.["retake_reason"] ??
+      comments ??
+      "",
+  );
+}
+
 async function getAdmin() {
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
@@ -535,9 +562,43 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
 
-      // No email is sent here. The evaluator sends the result explicitly with
-      // the "Send Result" button (see sendResultEmail below).
+      // Finishing the interview sends the candidate-facing result email through
+      // the mail relay and waits for its HTTP response. It is only recorded as
+      // "sent" when the relay confirms delivery; otherwise the evaluator gets a
+      // Retry email button. Duplicates are prevented per evaluation.
+      const kind = FOLLOW_UP_KIND[data.finalResult ?? ""];
+      if (kind) {
+        const { sendFollowUp } = await import("./candidate-admin.functions");
+        try {
+          emailResult = await sendFollowUp(db, {
+            applicationId: current.application_id,
+            evaluationId: data.evaluationId,
+            kind,
+            areas: resultAreas(kind, sections, data.comments),
+            reasons: data.notApprovedReasons ?? [],
+            actorId: context.userId,
+            eligibleAgainDate:
+              kind === "not_approved"
+                ? String(sections["result"]?.["eligible_again_date"] ?? data.retakeDate ?? "") || null
+                : null,
+          });
+        } catch (e) {
+          emailResult = {
+            ok: false,
+            status: "failed",
+            detail: e instanceof Error ? e.message : "Could not send the result email.",
+          };
+        }
+        await audit(db, {
+          evaluationId: data.evaluationId,
+          actorId: context.userId,
+          actorEmail: ctx.email,
+          action: emailResult.ok ? "result_email_sent" : "result_email_failed",
+          details: { kind, status: emailResult.status },
+        });
+      }
     }
+
 
     return { ok: true as const, total, compliance, missing: [] as string[], email: emailResult };
   });
@@ -645,26 +706,10 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     const reasons = Array.isArray(evaluation.not_approved_reasons)
       ? (evaluation.not_approved_reasons as string[])
       : [];
-    const result = evaluation.final_result ?? "";
-    const kind =
-      result === "Retake required"
-        ? ("retake" as const)
-        : result === "Not approved"
-          ? ("not_approved" as const)
-          : result === "Approved for last step"
-            ? ("approved" as const)
-            : null;
+    const kind = FOLLOW_UP_KIND[evaluation.final_result ?? ""];
     if (!kind) throw new Error("Select a final result before sending the email.");
 
-    const areas =
-      kind === "retake"
-        ? String(
-            sections["result"]?.["retake_improvements"] ??
-              sections["result"]?.["retake_reason"] ??
-              evaluation.comments ??
-              "",
-          )
-        : [reasons.join(", "), evaluation.comments ?? ""].filter((s) => s.trim()).join("\n");
+    const areas = resultAreas(kind, sections, evaluation.comments);
 
     const eligibleAgainDate =
       kind === "not_approved"
@@ -677,6 +722,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
       evaluationId: evaluation.id,
       kind,
       areas,
+      reasons,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,

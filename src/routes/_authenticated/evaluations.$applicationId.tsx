@@ -305,8 +305,22 @@ function EvaluationForm() {
       }
       setSaveState("saved");
       setFinishOpen(false);
-      toast.success("Evaluation submitted. It is now read-only.");
+      const email = res.email;
+      if (email) {
+        setEmailState(email.ok ? (email.status === "duplicate" ? "duplicate" : "sent") : "failed");
+        setEmailDetail(email.detail);
+        if (email.ok && email.status !== "duplicate") {
+          toast.success("Evaluation submitted and the result email was sent to the candidate.");
+        } else if (email.ok) {
+          toast.success("Evaluation submitted. The result email was already sent.");
+        } else {
+          toast.error("Evaluation submitted, but the result email failed. Use Retry email.");
+        }
+      } else {
+        toast.success("Evaluation submitted. It is now read-only.");
+      }
       await refetch();
+
     } catch (e) {
       setSaveState("error");
       toast.error(e instanceof Error ? e.message : "Could not submit the evaluation.");
@@ -320,7 +334,7 @@ function EvaluationForm() {
       setEmailState(res.ok ? (res.status === "duplicate" ? "duplicate" : "sent") : "failed");
       setEmailDetail(res.detail);
       if (res.ok && res.status === "duplicate") {
-        toast.info("This result email was already sent. Use Resend Email to send it again.");
+        toast.info("This result email was already sent. Use Resend email to send it again.");
       } else if (res.ok) {
         toast.success("Result email sent to the candidate.");
       } else {
@@ -1362,12 +1376,12 @@ function EvaluationForm() {
                   </Button>
                   {emailState === "failed" && (
                     <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
-                      Retry Email
+                      Retry email
                     </Button>
                   )}
                   {(emailState === "sent" || emailState === "duplicate") && (
                     <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
-                      Resend Email
+                      Resend email
                     </Button>
                   )}
                 </div>

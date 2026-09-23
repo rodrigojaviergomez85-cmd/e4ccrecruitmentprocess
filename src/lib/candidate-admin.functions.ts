@@ -337,6 +337,7 @@ export async function sendFollowUp(
     evaluationId?: string | null;
     kind: FollowUpKind;
     areas: string;
+    reasons?: string[];
     actorId?: string | null;
     eligibleAgainDate?: string | null;
     force?: boolean;
@@ -372,8 +373,10 @@ export async function sendFollowUp(
     kind: input.kind,
     fullName: app.full_name,
     areas: input.areas,
+    reasons: input.reasons ?? [],
     eligibleAgainDate: input.eligibleAgainDate ?? null,
   });
+
 
   const { sendEmail } = await import("./notify.server");
   const result = await sendEmail({
@@ -415,6 +418,7 @@ export const sendFollowUpEmail = createServerFn({ method: "POST" })
         evaluationId: z.string().uuid().nullable().optional().default(null),
         kind: z.enum(["retake", "not_approved", "approved"]),
         areas: z.string().max(2000).optional().default(""),
+        reasons: z.array(z.string().max(120)).optional().default([]),
         eligibleAgainDate: z.string().max(40).nullable().optional().default(null),
         force: z.boolean().optional().default(false),
       })
@@ -429,6 +433,7 @@ export const sendFollowUpEmail = createServerFn({ method: "POST" })
       evaluationId: data.evaluationId ?? null,
       kind: data.kind as FollowUpKind,
       areas: data.areas,
+      reasons: data.reasons,
       actorId: context.userId,
       eligibleAgainDate: data.eligibleAgainDate,
       force: data.force,
