@@ -7,18 +7,60 @@ export type SendResult = {
 };
 
 export function emailConfigured(): boolean {
-  return Boolean(process.env["RESEND_API_KEY"]);
+  return Boolean(process.env["MAKE_RECRUITMENT_WEBHOOK_URL"] ?? process.env["RESEND_API_KEY"]);
 }
 
 export function whatsappConfigured(): boolean {
   return Boolean(process.env["WHATSAPP_TOKEN"] && process.env["WHATSAPP_PHONE_NUMBER_ID"]);
 }
 
+/**
+ * Delivery goes through the Make scenario connected to Microsoft 365 Outlook.
+ * The webhook URL lives only in the server environment and is never logged or
+ * returned to the browser. Resend stays as a fallback when Make is not set.
+ */
+async function sendViaMake(opts: {
+  to: string;
+  subject: string;
+  html: string;
+  candidateName?: string;
+  result?: string;
+}): Promise<SendResult | null> {
+  const url = process.env["MAKE_RECRUITMENT_WEBHOOK_URL"];
+  if (!url) return null;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: opts.to,
+        candidate_name: opts.candidateName ?? "",
+        result: opts.result ?? "notification",
+        subject: opts.subject,
+        html_body: opts.html,
+      }),
+    });
+    const text = (await res.text()).slice(0, 300);
+    if (!res.ok) return { ok: false, status: "failed", detail: `mail relay ${res.status}: ${text}` };
+    return { ok: true, status: "sent", detail: "email accepted by mail relay" };
+  } catch (err) {
+    return {
+      ok: false,
+      status: "failed",
+      detail: err instanceof Error ? err.message.slice(0, 300) : "mail relay error",
+    };
+  }
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
+  candidateName?: string;
+  result?: string;
 }): Promise<SendResult> {
+  const viaMake = await sendViaMake(opts);
+  if (viaMake) return viaMake;
   const key = process.env["RESEND_API_KEY"];
   if (!key) return { ok: false, status: "skipped", detail: "Email not configured" };
   const from = process.env["EMAIL_FROM"] ?? "E4CC Recruitment <onboarding@resend.dev>";
