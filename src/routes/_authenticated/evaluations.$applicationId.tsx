@@ -1316,6 +1316,13 @@ function EvaluationForm() {
                     <Field label="Red flags identified">
                       <Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} />
                     </Field>
+                    <Field label="When can this candidate apply again?">
+                      <Input
+                        type="date"
+                        value={str("result", "eligible_again_date")}
+                        onChange={(e) => set("result", "eligible_again_date", e.target.value)}
+                      />
+                    </Field>
                   </div>
                 </div>
               )}
@@ -1325,6 +1332,46 @@ function EvaluationForm() {
                   Missing before submission: {missing.join(", ")}
                 </p>
               )}
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold">Candidate result email</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The candidate is only notified when you press and confirm this button. Nothing is
+                  sent while you edit or autosave the evaluation.
+                </p>
+                {emailState === "sent" && (
+                  <p className="mt-2 text-xs text-emerald-600">Result email sent successfully.</p>
+                )}
+                {emailState === "duplicate" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    This result email was already sent for this interview.
+                  </p>
+                )}
+                {emailState === "failed" && (
+                  <p className="mt-2 text-xs text-destructive">
+                    The email could not be sent. {emailDetail}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => setSendOpen(true)}
+                    disabled={!finalResult || sendingEmail}
+                  >
+                    {sendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Result
+                  </Button>
+                  {emailState === "failed" && (
+                    <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
+                      Retry Email
+                    </Button>
+                  )}
+                  {(emailState === "sent" || emailState === "duplicate") && (
+                    <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
+                      Resend Email
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </fieldset>
