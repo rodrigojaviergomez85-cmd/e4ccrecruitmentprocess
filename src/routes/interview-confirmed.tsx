@@ -126,23 +126,7 @@ function InterviewConfirmed() {
             </a>
           </Card>
 
-          <Card number={4} title="Submit Your Information">
-            <p>
-              Upload your resume and include recent and valid job references for your last two
-              positions.
-            </p>
-            <a
-              href={INFO_FORM_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block font-bold"
-              style={{ color: "#f26522" }}
-            >
-              Open the form →
-            </a>
-          </Card>
-
-          <Card number={5} title="Prepare a Sample Class">
+          <Card number={4} title="Prepare a Sample Class">
             <p>Please review the video and get ready to teach.</p>
             <a
               href={SAMPLE_CLASS_ONLINE}
