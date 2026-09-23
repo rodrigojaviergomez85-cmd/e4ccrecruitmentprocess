@@ -894,68 +894,6 @@ function RecruitmentProcessPanel({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border p-4">
-            <h3 className="text-sm font-semibold">Grammar Test</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Status: {progress.grammar_test_status}
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Score</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={score}
-                  onChange={(e) => setScore(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Status</Label>
-                <Select
-                  value={progress.grammar_test_status}
-                  onValueChange={(value) => grammarMutation.mutate({ grammar_test_status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GRAMMAR_STATUS_LABELS.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  className="w-full rounded-2xl"
-                  disabled={grammarMutation.isPending}
-                  onClick={() => grammarMutation.mutate({ grammar_test_verified: true })}
-                >
-                  Mark verified
-                </Button>
-              </div>
-            </div>
-            <div className="mt-3 space-y-1.5">
-              <Label className="text-xs">Internal note</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000} />
-            </div>
-            <Button
-              className="mt-3 rounded-2xl"
-              disabled={grammarMutation.isPending}
-              onClick={() =>
-                grammarMutation.mutate({
-                  grammar_test_score: score === "" ? null : Number(score),
-                  grammar_test_notes: notes,
-                })
-              }
-            >
-              Save grammar test
-            </Button>
-          </div>
 
           <div className="rounded-2xl border border-border p-4">
             <h3 className="text-sm font-semibold">Resume</h3>
