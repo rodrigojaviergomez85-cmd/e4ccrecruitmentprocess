@@ -34,15 +34,6 @@ export const requestRetakeAccess = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!application) return { ok: true };
 
-    const { data: evaluation } = await admin
-      .from("interview_evaluations")
-      .select("final_result, retake_date")
-      .eq("application_id", application.id)
-      .order("attempt_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (evaluation?.final_result !== "Retake") return { ok: true };
-
     const code = String(randomInt(100000, 1000000));
     await admin.from("retake_access_tokens").insert({
       application_id: application.id,
