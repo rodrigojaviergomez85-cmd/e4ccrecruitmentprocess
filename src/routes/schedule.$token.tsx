@@ -42,12 +42,10 @@ function SchedulePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
   const loadContext = useServerFn(getSchedulingContext);
-  const loadSlots = useServerFn(listSchedulingSlots);
-  const book = useServerFn(bookInterview);
   const cancel = useServerFn(cancelInterview);
+  const syncCalendly = useServerFn(recordCalendlySchedule);
 
-  const [timezone, setTimezone] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const contextQuery = useQuery({
     queryKey: ["schedule-context", token],
@@ -61,44 +59,34 @@ function SchedulePage() {
 
   const eligible = context?.eligible === true;
   const tz =
-    timezone ??
     context?.appointment?.candidateTimezone ??
     context?.suggestedTimezone ??
     "America/El_Salvador";
 
-  const slotsQuery = useQuery({
-    queryKey: ["schedule-slots", token],
-    queryFn: () => loadSlots({ data: { token } }),
-    enabled: eligible && !context?.appointment,
-    retry: false,
-  });
-
-
-  const days = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-    for (const slot of slotsQuery.data ?? []) {
-      const key = new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date(slot.startIso));
-      grouped.set(key, [...(grouped.get(key) ?? []), slot.startIso]);
+  const calendlyUrl = useMemo(() => {
+    const url = new URL(CALENDLY_URL);
+    if (context) {
+      url.searchParams.set("name", context.fullName);
+      url.searchParams.set("email", context.email);
     }
-    return [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [slotsQuery.data, tz]);
+    return url.toString();
+  }, [context]);
 
-  const activeDay = selectedDay ?? days[0]?.[0] ?? null;
-  const daySlots = days.find(([d]) => d === activeDay)?.[1] ?? [];
-
-  const bookMutation = useMutation({
-    mutationFn: (startIso: string) => book({ data: { token, startIso, timezone: tz } }),
-    onSuccess: async () => {
-      toast.success("Your interview is confirmed.");
-      await queryClient.invalidateQueries({ queryKey: ["schedule-context", token] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  // Calendly's embed posts a message once the candidate confirms a booking.
+  useEffect(() => {
+    const listener = (event: MessageEvent) => {
+      const payload = event.data as { event?: string } | null;
+      if (payload?.event !== "calendly.event_scheduled") return;
+      setConfirming(true);
+      setTimeout(async () => {
+        await syncCalendly({ data: { token } });
+        await queryClient.invalidateQueries({ queryKey: ["schedule-context", token] });
+        setConfirming(false);
+      }, 3000);
+    };
+    window.addEventListener("message", listener);
+    return () => window.removeEventListener("message", listener);
+  }, [token, syncCalendly, queryClient]);
 
   const cancelMutation = useMutation({
     mutationFn: () => cancel({ data: { token } }),
