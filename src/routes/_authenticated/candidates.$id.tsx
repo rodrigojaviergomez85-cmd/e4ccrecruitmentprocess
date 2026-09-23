@@ -19,7 +19,6 @@ import {
   getCandidate,
   rerunAnalysis,
   updateCandidateStatus,
-  updateGrammarTest,
   updateReferenceVerification,
 } from "@/lib/recruiter.functions";
 import { overrideEligibility, sendSchedulingLink } from "@/lib/interviews.functions";
@@ -746,12 +745,6 @@ function InterviewPanel({ applicationId, cefr }: { applicationId: string; cefr: 
   );
 }
 
-const GRAMMAR_STATUS_LABELS = [
-  "Not started",
-  "Link opened",
-  "Candidate marked as completed",
-  "Verified by recruiter",
-] as const;
 
 const REFERENCE_STATUS_LABELS = [
   "Pending verification",
@@ -776,23 +769,11 @@ function RecruitmentProcessPanel({
   systemInfoUrl: string | null;
 }) {
   const queryClient = useQueryClient();
-  const saveGrammar = useServerFn(updateGrammarTest);
   const saveReference = useServerFn(updateReferenceVerification);
-  const [score, setScore] = useState(progress?.grammar_test_score?.toString() ?? "");
-  const [notes, setNotes] = useState(progress?.grammar_test_notes ?? "");
 
   const refresh = () =>
     void queryClient.invalidateQueries({ queryKey: ["candidate", applicationId] });
 
-  const grammarMutation = useMutation({
-    mutationFn: (patch: Record<string, unknown>) =>
-      saveGrammar({ data: { applicationId, ...patch } }),
-    onSuccess: () => {
-      toast.success("Grammar test updated");
-      refresh();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const refMutation = useMutation({
     mutationFn: (patch: { slot: number; verification_status?: string; verification_notes?: string }) =>
@@ -813,8 +794,6 @@ function RecruitmentProcessPanel({
       done: Boolean(progress?.device_confirmed) && Boolean(progress?.work_modality),
     },
     { label: "Internet speed + system info (online only)", done: onlineDevice },
-    { label: "Grammar Test completed", done: Boolean(progress?.grammar_test_confirmed) },
-    { label: "Grammar topics reviewed", done: Boolean(progress?.grammar_topics_confirmed) },
     { label: "Resume uploaded", done: Boolean(progress?.resume_path) },
     { label: "Reference declaration", done: Boolean(progress?.references_declaration) },
   ];
