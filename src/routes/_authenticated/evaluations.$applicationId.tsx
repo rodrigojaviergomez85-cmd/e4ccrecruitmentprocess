@@ -49,7 +49,12 @@ import {
   missingRequired,
   verbStats,
 } from "@/lib/evaluations";
-import { openEvaluation, reopenEvaluation, saveEvaluation } from "@/lib/evaluations.functions";
+import {
+  openEvaluation,
+  reopenEvaluation,
+  saveEvaluation,
+  sendResultEmail,
+} from "@/lib/evaluations.functions";
 
 export const Route = createFileRoute("/_authenticated/evaluations/$applicationId")({
   head: () => ({
@@ -121,6 +126,7 @@ function EvaluationForm() {
   const openFn = useServerFn(openEvaluation);
   const saveFn = useServerFn(saveEvaluation);
   const reopenFn = useServerFn(reopenEvaluation);
+  const sendResultFn = useServerFn(sendResultEmail);
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -144,6 +150,10 @@ function EvaluationForm() {
   const [step, setStep] = useState(0);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [finishOpen, setFinishOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailState, setEmailState] = useState<"idle" | "sent" | "duplicate" | "failed">("idle");
+  const [emailDetail, setEmailDetail] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -300,6 +310,29 @@ function EvaluationForm() {
     } catch (e) {
       setSaveState("error");
       toast.error(e instanceof Error ? e.message : "Could not submit the evaluation.");
+    }
+  }
+
+  async function sendResult(force = false) {
+    setSendingEmail(true);
+    try {
+      const res = await sendResultFn({ data: { evaluationId: evaluation!.id, force } });
+      setEmailState(res.ok ? (res.status === "duplicate" ? "duplicate" : "sent") : "failed");
+      setEmailDetail(res.detail);
+      if (res.ok && res.status === "duplicate") {
+        toast.info("This result email was already sent. Use Resend Email to send it again.");
+      } else if (res.ok) {
+        toast.success("Result email sent to the candidate.");
+      } else {
+        toast.error("The email could not be sent. You can retry.");
+      }
+      setSendOpen(false);
+    } catch (e) {
+      setEmailState("failed");
+      setEmailDetail(e instanceof Error ? e.message : "Could not send the email.");
+      toast.error(e instanceof Error ? e.message : "Could not send the email.");
+    } finally {
+      setSendingEmail(false);
     }
   }
 
@@ -1283,6 +1316,13 @@ function EvaluationForm() {
                     <Field label="Red flags identified">
                       <Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} />
                     </Field>
+                    <Field label="When can this candidate apply again?">
+                      <Input
+                        type="date"
+                        value={str("result", "eligible_again_date")}
+                        onChange={(e) => set("result", "eligible_again_date", e.target.value)}
+                      />
+                    </Field>
                   </div>
                 </div>
               )}
@@ -1292,6 +1332,46 @@ function EvaluationForm() {
                   Missing before submission: {missing.join(", ")}
                 </p>
               )}
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold">Candidate result email</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The candidate is only notified when you press and confirm this button. Nothing is
+                  sent while you edit or autosave the evaluation.
+                </p>
+                {emailState === "sent" && (
+                  <p className="mt-2 text-xs text-emerald-600">Result email sent successfully.</p>
+                )}
+                {emailState === "duplicate" && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    This result email was already sent for this interview.
+                  </p>
+                )}
+                {emailState === "failed" && (
+                  <p className="mt-2 text-xs text-destructive">
+                    The email could not be sent. {emailDetail}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => setSendOpen(true)}
+                    disabled={!finalResult || sendingEmail}
+                  >
+                    {sendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Send Result
+                  </Button>
+                  {emailState === "failed" && (
+                    <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
+                      Retry Email
+                    </Button>
+                  )}
+                  {(emailState === "sent" || emailState === "duplicate") && (
+                    <Button variant="outline" disabled={sendingEmail} onClick={() => void sendResult(true)}>
+                      Resend Email
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </fieldset>
@@ -1490,6 +1570,27 @@ function EvaluationForm() {
             <Button variant="outline" onClick={() => setFinishOpen(false)}>Cancel</Button>
             <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving"}>
               Confirm and finish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sendOpen} onOpenChange={setSendOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send the result to the candidate?</DialogTitle>
+            <DialogDescription>
+              {candidate.fullName} will receive the “{finalResult}” email at {candidate.email}. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSendOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={sendingEmail} onClick={() => void sendResult(false)}>
+              {sendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm and send
             </Button>
           </DialogFooter>
         </DialogContent>

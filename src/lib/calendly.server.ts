@@ -162,9 +162,16 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
             .maybeSingle();
           const { data: candidate } = await db
             .from("applications")
-            .select("full_name, email")
+            .select("full_name, email, status")
             .eq("id", application.id)
             .single();
+          // A retake booking keeps its own pipeline label in the dashboard.
+          if (candidate && (candidate.status ?? "").startsWith("Retake")) {
+            await db
+              .from("applications")
+              .update({ status: "Scheduled – Retake" })
+              .eq("id", application.id);
+          }
           if (candidate) {
             const formatter = (options: Intl.DateTimeFormatOptions) =>
               new Intl.DateTimeFormat("en-US", { timeZone: invitee.timezone ?? "UTC", ...options }).format(new Date(event.start_time));
@@ -177,7 +184,12 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
               timezone: invitee.timezone ?? "UTC",
               modality: progress?.work_modality === "onsite" ? "onsite" : "online",
             });
-            const delivery = await sendEmail({ to: candidate.email, ...message });
+            const delivery = await sendEmail({
+              to: candidate.email,
+              ...message,
+              candidateName: candidate.full_name,
+              result: "preparation",
+            });
             await db.from("candidate_emails").insert({
               application_id: application.id,
               kind: "preparation",

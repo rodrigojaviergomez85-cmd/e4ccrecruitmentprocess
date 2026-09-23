@@ -321,6 +321,15 @@ export const listCandidateEmails = createServerFn({ method: "POST" })
   });
 
 /** Sends (and records) the follow-up email for a Retake or Not approved result. */
+/** Internal pipeline status stored on the application after a result email. */
+export function statusForResult(kind: FollowUpKind, eligibleAgainDate?: string | null) {
+  if (kind === "retake") return "Retake – Email Sent";
+  if (kind === "approved") return "Approved – Final Filter Pending";
+  return eligibleAgainDate
+    ? `Not Approved – Eligible Again: ${eligibleAgainDate}`
+    : "Not Approved";
+}
+
 export async function sendFollowUp(
   db: Db,
   input: {
@@ -329,6 +338,8 @@ export async function sendFollowUp(
     kind: FollowUpKind;
     areas: string;
     actorId?: string | null;
+    eligibleAgainDate?: string | null;
+    force?: boolean;
   },
 ) {
   const { data: app } = await db
@@ -338,14 +349,40 @@ export async function sendFollowUp(
     .maybeSingle();
   if (!app) throw new Error("Candidate not found.");
 
+  // One result email per evaluation, unless the evaluator explicitly retries.
+  if (!input.force && input.evaluationId) {
+    const { data: already } = await db
+      .from("candidate_emails")
+      .select("id")
+      .eq("evaluation_id", input.evaluationId)
+      .eq("kind", input.kind)
+      .eq("status", "sent")
+      .limit(1)
+      .maybeSingle();
+    if (already) {
+      return {
+        ok: true,
+        status: "duplicate" as const,
+        detail: "The result email was already sent for this interview.",
+      };
+    }
+  }
+
   const { subject, html } = buildFollowUpEmail({
     kind: input.kind,
     fullName: app.full_name,
     areas: input.areas,
+    eligibleAgainDate: input.eligibleAgainDate ?? null,
   });
 
   const { sendEmail } = await import("./notify.server");
-  const result = await sendEmail({ to: app.email, subject, html });
+  const result = await sendEmail({
+    to: app.email,
+    subject,
+    html,
+    candidateName: app.full_name,
+    result: input.kind,
+  });
 
   await db.from("candidate_emails").insert({
     application_id: app.id,
@@ -359,6 +396,13 @@ export async function sendFollowUp(
     sent_by: input.actorId ?? null,
   });
 
+  if (result.ok) {
+    await db
+      .from("applications")
+      .update({ status: statusForResult(input.kind, input.eligibleAgainDate) })
+      .eq("id", app.id);
+  }
+
   return { ok: result.ok, status: result.status, detail: result.detail };
 }
 
@@ -369,8 +413,10 @@ export const sendFollowUpEmail = createServerFn({ method: "POST" })
       .object({
         applicationId: z.string().uuid(),
         evaluationId: z.string().uuid().nullable().optional().default(null),
-        kind: z.enum(["retake", "not_approved"]),
+        kind: z.enum(["retake", "not_approved", "approved"]),
         areas: z.string().max(2000).optional().default(""),
+        eligibleAgainDate: z.string().max(40).nullable().optional().default(null),
+        force: z.boolean().optional().default(false),
       })
       .parse(d),
   )
@@ -384,6 +430,8 @@ export const sendFollowUpEmail = createServerFn({ method: "POST" })
       kind: data.kind as FollowUpKind,
       areas: data.areas,
       actorId: context.userId,
+      eligibleAgainDate: data.eligibleAgainDate,
+      force: data.force,
     });
   });
 
