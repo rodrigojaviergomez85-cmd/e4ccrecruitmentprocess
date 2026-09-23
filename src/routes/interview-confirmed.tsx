@@ -127,9 +127,15 @@ function InterviewConfirmed() {
 
           <Card number={5} emoji="🎬" title="Prepare a Sample Class">
             <p>Watch the video and prepare your demo class.</p>
-            <Link href={SAMPLE_CLASS_ONLINE} className="mt-3 inline-block">
+            <a
+              href={SAMPLE_CLASS_ONLINE}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block font-bold"
+              style={{ color: "#f26522" }}
+            >
               👉 Watch Sample Class
-            </Link>
+            </a>
           </Card>
         </div>
       </div>
