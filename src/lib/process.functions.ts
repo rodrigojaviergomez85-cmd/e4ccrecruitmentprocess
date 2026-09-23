@@ -136,7 +136,22 @@ async function loadState(db: Db, applicationId: string) {
   });
   const complete = refs.some((r) => referenceComplete(r));
   const { items, unlocked } = requirementsFor(progress!, complete);
-  return { progress: progress!, references: refs, requirements: items, unlocked, appointment: appointments?.[0] ?? null, preparationEmail: emails?.[0] ?? null };
+  // Every mutation returns the full page state, so the candidate header keeps
+  // rendering after a save.
+  const [{ data: app }, { data: evaluation }] = await Promise.all([
+    db.from("applications").select("full_name, email").eq("id", applicationId).maybeSingle(),
+    db.from("ai_evaluations").select("cefr").eq("application_id", applicationId).maybeSingle(),
+  ]);
+  return {
+    invalid: null,
+    candidate: { fullName: app?.full_name ?? "", email: app?.email ?? "", cefr: evaluation?.cefr ?? null },
+    progress: progress!,
+    references: refs,
+    requirements: items,
+    unlocked,
+    appointment: appointments?.[0] ?? null,
+    preparationEmail: emails?.[0] ?? null,
+  };
 }
 
 /** Sync the application status with the checklist state. */
