@@ -43,8 +43,10 @@ export const requestRetakeAccess = createServerFn({ method: "POST" })
     const { sendEmail } = await import("./notify.server");
     await sendEmail({
       to: application.email,
-      subject: "Your E4CC Retake access code",
+      subject: "Your E4CC access code",
       html: `<p>Hi ${application.full_name.split(/\s+/)[0]},</p><p>Your secure code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes.</p>`,
+      candidateName: application.full_name,
+      result: "access_code",
     });
     return { ok: true };
   });
