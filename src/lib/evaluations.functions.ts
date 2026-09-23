@@ -535,9 +535,43 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         details: { finalResult: data.finalResult, total, compliance, earlyFinish: data.earlyFinish },
       });
 
-      // No email is sent here. The evaluator sends the result explicitly with
-      // the "Send Result" button (see sendResultEmail below).
+      // Finishing the interview sends the candidate-facing result email through
+      // the mail relay and waits for its HTTP response. It is only recorded as
+      // "sent" when the relay confirms delivery; otherwise the evaluator gets a
+      // Retry email button. Duplicates are prevented per evaluation.
+      const kind = FOLLOW_UP_KIND[data.finalResult ?? ""];
+      if (kind) {
+        const { sendFollowUp } = await import("./candidate-admin.functions");
+        try {
+          emailResult = await sendFollowUp(db, {
+            applicationId: current.application_id,
+            evaluationId: data.evaluationId,
+            kind,
+            areas: resultAreas(kind, sections, data.comments),
+            reasons: data.notApprovedReasons ?? [],
+            actorId: context.userId,
+            eligibleAgainDate:
+              kind === "not_approved"
+                ? String(sections["result"]?.["eligible_again_date"] ?? data.retakeDate ?? "") || null
+                : null,
+          });
+        } catch (e) {
+          emailResult = {
+            ok: false,
+            status: "failed",
+            detail: e instanceof Error ? e.message : "Could not send the result email.",
+          };
+        }
+        await audit(db, {
+          evaluationId: data.evaluationId,
+          actorId: context.userId,
+          actorEmail: ctx.email,
+          action: emailResult.ok ? "result_email_sent" : "result_email_failed",
+          details: { kind, status: emailResult.status },
+        });
+      }
     }
+
 
     return { ok: true as const, total, compliance, missing: [] as string[], email: emailResult };
   });
