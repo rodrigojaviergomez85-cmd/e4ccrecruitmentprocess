@@ -113,6 +113,12 @@ export const RETAKE_LINKS = {
   nextInterviewTiming: "2 MONTHS FROM NOW",
 };
 
+function formatRetakeDate(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!m) return value;
+  return new Date(Date.UTC(+m[1]!, +m[2]! - 1, +m[3]!)).toLocaleDateString("en-US", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" });
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -149,7 +155,7 @@ function section(title: string, inner: string) {
  * Official E4CC retake template. Fixed wording and resources; only the
  * candidate's first name, the feedback area and the scheduling link change.
  */
-function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl: string }) {
+function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl: string; retakeDate?: string | null }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
   const areas = input.areas.trim() || "General interview performance";
   const L = RETAKE_LINKS;
@@ -202,7 +208,7 @@ function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl:
       )}
       ${section(
         "Next Interview Details",
-        `<p style="margin:0 0 8px"><strong>${escapeHtml(L.nextInterviewTiming)}</strong></p>
+        `<p style="margin:0 0 8px"><strong>${escapeHtml(input.retakeDate ? `Available starting ${formatRetakeDate(input.retakeDate)}` : L.nextInterviewTiming)}</strong></p>
         <p style="margin:0 0 8px">Zoom Link: <a href="${L.zoom}" style="color:#0f766e">${L.zoom}</a></p>
         <p style="margin:0 0 16px">
           <a href="${link}" style="background:#0f766e;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none">
@@ -237,7 +243,7 @@ export function buildFollowUpEmail(input: {
 
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
-    return buildRetakeEmail({ fullName: input.fullName, areas: input.areas, scheduleUrl: link });
+    return buildRetakeEmail({ fullName: input.fullName, areas: input.areas, scheduleUrl: link, retakeDate: input.eligibleAgainDate ?? null });
   }
 
   if (input.kind === "approved") {
