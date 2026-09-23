@@ -308,6 +308,29 @@ function EvaluationForm() {
     }
   }
 
+  async function sendResult(force = false) {
+    setSendingEmail(true);
+    try {
+      const res = await sendResultFn({ data: { evaluationId: evaluation!.id, force } });
+      setEmailState(res.ok ? (res.status === "duplicate" ? "duplicate" : "sent") : "failed");
+      setEmailDetail(res.detail);
+      if (res.ok && res.status === "duplicate") {
+        toast.info("This result email was already sent. Use Resend Email to send it again.");
+      } else if (res.ok) {
+        toast.success("Result email sent to the candidate.");
+      } else {
+        toast.error("The email could not be sent. You can retry.");
+      }
+      setSendOpen(false);
+    } catch (e) {
+      setEmailState("failed");
+      setEmailDetail(e instanceof Error ? e.message : "Could not send the email.");
+      toast.error(e instanceof Error ? e.message : "Could not send the email.");
+    } finally {
+      setSendingEmail(false);
+    }
+  }
+
   async function reopen() {
     const reason = window.prompt("Reason for reopening this evaluation:");
     if (!reason || reason.trim().length < 5) return;
