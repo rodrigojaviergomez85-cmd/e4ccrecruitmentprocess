@@ -2,7 +2,7 @@
 
 export const CALENDLY_SCHEDULE_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 
-export type FollowUpKind = "retake" | "not_approved";
+export type FollowUpKind = "retake" | "not_approved" | "approved";
 
 export function buildPreparationEmail(input: {
   fullName: string;
@@ -41,6 +41,7 @@ export function buildPreparationEmail(input: {
 export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
   retake: "Retake invitation",
   not_approved: "Process closed",
+  approved: "Approved — final filter",
 };
 
 /**
