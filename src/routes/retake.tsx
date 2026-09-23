@@ -77,10 +77,10 @@ function RetakePage() {
           <BrandMark className="mx-auto h-9" />
           <section className="mt-8 rounded-lg border bg-card p-6 text-center shadow-sm">
             <SearchX className="mx-auto h-10 w-10 text-muted-foreground" />
-            <h1 className="mt-4 text-xl font-bold">We couldn&apos;t find your records</h1>
+            <h1 className="mt-4 text-xl font-bold">We don&apos;t have your records</h1>
             <p className="mt-3 text-muted-foreground">
-              We couldn&apos;t find a previous application for this email. If this is your first
-              time applying to E4CC, you can start a new application.
+              We don&apos;t have a previous application for this email. Please go to
+              &quot;Start My Application&quot; below to begin your application with E4CC.
             </p>
             <Button asChild className="mt-6 w-full">
               <Link to="/apply">
