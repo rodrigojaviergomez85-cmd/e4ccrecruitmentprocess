@@ -139,7 +139,7 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
     // The candidate never chooses their own outcome; it comes from the evaluation.
     const { data: evaluation } = await admin
       .from("interview_evaluations")
-      .select("final_result, sections, retake_date, interview_date, submitted_at")
+      .select("final_result, sections, retake_date, interview_date, submitted_at, not_approved_reasons")
       .eq("application_id", application.id)
       .order("attempt_number", { ascending: false })
       .limit(1)
