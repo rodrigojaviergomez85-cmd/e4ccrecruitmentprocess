@@ -94,9 +94,15 @@ function InterviewConfirmed() {
           <Card number={2} emoji="📝" title="Grammar Test (Mandatory)">
             <p>Complete the grammar test before your interview.</p>
             <p className="mt-2">⏱ Estimated time: 12 minutes</p>
-            <Link href={GRAMMAR_TEST_URL} className="mt-3 inline-block">
+            <a
+              href={GRAMMAR_TEST_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block font-bold"
+              style={{ color: "#f26522" }}
+            >
               👉 Complete Grammar Test
-            </Link>
+            </a>
           </Card>
 
           <Card number={3} emoji="📚" title="Review Grammar Topics">
