@@ -31,6 +31,7 @@ function RetakePage() {
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [closed, setClosed] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const normalizedEmail = email.replace(/\s+/g, "").toLowerCase();
   const emailValid = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(normalizedEmail);
   const requestMutation = useMutation({
@@ -48,6 +49,10 @@ function RetakePage() {
   const verifyMutation = useMutation({
     mutationFn: () => verify({ data: { email: normalizedEmail, code } }),
     onSuccess: (result) => {
+      if (result.outcome === "not_found") {
+        setNotFound(true);
+        return;
+      }
       if (result.outcome === "not_approved") {
         setClosed(
           result.eligibleAgainDate
