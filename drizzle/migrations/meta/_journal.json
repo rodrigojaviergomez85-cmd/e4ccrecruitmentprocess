@@ -43,6 +43,13 @@
       "when": 1789766909628,
       "tag": "0005_reference_supervisor_position",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790176430997,
+      "tag": "0006_create_verification_codes",
+      "breakpoints": true
     }
   ]
 }

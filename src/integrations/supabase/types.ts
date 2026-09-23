@@ -1229,6 +1229,56 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_codes: {
+        Row: {
+          application_id: string | null
+          attempts: number
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          sent_at: string
+          session_expires_at: string | null
+          session_hash: string | null
+          used_at: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          sent_at?: string
+          session_expires_at?: string | null
+          session_hash?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          sent_at?: string
+          session_expires_at?: string | null
+          session_hash?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_codes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       videos: {
         Row: {
           application_id: string

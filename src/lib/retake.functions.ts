@@ -2,8 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { createHash, randomInt, randomBytes } from "crypto";
 import { z } from "zod";
 
-const emailSchema = z.object({ email: z.string().trim().email().max(255) });
-const verifySchema = emailSchema.extend({ code: z.string().regex(/^\d{6}$/) });
+const normalizeEmail = (value: unknown) =>
+  typeof value === "string" ? value.replace(/\s+/g, "").toLowerCase() : value;
+
+const emailSchema = z.object({
+  email: z.preprocess(normalizeEmail, z.string().email().max(255)),
+});
+const verifySchema = z.object({
+  email: z.preprocess(normalizeEmail, z.string().email().max(255)),
+  code: z.string().regex(/^\d{6}$/),
+});
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
@@ -12,17 +20,35 @@ async function db() {
   return supabaseAdmin;
 }
 
+function codeEmailHtml(name: string, code: string): string {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111">
+  <p>Hi ${name},</p>
+  <p>Here is your E4CC verification code:</p>
+  <p style="font-size:32px;font-weight:bold;letter-spacing:8px;margin:18px 0">${code}</p>
+  <p>This code expires in <strong>10 minutes</strong> and can be used only once.</p>
+  <p>If you did not request this code, you can ignore this email.</p>
+  <p>Best regards,<br/>E4CC Recruitment Team</p>
+</div>`;
+}
+
 export const requestRetakeAccess = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => emailSchema.parse(value))
   .handler(async ({ data }) => {
+    const email = data.email;
+    // Never log the code or the webhook URL.
+    console.log("verification_code_request_started", { email });
+
     const admin = await db();
-    const email = data.email.toLowerCase();
     const since = new Date(Date.now() - 15 * 60_000).toISOString();
     const { count } = await admin
-      .from("retake_access_tokens")
+      .from("verification_codes")
       .select("id", { count: "exact", head: true })
+      .eq("email", email)
       .gte("created_at", since);
-    if ((count ?? 0) > 100) return { ok: true };
+    if ((count ?? 0) >= 5) {
+      console.log("verification_code_rate_limited", { email });
+      return { ok: false as const };
+    }
 
     const { data: application } = await admin
       .from("applications")
@@ -32,42 +58,44 @@ export const requestRetakeAccess = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!application) return { ok: true };
 
     const code = String(randomInt(100000, 1000000));
-    await admin.from("retake_access_tokens").insert({
-      application_id: application.id,
+    const { error: insertError } = await admin.from("verification_codes").insert({
+      email,
+      application_id: application?.id ?? null,
       code_hash: hash(code),
       expires_at: new Date(Date.now() + 10 * 60_000).toISOString(),
     });
+    if (insertError) {
+      console.error("verification_code_store_failed", { email, error: insertError.message });
+      return { ok: false as const };
+    }
+
+    const candidateName = application?.full_name?.trim() || "Candidate";
     const { sendEmail } = await import("./notify.server");
-    await sendEmail({
-      to: application.email,
-      subject: "Your E4CC access code",
-      html: `<p>Hi ${application.full_name.split(/\s+/)[0]},</p><p>Your secure code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p><p>This code expires in 10 minutes.</p>`,
-      candidateName: application.full_name,
-      result: "access_code",
+    const result = await sendEmail({
+      to: email,
+      subject: "Your E4CC Verification Code",
+      html: codeEmailHtml(candidateName.split(/\s+/)[0] ?? "Candidate", code),
+      candidateName,
+      result: "verification_code",
     });
-    return { ok: true };
+    if (!result.ok) {
+      console.error("verification_code_send_failed", { email, detail: result.detail });
+      return { ok: false as const };
+    }
+    console.log("verification_code_sent", { email, detail: result.detail });
+    return { ok: true as const };
   });
 
 export const verifyRetakeAccess = createServerFn({ method: "POST" })
   .inputValidator((value: unknown) => verifySchema.parse(value))
   .handler(async ({ data }) => {
     const admin = await db();
-    const { data: application } = await admin
-      .from("applications")
-      .select("id, submit_token, status")
-      .ilike("email", data.email.toLowerCase())
-      .is("archived_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (!application) throw new Error("The code is invalid or expired.");
     const { data: row } = await admin
-      .from("retake_access_tokens")
+      .from("verification_codes")
       .select("id, code_hash, attempts, expires_at, used_at")
-      .eq("application_id", application.id)
+      .eq("email", data.email)
       .is("used_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -76,14 +104,34 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       throw new Error("The code is invalid or expired.");
     }
     if (row.code_hash !== hash(data.code)) {
-      await admin.from("retake_access_tokens").update({ attempts: row.attempts + 1 }).eq("id", row.id);
+      await admin
+        .from("verification_codes")
+        .update({ attempts: row.attempts + 1 })
+        .eq("id", row.id);
       throw new Error("The code is invalid or expired.");
     }
+
+    const { data: application } = await admin
+      .from("applications")
+      .select("id, submit_token, status")
+      .ilike("email", data.email)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!application) throw new Error("We could not find a previous application for this email.");
+
     const session = randomBytes(32).toString("hex");
     await admin
-      .from("retake_access_tokens")
-      .update({ used_at: new Date().toISOString(), session_hash: hash(session), session_expires_at: new Date(Date.now() + 60 * 60_000).toISOString() })
+      .from("verification_codes")
+      .update({
+        used_at: new Date().toISOString(),
+        session_hash: hash(session),
+        session_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+        application_id: application.id,
+      })
       .eq("id", row.id);
+
     // The candidate never chooses their own outcome; it comes from the evaluation.
     const { data: evaluation } = await admin
       .from("interview_evaluations")
