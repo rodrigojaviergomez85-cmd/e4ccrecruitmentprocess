@@ -233,7 +233,6 @@ export function buildFollowUpEmail(input: {
   eligibleAgainDate?: string | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
-  const areas = input.areas.trim() || "General interview performance";
 
 
   if (input.kind === "retake") {
