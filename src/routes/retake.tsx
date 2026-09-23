@@ -46,7 +46,7 @@ function RetakePage() {
     onError: () => toast.error("We could not send your code. Please try again."),
   });
   const verifyMutation = useMutation({
-    mutationFn: () => verify({ data: { email, code } }),
+    mutationFn: () => verify({ data: { email: normalizedEmail, code } }),
     onSuccess: (result) => {
       if (result.outcome === "not_approved") {
         setClosed(
