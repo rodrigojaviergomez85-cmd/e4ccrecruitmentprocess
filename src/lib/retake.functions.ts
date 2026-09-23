@@ -119,7 +119,6 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!application) throw new Error("We could not find a previous application for this email.");
 
     const session = randomBytes(32).toString("hex");
     await admin
@@ -128,9 +127,14 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
         used_at: new Date().toISOString(),
         session_hash: hash(session),
         session_expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-        application_id: application.id,
+        ...(application ? { application_id: application.id } : {}),
       })
       .eq("id", row.id);
+
+    if (!application) {
+      // Valid code, but no previous application exists for this email.
+      return { outcome: "not_found" as const };
+    }
 
     // The candidate never chooses their own outcome; it comes from the evaluation.
     const { data: evaluation } = await admin
