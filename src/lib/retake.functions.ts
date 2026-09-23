@@ -57,7 +57,7 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
     const admin = await db();
     const { data: application } = await admin
       .from("applications")
-      .select("id, submit_token")
+      .select("id, submit_token, status")
       .ilike("email", data.email.toLowerCase())
       .is("archived_at", null)
       .order("created_at", { ascending: false })
@@ -84,5 +84,34 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       .from("retake_access_tokens")
       .update({ used_at: new Date().toISOString(), session_hash: hash(session), session_expires_at: new Date(Date.now() + 60 * 60_000).toISOString() })
       .eq("id", row.id);
-    return { applicationId: application.id, token: application.submit_token, session };
+    // The candidate never chooses their own outcome; it comes from the evaluation.
+    const { data: evaluation } = await admin
+      .from("interview_evaluations")
+      .select("final_result, sections, retake_date")
+      .eq("application_id", application.id)
+      .order("attempt_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const result = evaluation?.final_result ?? null;
+    const sections = (evaluation?.sections ?? {}) as Record<string, Record<string, unknown>>;
+    const eligibleAgainDate =
+      result === "Not approved"
+        ? String(sections["result"]?.["eligible_again_date"] ?? evaluation?.retake_date ?? "")
+        : "";
+
+    const outcome =
+      result === "Not approved"
+        ? ("not_approved" as const)
+        : result === "Retake required" || (application.status ?? "").startsWith("Retake")
+          ? ("retake" as const)
+          : ("open" as const);
+
+    return {
+      applicationId: application.id,
+      token: application.submit_token,
+      session,
+      outcome,
+      eligibleAgainDate,
+    };
   });
