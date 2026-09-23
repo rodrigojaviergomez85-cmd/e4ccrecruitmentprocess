@@ -42,6 +42,8 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
       invalid: null,
 
       firstName: ctx.application.full_name.split(" ")[0] ?? ctx.application.full_name,
+      fullName: ctx.application.full_name,
+      email: ctx.application.email,
       eligible: ctx.eligible,
       organizationTimezone: settings.timezone,
       suggestedTimezone: timezoneForCountry(ctx.application.country_code),
