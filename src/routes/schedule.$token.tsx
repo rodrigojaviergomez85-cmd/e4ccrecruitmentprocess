@@ -252,72 +252,26 @@ function SchedulePage() {
               it takes about {context.durationMinutes} minutes.
             </p>
 
-            <div className="mt-6 max-w-xs">
-              <Label className="text-sm font-medium">Your timezone</Label>
-              <Select value={tz} onValueChange={setTimezone}>
-                <SelectTrigger className="mt-1.5 rounded-2xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[...new Set([tz, ...TIMEZONE_CHOICES])].map((zone) => (
-                    <SelectItem key={zone} value={zone}>
-                      {zone.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {slotsQuery.isLoading && <Skeleton className="mt-6 h-40 w-full rounded-2xl" />}
-
-            {slotsQuery.data && days.length === 0 && (
-              <p className="mt-6 rounded-2xl border border-border p-4 text-sm text-muted-foreground">
-                There are no interview times available right now. Please check back soon — we add
-                new availability regularly.
+            {confirming && (
+              <p className="mt-4 rounded-2xl bg-secondary p-3 text-sm">
+                Confirming your booking… this page will update in a moment.
               </p>
             )}
 
-            {days.length > 0 && (
-              <div className="mt-6 grid gap-6 md:grid-cols-[220px_1fr]">
-                <div className="space-y-2">
-                  {days.map(([day, items]) => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => setSelectedDay(day)}
-                      className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                        activeDay === day
-                          ? "border-primary bg-primary/10 font-semibold"
-                          : "border-border hover:bg-muted"
-                      }`}
-                    >
-                      {new Intl.DateTimeFormat("en-US", {
-                        timeZone: tz,
-                        weekday: "long",
-                        month: "short",
-                        day: "numeric",
-                      }).format(new Date(items[0]!))}
-                      <span className="block text-xs text-muted-foreground">
-                        {items.length} times
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {daySlots.map((startIso) => (
-                    <Button
-                      key={startIso}
-                      variant="outline"
-                      className="rounded-2xl"
-                      disabled={bookMutation.isPending}
-                      onClick={() => bookMutation.mutate(startIso)}
-                    >
-                      {formatTimeInTz(startIso, tz)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div
+              className="calendly-inline-widget mt-6 min-w-[280px]"
+              data-url={calendlyUrl}
+              style={{ height: 720 }}
+            />
+            <script async src="https://assets.calendly.com/assets/external/widget.js" />
+
+            <div className="mt-3 text-center">
+              <Button asChild variant="outline" className="rounded-2xl">
+                <a href={calendlyUrl} target="_blank" rel="noreferrer">
+                  Open Calendly
+                </a>
+              </Button>
+            </div>
           </section>
         )}
       </div>
