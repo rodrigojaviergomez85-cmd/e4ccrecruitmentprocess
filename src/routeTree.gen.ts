@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
+import { Route as InterviewConfirmedRouteImport } from './routes/interview-confirmed'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -54,6 +55,11 @@ const AuthRoute = AuthRouteImport.update({
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterviewConfirmedRoute = InterviewConfirmedRouteImport.update({
+  id: '/interview-confirmed',
+  path: '/interview-confirmed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/apply': typeof ApplyRoute
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/interview-confirmed': typeof InterviewConfirmedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/apply': typeof ApplyRoute
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/interview-confirmed': typeof InterviewConfirmedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/apply': typeof ApplyRoute
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
+  '/interview-confirmed': typeof InterviewConfirmedRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/auth'
     | '/change-password'
+    | '/interview-confirmed'
     | '/reset-password'
     | '/retake'
     | '/dashboard'
@@ -248,6 +258,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/auth'
     | '/change-password'
+    | '/interview-confirmed'
     | '/reset-password'
     | '/retake'
     | '/dashboard'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/apply'
     | '/auth'
     | '/change-password'
+    | '/interview-confirmed'
     | '/reset-password'
     | '/retake'
     | '/_authenticated/dashboard'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   ApplyRoute: typeof ApplyRoute
   AuthRoute: typeof AuthRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
+  InterviewConfirmedRoute: typeof InterviewConfirmedRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RetakeRoute: typeof RetakeRoute
   ProcessIdRoute: typeof ProcessIdRoute
@@ -341,6 +354,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/change-password'
       preLoaderRoute: typeof ChangePasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interview-confirmed': {
+      id: '/interview-confirmed'
+      path: '/interview-confirmed'
+      fullPath: '/interview-confirmed'
+      preLoaderRoute: typeof InterviewConfirmedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -509,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyRoute: ApplyRoute,
   AuthRoute: AuthRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
+  InterviewConfirmedRoute: InterviewConfirmedRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RetakeRoute: RetakeRoute,
   ProcessIdRoute: ProcessIdRoute,
