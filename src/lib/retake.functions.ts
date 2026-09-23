@@ -101,14 +101,14 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     if (!row || row.attempts >= 5 || new Date(row.expires_at).getTime() < Date.now()) {
-      throw new Error("The code is invalid or expired.");
+      return { outcome: "invalid" as const };
     }
     if (row.code_hash !== hash(data.code)) {
       await admin
         .from("verification_codes")
         .update({ attempts: row.attempts + 1 })
         .eq("id", row.id);
-      throw new Error("The code is invalid or expired.");
+      return { outcome: "invalid" as const };
     }
 
     const { data: application } = await admin
