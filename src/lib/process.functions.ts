@@ -182,13 +182,8 @@ export const getRecruitmentProcess = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ownerSchema.parse(d))
   .handler(async ({ data }) => {
     try {
-      const { app, cefr, db } = await assertEligible(data.applicationId, data.token);
-      const state = await loadState(db, data.applicationId);
-      return {
-        invalid: null,
-        candidate: { fullName: app.full_name, email: app.email, cefr },
-        ...state,
-      };
+      const { db } = await assertEligible(data.applicationId, data.token);
+      return await loadState(db, data.applicationId);
     } catch (e) {
       // Never throw across the RPC boundary: an invalid/ineligible link should
       // render the "not available" screen, not a blank error page.
