@@ -29,7 +29,6 @@ const GRAMMAR_TEST_URL = "https://app.testgorilla.com/s/bnm9wczd";
 const GRAMMAR_TOPICS_URL =
   "https://drive.google.com/file/d/1307-D5PsWy6crpyXyUCBXQM59w4aBs9P/view?usp=sharing";
 const SAMPLE_CLASS_ONLINE = "https://youtu.be/9-YaNY1K_qs?si=nJdVcCyBc8AmfG0a";
-const INFO_FORM_URL = "https://forms.gle/D1AXDiHxQDYZvJxu9";
 
 function InterviewConfirmed() {
   return (
@@ -127,23 +126,7 @@ function InterviewConfirmed() {
             </a>
           </Card>
 
-          <Card number={4} title="Submit Your Information">
-            <p>
-              Upload your resume and include recent and valid job references for your last two
-              positions.
-            </p>
-            <a
-              href={INFO_FORM_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block font-bold"
-              style={{ color: "#f26522" }}
-            >
-              Open the form →
-            </a>
-          </Card>
-
-          <Card number={5} title="Prepare a Sample Class">
+          <Card number={4} title="Prepare a Sample Class">
             <p>Please review the video and get ready to teach.</p>
             <a
               href={SAMPLE_CLASS_ONLINE}
