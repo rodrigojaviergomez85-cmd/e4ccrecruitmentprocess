@@ -93,6 +93,18 @@ export const bookInterview = createServerFn({ method: "POST" })
     });
   });
 
+/** Pulls the just-created Calendly booking into our appointments for this candidate. */
+export const recordCalendlySchedule = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => tokenSchema.parse(d))
+  .handler(async ({ data }) => {
+    const { resolveToken } = await import("./scheduling.server");
+    const { applicationId } = await resolveToken(data.token);
+    const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
+    if (!calendlyConfigured()) return { ok: false as const };
+    const result = await syncCalendly({ applicationId, sinceDays: 1 });
+    return { ok: result.created + result.updated > 0 };
+  });
+
 export const cancelInterview = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => tokenSchema.extend({ reason: z.string().max(400).optional() }).parse(d))
   .handler(async ({ data }) => {
