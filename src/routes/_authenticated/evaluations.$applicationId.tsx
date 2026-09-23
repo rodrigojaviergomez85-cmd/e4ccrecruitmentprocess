@@ -652,7 +652,9 @@ function EvaluationForm() {
                   ))}
                 </ul>
                 <p className="mt-2">
-                  Candidate self-reported speed: {candidate.internetSpeed ?? "—"} Mbps.
+                  {candidate.internetTestedAt != null
+                    ? `Speed test: ${candidate.internetDownloadMbps ?? 0} Mbps down / ${candidate.internetUploadMbps ?? 0} Mbps up / ${candidate.internetPingMs ?? 0} ms ping — ${candidate.internetTestPassed ? "Passed" : "Below minimum"} (tested ${new Date(candidate.internetTestedAt).toLocaleString()})`
+                    : `Candidate self-reported speed: ${candidate.internetSpeed ?? "—"} Mbps.`}
                 </p>
               </div>
               {str("equipment", "meets_requirements") === "No" && (
