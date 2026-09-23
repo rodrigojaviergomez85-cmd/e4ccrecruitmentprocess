@@ -139,7 +139,7 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
     // The candidate never chooses their own outcome; it comes from the evaluation.
     const { data: evaluation } = await admin
       .from("interview_evaluations")
-      .select("final_result, sections, retake_date")
+      .select("final_result, sections, retake_date, interview_date, submitted_at")
       .eq("application_id", application.id)
       .order("attempt_number", { ascending: false })
       .limit(1)
@@ -147,10 +147,21 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
 
     const result = evaluation?.final_result ?? null;
     const sections = (evaluation?.sections ?? {}) as Record<string, Record<string, unknown>>;
+    const formatDate = (value: string | null | undefined): string => {
+      if (!value) return "";
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return "";
+      const dd = String(d.getUTCDate()).padStart(2, "0");
+      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}/${d.getUTCFullYear()}`;
+    };
     const eligibleAgainDate =
       result === "Not approved"
-        ? String(sections["result"]?.["eligible_again_date"] ?? evaluation?.retake_date ?? "")
+        ? formatDate(String(sections["result"]?.["eligible_again_date"] ?? evaluation?.retake_date ?? ""))
         : "";
+    const interviewDate = formatDate(
+      (evaluation?.interview_date as string | null) ?? evaluation?.submitted_at ?? null,
+    );
 
     const outcome =
       result === "Not approved"
@@ -165,5 +176,6 @@ export const verifyRetakeAccess = createServerFn({ method: "POST" })
       session,
       outcome,
       eligibleAgainDate,
+      interviewDate,
     };
   });

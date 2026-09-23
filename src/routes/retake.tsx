@@ -59,10 +59,13 @@ function RetakePage() {
         return;
       }
       if (result.outcome === "not_approved") {
+        const interviewPart = result.interviewDate
+          ? `You had an interview with us on ${result.interviewDate}. `
+          : "";
         setClosed(
           result.eligibleAgainDate
-            ? `Thank you for your interest in E4CC. You can apply with us again starting ${result.eligibleAgainDate}.`
-            : "Thank you for your interest in E4CC. Your application is currently closed.",
+            ? `${interviewPart}You can apply with us again starting ${result.eligibleAgainDate}.`
+            : `${interviewPart}Thank you for your interest in E4CC. Your application is currently closed.`,
         );
         return;
       }
