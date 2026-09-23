@@ -24,8 +24,16 @@ export const NOT_APPROVED_REASONS = [
   "No coach profile or E4CC values alignment",
   "Grammar Test not completed",
   "No equipment or technical requirements",
+  "Ex-coach",
+  "Approved for second filter but never showed up",
   "Other",
 ] as const;
+
+/** Not-approved reasons that allow the candidate to schedule again right away (no waiting date). */
+export const NOT_APPROVED_IMMEDIATE_RETRY_REASONS: readonly string[] = [
+  "Ex-coach",
+  "Approved for second filter but never showed up",
+];
 
 export const HIRING_BONUS_OPTIONS = [
   "$500 — Teaching/Call Center experience, Superstar Onsite profile",
