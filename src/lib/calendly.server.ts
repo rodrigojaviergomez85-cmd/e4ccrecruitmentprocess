@@ -184,7 +184,12 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
               timezone: invitee.timezone ?? "UTC",
               modality: progress?.work_modality === "onsite" ? "onsite" : "online",
             });
-            const delivery = await sendEmail({ to: candidate.email, ...message });
+            const delivery = await sendEmail({
+              to: candidate.email,
+              ...message,
+              candidateName: candidate.full_name,
+              result: "preparation",
+            });
             await db.from("candidate_emails").insert({
               application_id: application.id,
               kind: "preparation",
