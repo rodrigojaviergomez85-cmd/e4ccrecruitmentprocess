@@ -53,9 +53,10 @@ export const getStaffContext = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = await getAdmin();
-    const [{ data: roles }, { data: profile }] = await Promise.all([
+    const [{ data: roles }, { data: profile }, { data: countryRows }] = await Promise.all([
       db.from("user_roles").select("role").eq("user_id", context.userId),
       db.from("staff_profiles").select("*").eq("user_id", context.userId).maybeSingle(),
+      db.from("staff_countries").select("country_code").eq("user_id", context.userId),
     ]);
     const roleList = (roles ?? []).map((r) => r.role as string);
     const tier = staffTier(roleList);
@@ -76,6 +77,7 @@ export const getStaffContext = createServerFn({ method: "GET" })
       isManager: tier.isManager,
       mustChangePassword: profile?.must_change_password ?? false,
       fullName: profile?.full_name ?? "",
+      countries: (countryRows ?? []).map((c) => c.country_code),
     };
   });
 
@@ -136,6 +138,9 @@ export const createStaffUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => staffInput.parse(d))
   .handler(async ({ context, data }) => {
+    if (data.role !== "admin" && data.countries.length === 0) {
+      throw new Error("Select at least one country for Recruitment or Manager accounts.");
+    }
     const { db, email: actorEmail } = await requireActiveAdmin(context.userId);
     const tempPassword = generateTempPassword();
     const email = data.email.toLowerCase();
@@ -225,6 +230,9 @@ export const updateStaffAccess = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
+    if (data.role !== "admin" && data.countries.length === 0) {
+      throw new Error("Select at least one country for Recruitment or Manager accounts.");
+    }
     const { db, email } = await requireActiveAdmin(context.userId);
     if (data.userId === context.userId && data.role !== "admin") {
       throw new Error("You cannot remove your own Admin role.");
