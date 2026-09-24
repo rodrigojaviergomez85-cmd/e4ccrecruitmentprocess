@@ -234,6 +234,10 @@ function CandidateDetail() {
           </div>
         </section>
 
+        {(app as { withdrawn_at?: string | null }).withdrawn_at && (
+          <WithdrawnNotice app={app as never} />
+        )}
+
         {cefrInternalLabel(evaluation?.cefr) && (
           <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-2 text-sm font-semibold text-warning-foreground">
             {cefrInternalLabel(evaluation?.cefr)}

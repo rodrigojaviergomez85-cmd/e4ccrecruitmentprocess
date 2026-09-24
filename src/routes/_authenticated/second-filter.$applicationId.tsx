@@ -213,6 +213,12 @@ function ReviewPage() {
         <div className="space-y-5">
           <Card title="General information">
             <h1 className="text-xl font-bold">{app.full_name}</h1>
+            {app.withdrawn_at && (
+              <div className="my-3 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                <p className="font-semibold">Withdrawn by Applicant · {fmt(app.withdrawn_at)} · Stage: manager_final_filter</p>
+                {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
+              </div>
+            )}
             <Grid items={[
               ["Email", app.email], ["Phone", app.phone_e164 ?? app.phone], ["Country", app.country],
               ["Modality", p?.work_modality ?? "—"], ["Branch / location", app.city], ["Status", app.status],

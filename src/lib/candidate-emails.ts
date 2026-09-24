@@ -331,14 +331,8 @@ export function buildNoShowEmail(input: { fullName: string; responseUrl: string 
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
       <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
       <p style="margin:0 0 12px">We were expecting you at your final interview with our Country Manager, but we were not able to connect with you.</p>
-      <p style="margin:0 0 12px">We would like to know:</p>
-      <ul style="margin:0 0 12px">
-        <li>Why you were unable to attend.</li>
-        <li>Whether you would like to reschedule your interview.</li>
-        <li>Whether you prefer to withdraw from the process.</li>
-      </ul>
       <p style="margin:0 0 16px">Please choose one of the options below:</p>
-      <p>${btn(`${url}?action=reschedule`, "Reschedule My Interview", "#ea580c")}${btn(`${url}?action=withdraw`, "Withdraw My Application", "#1e3a5f")}</p>
+      <p>${btn(`${url}?action=reschedule`, "Reschedule My Interview", "#ea580c")}${btn(`${url}?action=withdraw`, "I Don’t Want to Continue", "#1e3a5f")}</p>
       <p style="margin:16px 0 12px;font-size:12px;color:#6b7280">This link is personal and expires in 14 days.</p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
