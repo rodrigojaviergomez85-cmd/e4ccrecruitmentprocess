@@ -642,6 +642,8 @@ function CandidateManagementPanel({
                 {emails.data.slice(0, 5).map((e) => (
                   <li key={e.id}>
                     {new Date(e.created_at).toLocaleString()} · {e.kind} · {e.status}
+                    {e.http_status != null ? ` · HTTP ${e.http_status}` : ""}
+                    {e.response_message ? ` · ${e.response_message}` : ""}
                   </li>
                 ))}
               </ul>
