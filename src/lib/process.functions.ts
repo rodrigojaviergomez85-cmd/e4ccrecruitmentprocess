@@ -432,6 +432,6 @@ export const resendPreparationEmail = createServerFn({ method: "POST" })
     const message = buildPreparationEmail({ fullName: app.full_name, interviewDate: format({ weekday: "long", year: "numeric", month: "long", day: "numeric" }), interviewTime: format({ hour: "numeric", minute: "2-digit" }), timezone, modality: progress?.work_modality === "onsite" ? "onsite" : "online" });
     const { sendEmail } = await import("./notify.server");
     const delivery = await sendEmail({ to: app.email, ...message });
-    await db.from("candidate_emails").insert({ application_id: data.applicationId, kind: "preparation", to_email: app.email, subject: message.subject, body: message.html, status: delivery.ok ? "resent" : "failed", error_message: delivery.ok ? null : delivery.detail });
+    await db.from("candidate_emails").insert({ application_id: data.applicationId, kind: "preparation", to_email: app.email, subject: message.subject, body: message.html, status: delivery.ok ? "resent" : "failed", error_message: delivery.ok ? null : delivery.detail, http_status: delivery.httpStatus ?? null, response_message: delivery.detail });
     return delivery;
   });

@@ -198,6 +198,8 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
               body: message.html,
               status: delivery.ok ? "sent" : "failed",
               error_message: delivery.ok ? null : delivery.detail,
+              http_status: delivery.httpStatus ?? null,
+              response_message: delivery.detail,
             });
             if (!delivery.ok) console.error(`Preparation email failed for appointment ${appointment.id}: ${delivery.detail}`);
           }
