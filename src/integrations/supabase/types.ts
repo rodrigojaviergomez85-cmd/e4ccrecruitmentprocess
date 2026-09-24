@@ -258,31 +258,43 @@ export type Database = {
           action: string
           actor_email: string | null
           actor_id: string | null
+          actor_role: string | null
+          application_id: string | null
           created_at: string
           details: Json
           entity_id: string | null
           entity_type: string
           id: string
+          new_value: Json | null
+          old_value: Json | null
         }
         Insert: {
           action: string
           actor_email?: string | null
           actor_id?: string | null
+          actor_role?: string | null
+          application_id?: string | null
           created_at?: string
           details?: Json
           entity_id?: string | null
           entity_type: string
           id?: string
+          new_value?: Json | null
+          old_value?: Json | null
         }
         Update: {
           action?: string
           actor_email?: string | null
           actor_id?: string | null
+          actor_role?: string | null
+          application_id?: string | null
           created_at?: string
           details?: Json
           entity_id?: string | null
           entity_type?: string
           id?: string
+          new_value?: Json | null
+          old_value?: Json | null
         }
         Relationships: []
       }
@@ -599,6 +611,10 @@ export type Database = {
           comments: string | null
           compliance_score: number | null
           created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          decision_stage: string | null
           evaluator_id: string
           final_result: string | null
           hiring_bonus: string | null
@@ -629,6 +645,10 @@ export type Database = {
           comments?: string | null
           compliance_score?: number | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_stage?: string | null
           evaluator_id: string
           final_result?: string | null
           hiring_bonus?: string | null
@@ -659,6 +679,10 @@ export type Database = {
           comments?: string | null
           compliance_score?: number | null
           created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_stage?: string | null
           evaluator_id?: string
           final_result?: string | null
           hiring_bonus?: string | null
