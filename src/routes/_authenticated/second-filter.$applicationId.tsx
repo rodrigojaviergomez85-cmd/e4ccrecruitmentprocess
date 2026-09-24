@@ -173,7 +173,10 @@ function ReviewPage() {
     setConfirm(false);
     try {
       const r = await save({ data: payload(true) });
-      if (!r.ok) return toast.error(`Missing: ${r.missing.join(", ")}`);
+      if (!r.ok) {
+        toast.error(`Missing: ${r.missing.join(", ")}`);
+        return;
+      }
       if (r.email && !r.email.ok) toast.error(`Decision saved, but the email failed: ${r.email.detail}`);
       else toast.success("Decision submitted");
       dirty.current = false;
