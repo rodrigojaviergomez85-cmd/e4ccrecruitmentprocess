@@ -62,6 +62,16 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  const noCountries = !data.isAdmin && (data.countries?.length ?? 0) === 0;
+  return (
+    <>
+      {noCountries && (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-center text-sm font-medium text-destructive">
+          Your account has no countries assigned, so no candidates can be shown. Ask an Admin to assign them in Staff.
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
 
