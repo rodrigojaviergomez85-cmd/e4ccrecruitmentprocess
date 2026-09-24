@@ -406,7 +406,9 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
 
 const DECISION_STATUS: Record<ManagerDecision, string> = {
   "Approved for Training": COHORT_PENDING,
-  Retake: "Retake – Email Sent",
+  // Distinct from the first-interview "Retake – …" labels so the public Retake
+  // flow never sends this candidate back to the first interview.
+  Retake: "Manager Retake – Email Sent",
   "Not Approved": "Not Approved – Manager Final Filter",
   "No Show": "No Show – Manager Final Filter",
 };
