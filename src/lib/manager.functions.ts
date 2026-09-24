@@ -316,8 +316,10 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       if (!decision) missing.push("Final decision");
       if (decision && decision !== "No Show" && decision !== "Not Approved" && !result.complete)
         missing.push("All scorecard criteria");
-      if (decision === "Approved for Training" && !result.gatesPassed)
-        missing.push("Approved for Training requires all gates passed and no critical red flag");
+      // Gates only drive the recommendation. The Manager keeps the final manual
+      // decision; overriding a failed gate just requires a written reason (audited).
+      if (decision === "Approved for Training" && !result.gatesPassed && !data.decisionReason?.trim())
+        missing.push("Reason for approving although a gate was not met");
       if (decision === "Retake") {
         if (!data.improvementAreas.length) missing.push("At least one area to improve");
         if (!data.eligibleAgainDate) missing.push("Eligible date to apply again");
