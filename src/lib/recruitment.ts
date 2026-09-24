@@ -57,6 +57,7 @@ export const STATUS_OPTIONS = [
   "Scheduling opened",
   "Interview scheduled",
   "Interview completed",
+  "Pending Second Filter",
   "No-show",
   "Canceled",
   "Interview",

@@ -57,7 +57,7 @@ function Dashboard() {
   const { data: myAccess } = useQuery({ queryKey: ["my-access"], queryFn: () => access() });
   const isAdmin = Boolean(myAccess?.roles.includes("admin"));
   // Evaluation links only render for accounts the server will actually authorize.
-  const canEvaluate = isAdmin || Boolean(myAccess?.roles.includes("evaluator"));
+  const canEvaluate = Boolean(myAccess?.canEvaluate);
   const [search, setSearch] = useState("");
   const [cefr, setCefr] = useState(ALL);
   const [country, setCountry] = useState(ALL);

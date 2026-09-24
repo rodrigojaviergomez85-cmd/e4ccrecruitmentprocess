@@ -107,8 +107,7 @@ function InterviewsPage() {
   });
 
   const isAdmin = (accessQuery.data?.roles ?? []).includes("admin");
-  const canEvaluate =
-    isAdmin || (accessQuery.data?.roles ?? []).includes("evaluator");
+  const canEvaluate = Boolean(accessQuery.data?.canEvaluate);
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [newInterviewer, setNewInterviewer] = useState({ full_name: "", email: "", meeting_link: "", country_codes: "" });
   const [newBlocked, setNewBlocked] = useState({ blocked_on: "", reason: "" });
