@@ -4,6 +4,7 @@ export type SendResult = {
   ok: boolean;
   status: "sent" | "skipped" | "failed";
   detail: string;
+  httpStatus?: number | null;
 };
 
 export function emailConfigured(): boolean {
@@ -41,12 +42,13 @@ async function sendViaMake(opts: {
       }),
     });
     const text = (await res.text()).slice(0, 300);
-    if (!res.ok) return { ok: false, status: "failed", detail: `mail relay ${res.status}: ${text}` };
-    return { ok: true, status: "sent", detail: "email accepted by mail relay" };
+    if (!res.ok) return { ok: false, status: "failed", detail: `mail relay ${res.status}: ${text}`, httpStatus: res.status };
+    return { ok: true, status: "sent", detail: text ? `email accepted by mail relay: ${text}` : "email accepted by mail relay", httpStatus: res.status };
   } catch (err) {
     return {
       ok: false,
       status: "failed",
+      httpStatus: null,
       detail: err instanceof Error ? err.message.slice(0, 300) : "mail relay error",
     };
   }

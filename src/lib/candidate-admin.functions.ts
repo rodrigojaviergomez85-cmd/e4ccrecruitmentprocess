@@ -315,7 +315,7 @@ export const listCandidateEmails = createServerFn({ method: "POST" })
     await assertCandidateAccess(ctx.db, ctx.allowedCountries, data.applicationId);
     const { data: rows } = await ctx.db
       .from("candidate_emails")
-      .select("id, kind, subject, status, error_message, to_email, created_at")
+      .select("id, kind, subject, status, error_message, http_status, response_message, to_email, created_at")
       .eq("application_id", data.applicationId)
       .order("created_at", { ascending: false })
       .limit(20);
@@ -398,6 +398,8 @@ export async function sendFollowUp(
     body: html,
     status: result.status === "sent" ? "sent" : result.status === "skipped" ? "skipped" : "failed",
     error_message: result.ok ? null : result.detail,
+    http_status: result.httpStatus ?? null,
+    response_message: result.detail,
     sent_by: input.actorId ?? null,
   });
 
