@@ -410,18 +410,33 @@ export const openEvaluation = createServerFn({ method: "POST" })
     };
   });
 
+function finalFilterFrom(sections: Record<string, Record<string, unknown>>) {
+  const r = sections["result"] ?? {};
+  const g = (k: string) => String(r[k] ?? "").trim();
+  if (g("ff_known") !== "yes" || !g("ff_date") || !g("ff_time") || !g("ff_interviewer")) return null;
+  const [y, m, d] = g("ff_date").split("-");
+  const date = y && m && d ? new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : g("ff_date");
+  const [hh, mm] = g("ff_time").split(":").map(Number);
+  const time = Number.isFinite(hh) ? `${((hh! + 11) % 12) + 1}:${String(mm ?? 0).padStart(2, "0")} ${hh! < 12 ? "AM" : "PM"}` : g("ff_time");
+  return { date, time, interviewer: g("ff_interviewer"), place: g("ff_place") || null };
+}
+
 const jobSchema = z.object({
   slot: z.number().int().min(1).max(5),
   company: z.string().max(160).default(""),
-  start_date: z.string().max(40).default(""),
-  end_date: z.string().max(40).default(""),
+  start_date: z.string().max(200).default(""),
+  end_date: z.string().max(200).default(""),
   position: z.string().max(160).default(""),
   hired_to_do: z.string().max(2000).default(""),
   accomplishment: z.string().max(2000).default(""),
   biggest_mistake: z.string().max(2000).default(""),
   supervisor_name: z.string().max(160).default(""),
   supervisor_contact: z.string().max(160).default(""),
-  supervisor_rating: z.number().int().min(1).max(10).nullable().default(null),
+  supervisor_rating: z
+    .number()
+    .nullable()
+    .default(null)
+    .transform((v) => (v == null || Number.isNaN(v) ? null : Math.min(10, Math.max(1, Math.round(v))))),
   rating_reason: z.string().max(2000).default(""),
   reason_for_leaving: z.string().max(2000).default(""),
   gap_explanation: z.string().max(2000).default(""),
@@ -480,6 +495,10 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     }
 
     const sections = { ...(current.sections as Record<string, Record<string, unknown>>), ...data.sections };
+    const modality = one(app?.recruitment_progress)?.work_modality ?? "";
+    if (!String(sections["candidate"]?.["lob"] ?? "").trim() && modality) {
+      sections["candidate"] = { ...(sections["candidate"] ?? {}), lob: modality };
+    }
     const lobFromSection = String(sections["candidate"]?.["lob"] ?? "").toLowerCase();
     const isOnline =
       lobFromSection === "online" ||
@@ -632,6 +651,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
             kind,
             areas: resultAreas(kind, sections, data.comments),
             reasons: data.notApprovedReasons ?? [],
+            finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
             actorId: context.userId,
             eligibleAgainDate:
               kind === "not_approved"
@@ -798,6 +818,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
       kind,
       areas,
       reasons,
+      finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,

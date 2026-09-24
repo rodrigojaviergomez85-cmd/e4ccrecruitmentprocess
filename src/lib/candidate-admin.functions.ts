@@ -345,6 +345,7 @@ export async function sendFollowUp(
     force?: boolean;
     managerEvaluationId?: string | null;
     skipStatusUpdate?: boolean;
+    finalFilter?: { date: string; time: string; interviewer: string; place?: string | null } | null;
   },
 ) {
   const { data: app } = await db
@@ -379,6 +380,7 @@ export async function sendFollowUp(
     areas: input.areas,
     reasons: input.reasons ?? [],
     eligibleAgainDate: input.eligibleAgainDate ?? null,
+    finalFilter: input.finalFilter ?? null,
   });
 
 

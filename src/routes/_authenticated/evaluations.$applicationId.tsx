@@ -228,7 +228,9 @@ function EvaluationForm() {
 
   const stats = verbStats(verbs);
   const complianceInput = {
-    sections,
+    sections: lobRaw
+      ? { ...sections, candidate: { ...(sections["candidate"] ?? {}), lob: lobRaw } }
+      : sections,
     isOnline,
     verbs,
     jobsCount: jobs.filter((j) => j.company.trim() || j.position.trim()).length,
@@ -1150,7 +1152,7 @@ function EvaluationForm() {
                                 ? {
                                     ...j,
                                     supervisor_rating: e.target.value
-                                      ? Number(e.target.value)
+                                      ? Math.min(10, Math.max(1, Math.round(Number(e.target.value))))
                                       : null,
                                   }
                                 : j,
@@ -1556,6 +1558,31 @@ function EvaluationForm() {
                     <SelectContent>{HIRING_BONUS_OPTIONS.map((bonus) => <SelectItem key={bonus} value={bonus}>{bonus}</SelectItem>)}</SelectContent>
                   </Select>
                 </Field>
+              </div>
+            )}
+            {finalResult === "Approved for last step" && (
+              <div className="space-y-3 rounded-2xl border border-border p-3">
+                <Label className="text-sm font-semibold">Do you already have the final filter date, time and interviewer?</Label>
+                <div className="flex gap-2">
+                  {["yes", "no"].map((v) => (
+                    <Button key={v} type="button" size="sm" variant={str("result", "ff_known") === v ? "default" : "outline"} onClick={() => set("result", "ff_known", v)}>
+                      {v === "yes" ? "Yes" : "Not yet"}
+                    </Button>
+                  ))}
+                </div>
+                {str("result", "ff_known") === "yes" && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Final filter date"><Input type="date" value={str("result", "ff_date")} onChange={(e) => set("result", "ff_date", e.target.value)} /></Field>
+                    <Field label="Final filter time (candidate's local time)"><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
+                    <Field label="Interviewer name"><Input value={str("result", "ff_interviewer")} onChange={(e) => set("result", "ff_interviewer", e.target.value)} /></Field>
+                    {!isOnline && (
+                      <Field label="Place (onsite address)"><Input value={str("result", "ff_place")} onChange={(e) => set("result", "ff_place", e.target.value)} /></Field>
+                    )}
+                  </div>
+                )}
+                {str("result", "ff_known") === "yes" && (!str("result", "ff_date") || !str("result", "ff_time") || !str("result", "ff_interviewer") || (!isOnline && !str("result", "ff_place"))) && (
+                  <p className="text-xs text-destructive">Complete date, time, interviewer{isOnline ? "" : " and place"} to include them in the approval email.</p>
+                )}
               </div>
             )}
             {finalResult === "Retake required" && (
