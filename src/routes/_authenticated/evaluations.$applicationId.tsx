@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { resultLabel } from "@/lib/roles";
 import {
   ENGLISH_ACTIVITIES,
   FINAL_RESULTS,
