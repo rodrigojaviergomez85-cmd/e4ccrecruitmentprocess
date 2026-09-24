@@ -818,6 +818,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
       kind,
       areas,
       reasons,
+      finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,
