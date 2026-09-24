@@ -30,6 +30,7 @@ import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authent
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
 import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
+import { Route as AuthenticatedSecondFilterIndexRouteImport } from './routes/_authenticated/second-filter.index'
 import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 import { Route as ApiPublicWebhooksCalendlyRouteImport } from './routes/api/public/webhooks/calendly'
@@ -142,6 +143,12 @@ const AuthenticatedEvaluationsApplicationIdRoute =
     path: '/evaluations/$applicationId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSecondFilterIndexRoute =
+  AuthenticatedSecondFilterIndexRouteImport.update({
+    id: '/second-filter/',
+    path: '/second-filter/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicSpeedTestRoute = ApiPublicSpeedTestRouteImport.update({
   id: '/api/public/speed-test',
   path: '/api/public/speed-test',
@@ -181,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
+  '/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
@@ -206,6 +214,7 @@ export interface FileRoutesByTo {
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
+  '/second-filter': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
@@ -233,6 +242,7 @@ export interface FileRoutesById {
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
+  '/_authenticated/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
@@ -260,6 +270,7 @@ export interface FileRouteTypes {
     | '/evaluations/$applicationId'
     | '/api/public/speed-test'
     | '/evaluations/'
+    | '/second-filter/'
     | '/api/public/cron/reminders'
     | '/api/public/webhooks/calendly'
   fileRoutesByTo: FileRoutesByTo
@@ -285,6 +296,7 @@ export interface FileRouteTypes {
     | '/evaluations/$applicationId'
     | '/api/public/speed-test'
     | '/evaluations'
+    | '/second-filter'
     | '/api/public/cron/reminders'
     | '/api/public/webhooks/calendly'
   id:
@@ -311,6 +323,7 @@ export interface FileRouteTypes {
     | '/_authenticated/evaluations/$applicationId'
     | '/api/public/speed-test'
     | '/_authenticated/evaluations/'
+    | '/_authenticated/second-filter/'
     | '/api/public/cron/reminders'
     | '/api/public/webhooks/calendly'
   fileRoutesById: FileRoutesById
@@ -481,6 +494,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEvaluationsApplicationIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/second-filter/': {
+      id: '/_authenticated/second-filter/'
+      path: '/second-filter'
+      fullPath: '/second-filter/'
+      preLoaderRoute: typeof AuthenticatedSecondFilterIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/speed-test': {
       id: '/api/public/speed-test'
       path: '/api/public/speed-test'
@@ -515,6 +535,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
   AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
+  AuthenticatedSecondFilterIndexRoute: typeof AuthenticatedSecondFilterIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -528,6 +549,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEvaluationsApplicationIdRoute:
     AuthenticatedEvaluationsApplicationIdRoute,
   AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
+  AuthenticatedSecondFilterIndexRoute: AuthenticatedSecondFilterIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
