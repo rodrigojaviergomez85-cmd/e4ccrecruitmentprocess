@@ -1,0 +1,1 @@
+ALTER TABLE public.candidate_emails ADD COLUMN IF NOT EXISTS http_status integer, ADD COLUMN IF NOT EXISTS response_message text;

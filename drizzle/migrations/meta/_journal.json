@@ -64,6 +64,13 @@
       "when": 1790268740217,
       "tag": "0008_phase1_country_rls_decisions_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790271747449,
+      "tag": "0009_candidate_emails_http_status",
+      "breakpoints": true
     }
   ]
 }

@@ -337,8 +337,10 @@ export type Database = {
           created_at: string
           error_message: string | null
           evaluation_id: string | null
+          http_status: number | null
           id: string
           kind: string
+          response_message: string | null
           sent_by: string | null
           status: string
           subject: string
@@ -350,8 +352,10 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           evaluation_id?: string | null
+          http_status?: number | null
           id?: string
           kind: string
+          response_message?: string | null
           sent_by?: string | null
           status?: string
           subject: string
@@ -363,8 +367,10 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           evaluation_id?: string | null
+          http_status?: number | null
           id?: string
           kind?: string
+          response_message?: string | null
           sent_by?: string | null
           status?: string
           subject?: string
