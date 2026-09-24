@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { getCandidateResponse, submitCandidateResponse } from "@/lib/manager.functions";
+
+const WITHDRAW_TEXT = "Thank you for the opportunity. I do not wish to continue with the recruitment process.";
 
 type Search = { action?: "reschedule" | "withdraw" };
 
@@ -34,17 +34,26 @@ function RespondPage() {
   const get = useServerFn(getCandidateResponse);
   const submit = useServerFn(submitCandidateResponse);
   const q = useQuery({ queryKey: ["respond", token], queryFn: () => get({ data: { token } }) });
-  const [action, setAction] = useState<"reschedule" | "withdraw" | undefined>(initial);
-  const [reason, setReason] = useState("");
+  const [action] = useState<"reschedule" | "withdraw" | undefined>(initial);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<null | { kind: "withdraw" } | { kind: "reschedule"; url: string }>(null);
   const [err, setErr] = useState("");
+  const autoOpened = useRef(false);
+
+  // "Reschedule My Interview" from the email opens Calendly directly. Opening it
+  // changes nothing; the booking is recorded only when Calendly confirms it.
+  useEffect(() => {
+    if (autoOpened.current || action !== "reschedule" || !q.data?.valid || !q.data.canScheduleNow) return;
+    autoOpened.current = true;
+    void go("reschedule");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data, action]);
 
   async function go(kind: "reschedule" | "withdraw") {
     setBusy(true);
     setErr("");
     try {
-      const r = await submit({ data: { token, action: kind, reason, confirmWithdraw: kind === "withdraw" } });
+      const r = await submit({ data: { token, action: kind, reason: kind === "withdraw" ? WITHDRAW_TEXT : "", confirmWithdraw: kind === "withdraw" } });
       if (!r.ok) setErr(r.error);
       else if (r.action === "reschedule") setDone({ kind: "reschedule", url: r.calendlyUrl });
       else setDone({ kind: "withdraw" });
@@ -102,5 +111,7 @@ function RespondPage() {
             )}
           </div>
         )}
+      </div>
+    </main>
   );
 }
