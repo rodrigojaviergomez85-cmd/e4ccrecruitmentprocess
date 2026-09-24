@@ -147,9 +147,18 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
           result.updated += 1;
         }
       } else {
-        const { data: appointment, error } = await db.from("appointments").insert(payload).select("id").single();
+        const { data: current } = await db.from("applications").select("status").eq("id", application.id).single();
+        // Candidates approved for (or returning to) the Manager final filter book
+        // that stage; they never go back to the first Recruitment interview.
+        const managerStage = (current?.status ?? "") === "Pending Second Filter";
+        const { data: appointment, error } = await db
+          .from("appointments")
+          .insert({ ...payload, stage: managerStage ? "manager_final_filter" : "recruitment" })
+          .select("id")
+          .single();
         if (error) throw new Error(error.message);
         result.created += 1;
+        if (managerStage) continue;
         await db
           .from("recruitment_progress")
           .update({ scheduling_status: "Interview scheduled" })

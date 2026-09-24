@@ -316,8 +316,10 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       if (!decision) missing.push("Final decision");
       if (decision && decision !== "No Show" && decision !== "Not Approved" && !result.complete)
         missing.push("All scorecard criteria");
-      if (decision === "Approved for Training" && !result.gatesPassed)
-        missing.push("Approved for Training requires all gates passed and no critical red flag");
+      // Gates only drive the recommendation. The Manager keeps the final manual
+      // decision; overriding a failed gate just requires a written reason (audited).
+      if (decision === "Approved for Training" && !result.gatesPassed && !data.decisionReason?.trim())
+        missing.push("Reason for approving although a gate was not met");
       if (decision === "Retake") {
         if (!data.improvementAreas.length) missing.push("At least one area to improve");
         if (!data.eligibleAgainDate) missing.push("Eligible date to apply again");
@@ -404,7 +406,9 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
 
 const DECISION_STATUS: Record<ManagerDecision, string> = {
   "Approved for Training": COHORT_PENDING,
-  Retake: "Retake – Email Sent",
+  // Distinct from the first-interview "Retake – …" labels so the public Retake
+  // flow never sends this candidate back to the first interview.
+  Retake: "Manager Retake – Email Sent",
   "Not Approved": "Not Approved – Manager Final Filter",
   "No Show": "No Show – Manager Final Filter",
 };
@@ -466,8 +470,8 @@ async function applyDecision(
   }
 
   let result: { ok: boolean; status: string; detail: string };
-  if (d.decision === "Retake" || d.decision === "Not Approved") {
-    const kind = d.decision === "Retake" ? "retake" : "not_approved";
+  if (d.decision === "Not Approved") {
+    const kind = "not_approved";
     if (!d.force) {
       const { data: already } = await db
         .from("candidate_emails")
@@ -485,10 +489,10 @@ async function applyDecision(
         applicationId: d.applicationId,
         kind,
         // Never pass internal reasons, red flags, scores or comments.
-        areas: kind === "retake" ? d.retakeFeedbackText : "",
+        areas: "",
         reasons: [],
         actorId,
-        eligibleAgainDate: kind === "retake" ? d.eligibleAgainDate : null,
+        eligibleAgainDate: null,
         managerEvaluationId: d.evaluationId,
         skipStatusUpdate: true,
         force: true,
@@ -497,7 +501,12 @@ async function applyDecision(
       result = { ok: false, status: "failed", detail: e instanceof Error ? e.message : "Send failed" };
     }
   } else {
-    result = await sendNoShow(ctx, actorId, d);
+    // Retake and No Show both return the candidate to the Manager final filter
+    // through a secure token link, never to the first Recruitment interview.
+    result = await sendTokenEmail(ctx, actorId, {
+      ...d,
+      kind: d.decision === "Retake" ? "manager_retake" : "no_show",
+    });
   }
   if (result.ok) await db.from("applications").update({ last_contact_at: new Date().toISOString() }).eq("id", d.applicationId);
   await writeAudit(db as never, {
@@ -512,36 +521,51 @@ async function applyDecision(
   return result;
 }
 
-async function sendNoShow(
+async function sendTokenEmail(
   ctx: Ctx,
   actorId: string,
-  d: { applicationId: string; applicantName: string; applicantEmail: string; evaluationId: string },
+  d: {
+    applicationId: string;
+    applicantName: string;
+    applicantEmail: string;
+    evaluationId: string;
+    kind: "no_show" | "manager_retake";
+    retakeFeedbackText: string;
+    eligibleAgainDate: string | null;
+  },
 ) {
   const { randomToken, sha256Hex } = await import("./scheduling.server");
   const { baseUrl, sendEmail } = await import("./notify.server");
-  const { buildNoShowEmail } = await import("./candidate-emails");
+  const { buildNoShowEmail, buildManagerRetakeEmail } = await import("./candidate-emails");
   const token = await randomToken();
+  const isRetake = d.kind === "manager_retake";
+  const eligibleMs = d.eligibleAgainDate ? new Date(`${d.eligibleAgainDate}T00:00:00Z`).getTime() : Date.now();
   await ctx.db.from("candidate_action_tokens").insert({
     application_id: d.applicationId,
     token_hash: await sha256Hex(token),
-    purpose: "no_show_response",
-    expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+    purpose: isRetake ? "manager_retake" : "no_show_response",
+    expires_at: new Date((isRetake ? Math.max(eligibleMs, Date.now()) + 60 * 86400000 : Date.now() + 14 * 86400000)).toISOString(),
   });
-  const { subject, html } = buildNoShowEmail({
-    fullName: d.applicantName,
-    responseUrl: `${baseUrl()}/respond/${token}`,
-  });
+  const responseUrl = `${baseUrl()}/respond/${token}`;
+  const { subject, html } = isRetake
+    ? buildManagerRetakeEmail({
+        fullName: d.applicantName,
+        areas: d.retakeFeedbackText,
+        eligibleAgainDate: d.eligibleAgainDate,
+        responseUrl,
+      })
+    : buildNoShowEmail({ fullName: d.applicantName, responseUrl });
   const result = await sendEmail({
     to: d.applicantEmail,
     subject,
     html,
     candidateName: d.applicantName,
-    result: "no_show",
+    result: isRetake ? "retake" : "no_show",
   });
   await ctx.db.from("candidate_emails").insert({
     application_id: d.applicationId,
     manager_evaluation_id: d.evaluationId,
-    kind: "no_show",
+    kind: isRetake ? "retake" : "no_show",
     to_email: d.applicantEmail,
     subject,
     body: html,
@@ -611,6 +635,8 @@ export const reopenManagerEvaluation = createServerFn({ method: "POST" })
 
 // ---------------------------------------------------------------- Applicant response (public, token-based)
 
+const ACTION_PURPOSES = ["no_show_response", "manager_retake"];
+
 async function resolveActionToken(token: string) {
   const db = await getAdmin();
   const { sha256Hex } = await import("./scheduling.server");
@@ -619,9 +645,32 @@ async function resolveActionToken(token: string) {
     .select("id, application_id, expires_at, used_at, purpose")
     .eq("token_hash", await sha256Hex(token))
     .maybeSingle();
-  if (!row || row.purpose !== "no_show_response" || row.used_at || new Date(row.expires_at).getTime() < Date.now())
+  if (!row || !ACTION_PURPOSES.includes(row.purpose) || row.used_at || new Date(row.expires_at).getTime() < Date.now())
     return { db, row: null };
   return { db, row };
+}
+
+/** For a Manager retake, the candidate may schedule only from the eligible date on. */
+async function retakeEligibleDate(db: Db, applicationId: string): Promise<string | null> {
+  const { data } = await db
+    .from("manager_evaluations")
+    .select("eligible_again_date")
+    .eq("application_id", applicationId)
+    .eq("final_decision", "Retake")
+    .order("decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.eligible_again_date ?? null;
+}
+
+function isBeforeDate(date: string | null) {
+  return Boolean(date && new Date(`${date}T00:00:00Z`).getTime() > Date.now());
+}
+
+async function managerCalendlyUrl(db: Db) {
+  const { data } = await db.from("interview_settings").select("manager_calendly_url").eq("id", true).maybeSingle();
+  const { CALENDLY_SCHEDULE_URL } = await import("./candidate-emails");
+  return (data?.manager_calendly_url ?? "").trim() || CALENDLY_SCHEDULE_URL;
 }
 
 export const getCandidateResponse = createServerFn({ method: "POST" })
@@ -631,12 +680,20 @@ export const getCandidateResponse = createServerFn({ method: "POST" })
     if (!row) return { valid: false as const };
     const { data: app } = await db
       .from("applications")
-      .select("full_name, withdrawn_at")
+      .select("full_name, withdrawn_at, archived_at")
       .eq("id", row.application_id)
       .maybeSingle();
-    if (!app || app.withdrawn_at) return { valid: false as const };
-    // Only the first name is shared; nothing internal leaves the server.
-    return { valid: true as const, firstName: app.full_name.trim().split(/\s+/)[0] ?? "" };
+    if (!app || app.withdrawn_at || app.archived_at) return { valid: false as const };
+    const purpose = row.purpose === "manager_retake" ? ("retake" as const) : ("no_show" as const);
+    const eligibleDate = purpose === "retake" ? await retakeEligibleDate(db, row.application_id) : null;
+    // Only the first name and the public eligible date are shared.
+    return {
+      valid: true as const,
+      purpose,
+      eligibleDate,
+      canScheduleNow: !isBeforeDate(eligibleDate),
+      firstName: app.full_name.trim().split(/\s+/)[0] ?? "",
+    };
   });
 
 export const submitCandidateResponse = createServerFn({ method: "POST" })
@@ -646,6 +703,8 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
         token: z.string().min(20).max(100),
         action: z.enum(["reschedule", "withdraw"]),
         reason: z.string().trim().max(500).optional().default(""),
+        // Withdrawal is irreversible and requires an explicit confirmation.
+        confirmWithdraw: z.boolean().optional().default(false),
       })
       .parse(d),
   )
@@ -654,12 +713,14 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
     if (!row) return { ok: false as const, error: "This link is no longer available." };
     const { data: app } = await db
       .from("applications")
-      .select("id, full_name, email, status")
+      .select("id, full_name, email, status, archived_at, withdrawn_at")
       .eq("id", row.application_id)
       .maybeSingle();
-    if (!app) return { ok: false as const, error: "This link is no longer available." };
+    if (!app || app.archived_at || app.withdrawn_at) return { ok: false as const, error: "This link is no longer available." };
     const now = new Date().toISOString();
     if (data.action === "withdraw") {
+      if (!data.confirmWithdraw)
+        return { ok: false as const, error: "Please confirm that you want to withdraw your application." };
       await db
         .from("applications")
         .update({
@@ -682,7 +743,10 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
       });
       return { ok: true as const, action: "withdraw" as const };
     }
-    // Reschedule: back to the Manager queue and reuse the existing Calendly event.
+    if (row.purpose === "manager_retake" && isBeforeDate(await retakeEligibleDate(db, app.id)))
+      return { ok: false as const, error: "You can schedule your final interview starting on your eligible date." };
+    // Back to the Manager final filter queue (never the first interview). The
+    // Calendly booking is linked to the manager_final_filter stage on sync.
     await db.from("applications").update({ status: PENDING_SECOND_FILTER, last_contact_at: now }).eq("id", app.id);
     await writeAudit(db as never, {
       actorId: null,
@@ -692,10 +756,9 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
       entityId: app.id,
       applicationId: app.id,
       oldValue: { status: app.status },
-      newValue: { status: PENDING_SECOND_FILTER, reason: data.reason || null },
+      newValue: { status: PENDING_SECOND_FILTER, stage: "manager_final_filter", via: row.purpose, reason: data.reason || null },
     });
-    const { CALENDLY_SCHEDULE_URL } = await import("./candidate-emails");
-    const url = new URL(CALENDLY_SCHEDULE_URL);
+    const url = new URL(await managerCalendlyUrl(db));
     url.searchParams.set("name", app.full_name);
     url.searchParams.set("email", app.email);
     return { ok: true as const, action: "reschedule" as const, calendlyUrl: url.toString() };

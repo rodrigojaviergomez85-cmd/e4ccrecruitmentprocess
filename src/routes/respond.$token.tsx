@@ -44,7 +44,7 @@ function RespondPage() {
     setBusy(true);
     setErr("");
     try {
-      const r = await submit({ data: { token, action: kind, reason } });
+      const r = await submit({ data: { token, action: kind, reason, confirmWithdraw: kind === "withdraw" } });
       if (!r.ok) setErr(r.error);
       else if (r.action === "reschedule") setDone({ kind: "reschedule", url: r.calendlyUrl });
       else setDone({ kind: "withdraw" });
@@ -82,12 +82,24 @@ function RespondPage() {
         )}
         {q.data?.valid && !done && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold">Hi {q.data.firstName}, we missed you</h1>
-            <p className="text-sm text-muted-foreground">We were not able to connect at your final interview. Please tell us why and choose how you would like to continue.</p>
-            <div className="space-y-1.5">
-              <Label>Why were you unable to attend? (optional)</Label>
-              <Textarea value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
-            </div>
+            {q.data.purpose === "retake" ? (
+              <>
+                <h1 className="text-xl font-bold">Hi {q.data.firstName}, schedule your final interview</h1>
+                <p className="text-sm text-muted-foreground">
+                  Choose a new time for your final interview with our Country Manager.
+                  {q.data.eligibleDate && !q.data.canScheduleNow && ` You can schedule starting ${q.data.eligibleDate}.`}
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-xl font-bold">Hi {q.data.firstName}, we missed you</h1>
+                <p className="text-sm text-muted-foreground">We were not able to connect at your final interview. Please tell us why and choose how you would like to continue.</p>
+                <div className="space-y-1.5">
+                  <Label>Why were you unable to attend? (optional)</Label>
+                  <Textarea value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
+                </div>
+              </>
+            )}
             {err && <p className="text-sm text-destructive">{err}</p>}
             {action === "withdraw" ? (
               <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
@@ -99,7 +111,9 @@ function RespondPage() {
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <Button disabled={busy} onClick={() => void go("reschedule")}>Reschedule My Interview</Button>
+                <Button disabled={busy || !q.data.canScheduleNow} onClick={() => void go("reschedule")}>
+                  {q.data.purpose === "retake" ? "Schedule My Final Interview" : "Reschedule My Interview"}
+                </Button>
                 <Button variant="outline" onClick={() => setAction("withdraw")}>Withdraw My Application</Button>
               </div>
             )}

@@ -216,6 +216,7 @@ export type Database = {
           meeting_link: string
           notes: string | null
           reschedule_count: number
+          stage: string
           starts_at: string
           status: string
           updated_at: string
@@ -233,6 +234,7 @@ export type Database = {
           meeting_link?: string
           notes?: string | null
           reschedule_count?: number
+          stage?: string
           starts_at: string
           status?: string
           updated_at?: string
@@ -250,6 +252,7 @@ export type Database = {
           meeting_link?: string
           notes?: string | null
           reschedule_count?: number
+          stage?: string
           starts_at?: string
           status?: string
           updated_at?: string
@@ -803,6 +806,7 @@ export type Database = {
           default_meeting_link: string
           duration_minutes: number
           id: boolean
+          manager_calendly_url: string
           max_booking_days: number
           max_per_slot: number
           min_notice_hours: number
@@ -823,6 +827,7 @@ export type Database = {
           default_meeting_link?: string
           duration_minutes?: number
           id?: boolean
+          manager_calendly_url?: string
           max_booking_days?: number
           max_per_slot?: number
           min_notice_hours?: number
@@ -843,6 +848,7 @@ export type Database = {
           default_meeting_link?: string
           duration_minutes?: number
           id?: boolean
+          manager_calendly_url?: string
           max_booking_days?: number
           max_per_slot?: number
           min_notice_hours?: number
