@@ -519,36 +519,51 @@ async function applyDecision(
   return result;
 }
 
-async function sendNoShow(
+async function sendTokenEmail(
   ctx: Ctx,
   actorId: string,
-  d: { applicationId: string; applicantName: string; applicantEmail: string; evaluationId: string },
+  d: {
+    applicationId: string;
+    applicantName: string;
+    applicantEmail: string;
+    evaluationId: string;
+    kind: "no_show" | "manager_retake";
+    retakeFeedbackText: string;
+    eligibleAgainDate: string | null;
+  },
 ) {
   const { randomToken, sha256Hex } = await import("./scheduling.server");
   const { baseUrl, sendEmail } = await import("./notify.server");
-  const { buildNoShowEmail } = await import("./candidate-emails");
+  const { buildNoShowEmail, buildManagerRetakeEmail } = await import("./candidate-emails");
   const token = await randomToken();
+  const isRetake = d.kind === "manager_retake";
+  const eligibleMs = d.eligibleAgainDate ? new Date(`${d.eligibleAgainDate}T00:00:00Z`).getTime() : Date.now();
   await ctx.db.from("candidate_action_tokens").insert({
     application_id: d.applicationId,
     token_hash: await sha256Hex(token),
-    purpose: "no_show_response",
-    expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+    purpose: isRetake ? "manager_retake" : "no_show_response",
+    expires_at: new Date((isRetake ? Math.max(eligibleMs, Date.now()) + 60 * 86400000 : Date.now() + 14 * 86400000)).toISOString(),
   });
-  const { subject, html } = buildNoShowEmail({
-    fullName: d.applicantName,
-    responseUrl: `${baseUrl()}/respond/${token}`,
-  });
+  const responseUrl = `${baseUrl()}/respond/${token}`;
+  const { subject, html } = isRetake
+    ? buildManagerRetakeEmail({
+        fullName: d.applicantName,
+        areas: d.retakeFeedbackText,
+        eligibleAgainDate: d.eligibleAgainDate,
+        responseUrl,
+      })
+    : buildNoShowEmail({ fullName: d.applicantName, responseUrl });
   const result = await sendEmail({
     to: d.applicantEmail,
     subject,
     html,
     candidateName: d.applicantName,
-    result: "no_show",
+    result: isRetake ? "retake" : "no_show",
   });
   await ctx.db.from("candidate_emails").insert({
     application_id: d.applicationId,
     manager_evaluation_id: d.evaluationId,
-    kind: "no_show",
+    kind: isRetake ? "retake" : "no_show",
     to_email: d.applicantEmail,
     subject,
     body: html,
