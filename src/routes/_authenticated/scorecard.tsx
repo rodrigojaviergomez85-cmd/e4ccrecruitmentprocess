@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCountries } from "@/hooks/useLocations";
 import { CEFR_LEVELS, FINAL_RESULTS, NOT_APPROVED_REASONS } from "@/lib/evaluations";
+import { resultLabel } from "@/lib/roles";
 import { exportScorecardCsv, getScorecard } from "@/lib/scorecard.functions";
 
 export const Route = createFileRoute("/_authenticated/scorecard")({
@@ -314,7 +315,7 @@ function ScorecardPage() {
                 <SelectItem value={ALL}>All results</SelectItem>
                 {FINAL_RESULTS.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {r}
+                    {resultLabel(r)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -330,7 +331,7 @@ function ScorecardPage() {
                 <SelectItem value={ALL}>All reasons</SelectItem>
                 {NOT_APPROVED_REASONS.map((r) => (
                   <SelectItem key={r} value={r}>
-                    {r}
+                    {resultLabel(r)}
                   </SelectItem>
                 ))}
               </SelectContent>

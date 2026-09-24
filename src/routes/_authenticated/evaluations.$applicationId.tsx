@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { resultLabel } from "@/lib/roles";
 import {
   ENGLISH_ACTIVITIES,
   FINAL_RESULTS,
@@ -1243,7 +1244,7 @@ function EvaluationForm() {
                   <SelectContent>
                     {FINAL_RESULTS.map((r) => (
                       <SelectItem key={r} value={r}>
-                        {r}
+                        {resultLabel(r)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1540,7 +1541,7 @@ function EvaluationForm() {
               <Select value={finalResult} onValueChange={setFinalResult}>
                 <SelectTrigger><SelectValue placeholder="Select the final result" /></SelectTrigger>
                 <SelectContent>
-                  {FINAL_RESULTS.map((result) => <SelectItem key={result} value={result}>{result}</SelectItem>)}
+                  {FINAL_RESULTS.map((result) => <SelectItem key={result} value={result}>{resultLabel(result)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </Field>

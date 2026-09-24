@@ -3,8 +3,10 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export const STAFF_ROLES = ["admin", "evaluator", "recruiter", "viewer"] as const;
-export type StaffRole = (typeof STAFF_ROLES)[number];
+import { writeAudit } from "./audit.server";
+import { primaryRole, STAFF_ROLES, staffTier, type StaffRole } from "./roles";
+
+export { STAFF_ROLES, type StaffRole };
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -21,16 +23,11 @@ async function audit(
     entityType: string;
     entityId?: string | null;
     details?: Record<string, unknown>;
+    oldValue?: unknown;
+    newValue?: unknown;
   },
 ) {
-  await db.from("audit_logs").insert({
-    actor_id: entry.actorId,
-    actor_email: entry.actorEmail ?? null,
-    action: entry.action,
-    entity_type: entry.entityType,
-    entity_id: entry.entityId ?? null,
-    details: (entry.details ?? {}) as never,
-  });
+  await writeAudit(db as never, entry);
 }
 
 async function requireActiveAdmin(userId: string) {
@@ -60,8 +57,9 @@ export const getStaffContext = createServerFn({ method: "GET" })
       db.from("user_roles").select("role").eq("user_id", context.userId),
       db.from("staff_profiles").select("*").eq("user_id", context.userId).maybeSingle(),
     ]);
-    const roleList = (roles ?? []).map((r) => r.role as StaffRole);
-    const active = profile ? profile.active : roleList.length > 0;
+    const roleList = (roles ?? []).map((r) => r.role as string);
+    const tier = staffTier(roleList);
+    const active = profile ? profile.active : tier.isStaff;
     if (profile) {
       await db
         .from("staff_profiles")
@@ -69,10 +67,13 @@ export const getStaffContext = createServerFn({ method: "GET" })
         .eq("user_id", context.userId);
     }
     return {
-      isStaff: roleList.length > 0 && active,
+      isStaff: tier.isStaff && active,
       active,
       roles: roleList,
-      isAdmin: roleList.includes("admin"),
+      role: tier.primary,
+      isAdmin: tier.isAdmin,
+      isRecruitment: tier.isRecruitment,
+      isManager: tier.isManager,
       mustChangePassword: profile?.must_change_password ?? false,
       fullName: profile?.full_name ?? "",
     };
@@ -112,7 +113,10 @@ export const listStaff = createServerFn({ method: "GET" })
       must_change_password: p.must_change_password,
       last_login_at: p.last_login_at,
       created_at: p.created_at,
-      roles: (roles ?? []).filter((r) => r.user_id === p.user_id).map((r) => r.role as StaffRole),
+      roles: (roles ?? []).filter((r) => r.user_id === p.user_id).map((r) => r.role as string),
+      role: primaryRole(
+        (roles ?? []).filter((r) => r.user_id === p.user_id).map((r) => r.role as string),
+      ),
       countries: (countries ?? [])
         .filter((c) => c.user_id === p.user_id)
         .map((c) => c.country_code),
@@ -174,7 +178,8 @@ export const createStaffUser = createServerFn({ method: "POST" })
       action: "staff.created",
       entityType: "staff",
       entityId: userId,
-      details: { email, role: data.role, countries: data.countries, invited },
+      details: { email, invited },
+      newValue: { role: data.role, countries: data.countries },
     });
 
     // The temporary password is returned once and never stored anywhere.
@@ -202,6 +207,8 @@ export const setStaffActive = createServerFn({ method: "POST" })
       action: data.active ? "staff.activated" : "staff.deactivated",
       entityType: "staff",
       entityId: data.userId,
+      oldValue: { active: !data.active },
+      newValue: { active: data.active },
     });
     return { ok: true };
   });
@@ -219,6 +226,17 @@ export const updateStaffAccess = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db, email } = await requireActiveAdmin(context.userId);
+    if (data.userId === context.userId && data.role !== "admin") {
+      throw new Error("You cannot remove your own Admin role.");
+    }
+    const [{ data: oldRoles }, { data: oldCountries }] = await Promise.all([
+      db.from("user_roles").select("role").eq("user_id", data.userId),
+      db.from("staff_countries").select("country_code").eq("user_id", data.userId),
+    ]);
+    const before = {
+      role: primaryRole((oldRoles ?? []).map((r) => r.role as string)),
+      countries: (oldCountries ?? []).map((c) => c.country_code).sort(),
+    };
     await db.from("user_roles").delete().eq("user_id", data.userId);
     await db.from("user_roles").insert({ user_id: data.userId, role: data.role });
     await db.from("staff_countries").delete().eq("user_id", data.userId);
@@ -230,10 +248,12 @@ export const updateStaffAccess = createServerFn({ method: "POST" })
     await audit(db, {
       actorId: context.userId,
       actorEmail: email,
-      action: "staff.access_changed",
+      action:
+        before.role !== data.role ? "staff.role_changed" : "staff.countries_changed",
       entityType: "staff",
       entityId: data.userId,
-      details: { role: data.role, countries: data.countries },
+      oldValue: before,
+      newValue: { role: data.role, countries: [...data.countries].sort() },
     });
     return { ok: true };
   });
@@ -277,6 +297,6 @@ export const listAuditLogs = createServerFn({ method: "GET" })
       .from("audit_logs")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(100);
+      .limit(200);
     return data ?? [];
   });

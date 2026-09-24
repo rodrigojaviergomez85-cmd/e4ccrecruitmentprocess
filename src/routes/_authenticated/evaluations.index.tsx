@@ -107,7 +107,7 @@ function EvaluationsPage() {
         ),
       },
       {
-        title: "Approved for last step",
+        title: "Approved — Pending Second Filter",
         items: rows.filter((r) => r.finalResult === "Approved for last step"),
       },
       {

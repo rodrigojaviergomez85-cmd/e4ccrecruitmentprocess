@@ -28,6 +28,7 @@ import {
   updateStaffAccess,
   type StaffRole,
 } from "@/lib/staff.functions";
+import { ROLE_LABELS } from "@/lib/roles";
 
 export const Route = createFileRoute("/_authenticated/staff")({
   head: () => ({
@@ -70,7 +71,7 @@ function StaffPage() {
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<StaffRole>("recruiter");
+  const [role, setRole] = useState<StaffRole>("recruitment");
   const [picked, setPicked] = useState<string[]>([]);
   const [sendInvite, setSendInvite] = useState(true);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
@@ -152,7 +153,7 @@ function StaffPage() {
                 <SelectContent>
                   {STAFF_ROLES.map((r) => (
                     <SelectItem key={r} value={r}>
-                      {r}
+                      {ROLE_LABELS[r]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -262,7 +263,7 @@ function StaffPage() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <Select
-                      value={s.roles[0] ?? "recruiter"}
+                      value={s.role ?? "recruitment"}
                       onValueChange={(v) =>
                         accessFn({
                           data: {
@@ -284,7 +285,7 @@ function StaffPage() {
                       <SelectContent>
                         {STAFF_ROLES.map((r) => (
                           <SelectItem key={r} value={r}>
-                            {r}
+                            {ROLE_LABELS[r]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -304,7 +305,7 @@ function StaffPage() {
                               accessFn({
                                 data: {
                                   userId: s.user_id,
-                                  role: (s.roles[0] ?? "recruiter") as StaffRole,
+                                  role: (s.role ?? "recruitment") as StaffRole,
                                   countries: next,
                                 },
                               })
@@ -370,6 +371,15 @@ function StaffPage() {
                 <span className="font-medium text-foreground">{l.action}</span>
                 <span className="text-xs">{l.entity_type}</span>
                 {l.actor_email ? <span className="text-xs">by {l.actor_email}</span> : null}
+                {l.actor_role ? (
+                  <Badge variant="outline">{ROLE_LABELS[l.actor_role] ?? l.actor_role}</Badge>
+                ) : null}
+                {l.old_value || l.new_value ? (
+                  <span className="w-full text-xs">
+                    {l.old_value ? <>Before: <code>{JSON.stringify(l.old_value)}</code> </> : null}
+                    {l.new_value ? <>After: <code>{JSON.stringify(l.new_value)}</code></> : null}
+                  </span>
+                ) : null}
               </div>
             ))}
             {logs.data && logs.data.length === 0 ? (

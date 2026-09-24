@@ -12,6 +12,8 @@ import {
   totalScore,
   type Weights,
 } from "./evaluations";
+import { writeAudit } from "./audit.server";
+import { staffTier } from "./roles";
 
 /** Maps the evaluator's final result to the candidate-facing email kind. */
 const FOLLOW_UP_KIND: Record<string, "retake" | "not_approved" | "approved" | undefined> = {
@@ -62,11 +64,13 @@ async function evaluatorContext(userId: string) {
     db.from("staff_countries").select("country_code").eq("user_id", userId),
   ]);
   const roleNames = (roles ?? []).map((r) => r.role as string);
-  if (!roleNames.length) throw new Error("You do not have staff access.");
+  const tier = staffTier(roleNames);
+  if (!tier.isStaff) throw new Error("You do not have staff access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
-  const isAdmin = roleNames.includes("admin");
-  const isEvaluator = isAdmin || roleNames.includes("evaluator");
-  const canView = isEvaluator || roleNames.includes("recruiter") || roleNames.includes("viewer");
+  const isAdmin = tier.isAdmin;
+  // Recruitment runs the first interview; Managers can read it (their own filter is Phase 2).
+  const isEvaluator = isAdmin || tier.isRecruitment;
+  const canView = tier.isStaff;
   return {
     db,
     roles: roleNames,
@@ -530,6 +534,19 @@ export const saveEvaluation = createServerFn({ method: "POST" })
             ? "Reopened"
             : "In progress",
         submitted_at: data.submit ? new Date().toISOString() : current.submitted_at,
+        ...(data.submit
+          ? {
+              decision_stage: "recruitment_interview",
+              decided_by: context.userId,
+              decided_at: new Date().toISOString(),
+              decision_reason:
+                data.finalResult === "Not approved"
+                  ? (data.notApprovedReasons ?? []).join("; ") || null
+                  : data.finalResult === "Retake required"
+                    ? ((sections["result"]?.["retake_reason"] as string) ?? null)
+                    : null,
+            }
+          : {}),
       })
       .eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
@@ -557,8 +574,36 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     if (data.submit) {
       const nextStatus = STATUS_FOR_RESULT[data.finalResult ?? ""];
       if (nextStatus) {
+        const { data: before } = await db
+          .from("applications")
+          .select("status")
+          .eq("id", current.application_id)
+          .maybeSingle();
         await db.from("applications").update({ status: nextStatus }).eq("id", current.application_id);
+        await writeAudit(db as never, {
+          actorId: context.userId,
+          actorEmail: ctx.email,
+          action: "application.status_changed",
+          entityType: "application",
+          entityId: current.application_id,
+          applicationId: current.application_id,
+          oldValue: { status: before?.status ?? null },
+          newValue: { status: nextStatus },
+        });
       }
+      await writeAudit(db as never, {
+        actorId: context.userId,
+        actorEmail: ctx.email,
+        action: "evaluation.result_changed",
+        entityType: "interview_evaluation",
+        entityId: data.evaluationId,
+        applicationId: current.application_id,
+        oldValue: { final_result: current.final_result, status: current.status },
+        newValue: {
+          final_result: data.finalResult,
+          decision_stage: "recruitment_interview",
+        },
+      });
       await audit(db, {
         evaluationId: data.evaluationId,
         actorId: context.userId,
@@ -618,6 +663,11 @@ export const reopenEvaluation = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const ctx = await evaluatorContext(context.userId);
     if (!ctx.isAdmin) throw new Error("Only an admin can reopen a submitted evaluation.");
+    const { data: prior } = await ctx.db
+      .from("interview_evaluations")
+      .select("status, application_id, final_result")
+      .eq("id", data.evaluationId)
+      .maybeSingle();
     const { error } = await ctx.db
       .from("interview_evaluations")
       .update({
@@ -633,6 +683,16 @@ export const reopenEvaluation = createServerFn({ method: "POST" })
       actorEmail: ctx.email,
       action: "reopened",
       details: { reason: data.reason },
+    });
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId,
+      actorEmail: ctx.email,
+      action: "evaluation.reopened",
+      entityType: "interview_evaluation",
+      entityId: data.evaluationId,
+      applicationId: prior?.application_id ?? null,
+      oldValue: { status: prior?.status ?? null, final_result: prior?.final_result ?? null },
+      newValue: { status: "Reopened", reason: data.reason },
     });
     return { ok: true };
   });

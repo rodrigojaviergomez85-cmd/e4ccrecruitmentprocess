@@ -50,6 +50,20 @@
       "when": 1790176430997,
       "tag": "0006_create_verification_codes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790268713143,
+      "tag": "0007_add_final_staff_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790268740217,
+      "tag": "0008_phase1_country_rls_decisions_audit",
+      "breakpoints": true
     }
   ]
 }

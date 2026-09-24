@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { STATUS_OPTIONS } from "./recruitment";
+import { writeAudit } from "./audit.server";
+import { staffTier } from "./roles";
 
 async function assertStaff(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -11,7 +13,8 @@ async function assertStaff(userId: string) {
     supabaseAdmin.from("staff_profiles").select("active").eq("user_id", userId).maybeSingle(),
   ]);
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error("You do not have recruiter access.");
+  if (!staffTier((data ?? []).map((r) => r.role as string)).isStaff)
+    throw new Error("You do not have recruiter access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
   return supabaseAdmin;
 }
@@ -43,7 +46,15 @@ export const getMyAccess = createServerFn({ method: "GET" })
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
-    return { isStaff: Boolean(data?.length), roles: (data ?? []).map((r) => r.role) };
+    const roles = (data ?? []).map((r) => r.role as string);
+    const tier = staffTier(roles);
+    return {
+      isStaff: tier.isStaff,
+      roles,
+      role: tier.primary,
+      isAdmin: tier.isAdmin,
+      canEvaluate: tier.isAdmin || tier.isRecruitment,
+    };
   });
 
 const filterSchema = z.object({
@@ -318,22 +329,29 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status: z.enum(STATUS_OPTIONS) }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { db, allowedCountries } = await staffContext(context.userId);
-    if (allowedCountries) {
-      const { data: app } = await db
-        .from("applications")
-        .select("country_code")
-        .eq("id", data.id)
-        .single();
-      if (!app || !allowedCountries.includes(app.country_code ?? "")) {
-        throw new Error("You do not have access to this candidate.");
-      }
+    const { db, allowedCountries, isAdmin } = await staffContext(context.userId);
+    const { data: app } = await db
+      .from("applications")
+      .select("country_code, status")
+      .eq("id", data.id)
+      .single();
+    if (!app || (allowedCountries && !allowedCountries.includes(app.country_code ?? ""))) {
+      throw new Error("You do not have access to this candidate.");
     }
     const { error } = await db
       .from("applications")
       .update({ status: data.status })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+    await writeAudit(db as never, {
+      actorId: context.userId,
+      action: isAdmin ? "application.status_changed_by_admin" : "application.status_changed",
+      entityType: "application",
+      entityId: data.id,
+      applicationId: data.id,
+      oldValue: { status: app.status },
+      newValue: { status: data.status },
+    });
     return { ok: true };
   });
 
