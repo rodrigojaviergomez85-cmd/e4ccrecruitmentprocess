@@ -71,6 +71,13 @@
       "when": 1790271747449,
       "tag": "0009_candidate_emails_http_status",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790272059976,
+      "tag": "0010_phase2_manager_final_filter",
+      "breakpoints": true
     }
   ]
 }
