@@ -72,6 +72,7 @@ export type Database = {
           archive_reason: string | null
           archived_at: string | null
           archived_by: string | null
+          assigned_manager_id: string | null
           callcenter_experience: boolean
           callcenter_experience_level: string
           city: string
@@ -90,9 +91,11 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          last_contact_at: string | null
           phone: string
           phone_country_code: string | null
           phone_e164: string | null
+          recruitment_approved_at: string | null
           source: string
           status: string
           submit_token: string
@@ -100,11 +103,15 @@ export type Database = {
           taught_children: boolean
           teaching_experience: string
           updated_at: string
+          withdrawn_at: string | null
+          withdrawn_reason: string | null
+          withdrawn_stage: string | null
         }
         Insert: {
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          assigned_manager_id?: string | null
           callcenter_experience?: boolean
           callcenter_experience_level?: string
           city: string
@@ -123,9 +130,11 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          last_contact_at?: string | null
           phone: string
           phone_country_code?: string | null
           phone_e164?: string | null
+          recruitment_approved_at?: string | null
           source?: string
           status?: string
           submit_token?: string
@@ -133,11 +142,15 @@ export type Database = {
           taught_children: boolean
           teaching_experience: string
           updated_at?: string
+          withdrawn_at?: string | null
+          withdrawn_reason?: string | null
+          withdrawn_stage?: string | null
         }
         Update: {
           archive_reason?: string | null
           archived_at?: string | null
           archived_by?: string | null
+          assigned_manager_id?: string | null
           callcenter_experience?: boolean
           callcenter_experience_level?: string
           city?: string
@@ -156,9 +169,11 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          last_contact_at?: string | null
           phone?: string
           phone_country_code?: string | null
           phone_e164?: string | null
+          recruitment_approved_at?: string | null
           source?: string
           status?: string
           submit_token?: string
@@ -166,6 +181,9 @@ export type Database = {
           taught_children?: boolean
           teaching_experience?: string
           updated_at?: string
+          withdrawn_at?: string | null
+          withdrawn_reason?: string | null
+          withdrawn_stage?: string | null
         }
         Relationships: [
           {
@@ -330,6 +348,44 @@ export type Database = {
           },
         ]
       }
+      candidate_action_tokens: {
+        Row: {
+          application_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          purpose: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          purpose: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          purpose?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_action_tokens_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_emails: {
         Row: {
           application_id: string
@@ -340,6 +396,7 @@ export type Database = {
           http_status: number | null
           id: string
           kind: string
+          manager_evaluation_id: string | null
           response_message: string | null
           sent_by: string | null
           status: string
@@ -355,6 +412,7 @@ export type Database = {
           http_status?: number | null
           id?: string
           kind: string
+          manager_evaluation_id?: string | null
           response_message?: string | null
           sent_by?: string | null
           status?: string
@@ -370,6 +428,7 @@ export type Database = {
           http_status?: number | null
           id?: string
           kind?: string
+          manager_evaluation_id?: string | null
           response_message?: string | null
           sent_by?: string | null
           status?: string
@@ -389,6 +448,13 @@ export type Database = {
             columns: ["evaluation_id"]
             isOneToOne: false
             referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_emails_manager_evaluation_id_fkey"
+            columns: ["manager_evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "manager_evaluations"
             referencedColumns: ["id"]
           },
         ]
@@ -861,6 +927,113 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      manager_evaluations: {
+        Row: {
+          application_id: string
+          appointment_at: string | null
+          attempt_number: number
+          checks: Json
+          created_at: string
+          critical_red_flag: boolean
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          decision_stage: string
+          demo_topic: string | null
+          eligible_again_date: string | null
+          evaluator_id: string | null
+          evidence: Json
+          final_decision: string | null
+          gates: Json
+          id: string
+          improvement_areas: string | null
+          internal_comments: string | null
+          manager_id: string | null
+          no_show_marked_at: string | null
+          recommendation: string | null
+          red_flags: string | null
+          reopened_at: string | null
+          scores: Json
+          started_at: string
+          status: string
+          submitted_at: string | null
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          appointment_at?: string | null
+          attempt_number?: number
+          checks?: Json
+          created_at?: string
+          critical_red_flag?: boolean
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_stage?: string
+          demo_topic?: string | null
+          eligible_again_date?: string | null
+          evaluator_id?: string | null
+          evidence?: Json
+          final_decision?: string | null
+          gates?: Json
+          id?: string
+          improvement_areas?: string | null
+          internal_comments?: string | null
+          manager_id?: string | null
+          no_show_marked_at?: string | null
+          recommendation?: string | null
+          red_flags?: string | null
+          reopened_at?: string | null
+          scores?: Json
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          appointment_at?: string | null
+          attempt_number?: number
+          checks?: Json
+          created_at?: string
+          critical_red_flag?: boolean
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          decision_stage?: string
+          demo_topic?: string | null
+          eligible_again_date?: string | null
+          evaluator_id?: string | null
+          evidence?: Json
+          final_decision?: string | null
+          gates?: Json
+          id?: string
+          improvement_areas?: string | null
+          internal_comments?: string | null
+          manager_id?: string | null
+          no_show_marked_at?: string | null
+          recommendation?: string | null
+          red_flags?: string | null
+          reopened_at?: string | null
+          scores?: Json
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_evaluations_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recruitment_progress: {
         Row: {

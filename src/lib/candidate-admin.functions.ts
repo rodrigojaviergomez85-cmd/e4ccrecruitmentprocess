@@ -315,7 +315,7 @@ export const listCandidateEmails = createServerFn({ method: "POST" })
     await assertCandidateAccess(ctx.db, ctx.allowedCountries, data.applicationId);
     const { data: rows } = await ctx.db
       .from("candidate_emails")
-      .select("id, kind, subject, status, error_message, http_status, response_message, to_email, created_at")
+      .select("id, kind, subject, status, error_message, manager_evaluation_id, http_status, response_message, to_email, created_at")
       .eq("application_id", data.applicationId)
       .order("created_at", { ascending: false })
       .limit(20);
@@ -343,6 +343,8 @@ export async function sendFollowUp(
     actorId?: string | null;
     eligibleAgainDate?: string | null;
     force?: boolean;
+    managerEvaluationId?: string | null;
+    skipStatusUpdate?: boolean;
   },
 ) {
   const { data: app } = await db
@@ -399,11 +401,12 @@ export async function sendFollowUp(
     status: result.status === "sent" ? "sent" : result.status === "skipped" ? "skipped" : "failed",
     error_message: result.ok ? null : result.detail,
     http_status: result.httpStatus ?? null,
+    manager_evaluation_id: input.managerEvaluationId ?? null,
     response_message: result.detail,
     sent_by: input.actorId ?? null,
   });
 
-  if (result.ok) {
+  if (result.ok && !input.skipStatusUpdate) {
     await db
       .from("applications")
       .update({ status: statusForResult(input.kind, input.eligibleAgainDate) })
