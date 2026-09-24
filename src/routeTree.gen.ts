@@ -25,6 +25,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ProcessIdRouteImport } from './routes/process.$id'
+import { Route as RespondTokenRouteImport } from './routes/respond.$token'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
@@ -115,6 +116,11 @@ const ProcessIdRoute = ProcessIdRouteImport.update({
   path: '/process/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RespondTokenRoute = RespondTokenRouteImport.update({
+  id: '/respond/$token',
+  path: '/respond/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScheduleTokenRoute = ScheduleTokenRouteImport.update({
   id: '/schedule/$token',
   path: '/schedule/$token',
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
+  '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
+  '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
@@ -245,6 +253,7 @@ export interface FileRoutesById {
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
+  '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/auth/callback'
     | '/process/$id'
+    | '/respond/$token'
     | '/schedule/$token'
     | '/candidates/$id'
     | '/candidates/new'
@@ -301,6 +311,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/auth/callback'
     | '/process/$id'
+    | '/respond/$token'
     | '/schedule/$token'
     | '/candidates/$id'
     | '/candidates/new'
@@ -329,6 +340,7 @@ export interface FileRouteTypes {
     | '/_authenticated/staff'
     | '/auth/callback'
     | '/process/$id'
+    | '/respond/$token'
     | '/schedule/$token'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
@@ -352,6 +364,7 @@ export interface RootRouteChildren {
   RetakeRoute: typeof RetakeRoute
   SpeedTestRoute: typeof SpeedTestRoute
   ProcessIdRoute: typeof ProcessIdRoute
+  RespondTokenRoute: typeof RespondTokenRoute
   ScheduleTokenRoute: typeof ScheduleTokenRoute
   ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
@@ -470,6 +483,13 @@ declare module '@tanstack/react-router' {
       path: '/process/$id'
       fullPath: '/process/$id'
       preLoaderRoute: typeof ProcessIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/respond/$token': {
+      id: '/respond/$token'
+      path: '/respond/$token'
+      fullPath: '/respond/$token'
+      preLoaderRoute: typeof RespondTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/schedule/$token': {
@@ -599,6 +619,7 @@ const rootRouteChildren: RootRouteChildren = {
   RetakeRoute: RetakeRoute,
   SpeedTestRoute: SpeedTestRoute,
   ProcessIdRoute: ProcessIdRoute,
+  RespondTokenRoute: RespondTokenRoute,
   ScheduleTokenRoute: ScheduleTokenRoute,
   ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
