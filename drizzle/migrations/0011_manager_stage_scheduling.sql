@@ -1,0 +1,2 @@
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS stage text NOT NULL DEFAULT 'recruitment';
+ALTER TABLE public.interview_settings ADD COLUMN IF NOT EXISTS manager_calendly_url text NOT NULL DEFAULT '';
