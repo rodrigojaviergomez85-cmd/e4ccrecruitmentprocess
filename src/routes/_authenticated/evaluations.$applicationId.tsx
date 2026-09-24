@@ -228,7 +228,9 @@ function EvaluationForm() {
 
   const stats = verbStats(verbs);
   const complianceInput = {
-    sections,
+    sections: lobRaw
+      ? { ...sections, candidate: { ...(sections["candidate"] ?? {}), lob: lobRaw } }
+      : sections,
     isOnline,
     verbs,
     jobsCount: jobs.filter((j) => j.company.trim() || j.position.trim()).length,
@@ -1150,7 +1152,7 @@ function EvaluationForm() {
                                 ? {
                                     ...j,
                                     supervisor_rating: e.target.value
-                                      ? Number(e.target.value)
+                                      ? Math.min(10, Math.max(1, Math.round(Number(e.target.value))))
                                       : null,
                                   }
                                 : j,

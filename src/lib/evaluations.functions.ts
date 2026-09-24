@@ -413,15 +413,19 @@ export const openEvaluation = createServerFn({ method: "POST" })
 const jobSchema = z.object({
   slot: z.number().int().min(1).max(5),
   company: z.string().max(160).default(""),
-  start_date: z.string().max(40).default(""),
-  end_date: z.string().max(40).default(""),
+  start_date: z.string().max(200).default(""),
+  end_date: z.string().max(200).default(""),
   position: z.string().max(160).default(""),
   hired_to_do: z.string().max(2000).default(""),
   accomplishment: z.string().max(2000).default(""),
   biggest_mistake: z.string().max(2000).default(""),
   supervisor_name: z.string().max(160).default(""),
   supervisor_contact: z.string().max(160).default(""),
-  supervisor_rating: z.number().int().min(1).max(10).nullable().default(null),
+  supervisor_rating: z
+    .number()
+    .nullable()
+    .default(null)
+    .transform((v) => (v == null || Number.isNaN(v) ? null : Math.min(10, Math.max(1, Math.round(v))))),
   rating_reason: z.string().max(2000).default(""),
   reason_for_leaving: z.string().max(2000).default(""),
   gap_explanation: z.string().max(2000).default(""),
@@ -480,6 +484,10 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     }
 
     const sections = { ...(current.sections as Record<string, Record<string, unknown>>), ...data.sections };
+    const modality = one(app?.recruitment_progress)?.work_modality ?? "";
+    if (!String(sections["candidate"]?.["lob"] ?? "").trim() && modality) {
+      sections["candidate"] = { ...(sections["candidate"] ?? {}), lob: modality };
+    }
     const lobFromSection = String(sections["candidate"]?.["lob"] ?? "").toLowerCase();
     const isOnline =
       lobFromSection === "online" ||
