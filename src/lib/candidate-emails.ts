@@ -237,6 +237,7 @@ export function buildFollowUpEmail(input: {
   reasons?: string[];
   scheduleUrl?: string | null;
   eligibleAgainDate?: string | null;
+  finalFilter?: { date: string; time: string; interviewer: string; place?: string | null } | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
 
@@ -247,6 +248,7 @@ export function buildFollowUpEmail(input: {
   }
 
   if (input.kind === "approved") {
+    const ff = input.finalFilter;
     const subject = "Congratulations — You moved forward in the E4CC process";
     const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
@@ -259,10 +261,19 @@ export function buildFollowUpEmail(input: {
         You have advanced to the <strong>last filter of our selection process</strong>, a final
         interview with our <strong>Country Manager</strong>.
       </p>
+      ${ff ? `
+      <p style="margin:0 0 8px"><strong>Your final interview details:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        <li><strong>Date:</strong> ${escapeHtml(ff.date)}</li>
+        <li><strong>Time:</strong> ${escapeHtml(ff.time)}</li>
+        <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
+        ${ff.place ? `<li><strong>Place:</strong> ${escapeHtml(ff.place)}</li>` : ""}
+      </ul>
+      <p style="margin:0 0 12px">Please be on time. If you have any issue, stay attentive to your phone and WhatsApp.</p>` : `
       <p style="margin:0 0 12px">
         Please <strong>stay attentive to your phone and WhatsApp</strong> over the next few days.
         Our team will contact you directly to coordinate this final step.
-      </p>
+      </p>`}
       <p style="margin:0 0 12px">Thank you for your time and effort throughout the process.</p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
