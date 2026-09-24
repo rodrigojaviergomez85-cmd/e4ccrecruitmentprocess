@@ -34,24 +34,29 @@ function QueuePage() {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({ queryKey: ["second-filter"], queryFn: () => list() });
   const [country, setCountry] = useState(ALL);
+  const [lob, setLob] = useState(ALL);
   const [modality, setModality] = useState(ALL);
   const [manager, setManager] = useState(ALL);
   const [type, setType] = useState(ALL);
   const [sched, setSched] = useState(ALL);
   const [from, setFrom] = useState("");
 
+  const lobOf = (r: { modality: string | null; countryCode: string | null }) =>
+    r.modality === "online" ? "online" : r.modality === "onsite" ? `onsite-${r.countryCode ?? ""}` : "";
+
   const rows = useMemo(
     () =>
       (data?.rows ?? []).filter(
         (r) =>
           (country === ALL || r.countryCode === country) &&
+          (lob === ALL || lobOf(r) === lob) &&
           (modality === ALL || r.modality === modality) &&
           (manager === ALL || (manager === "none" ? !r.managerId : r.managerId === manager)) &&
           (type === ALL || (type === "retake") === r.isRetake) &&
           (sched === ALL || (sched === "scheduled") === Boolean(r.appointmentAt)) &&
           (!from || (r.approvedAt ?? "") >= from),
       ),
-    [data, country, modality, manager, type, sched, from],
+    [data, country, lob, modality, manager, type, sched, from],
   );
   const countries = [...new Map((data?.rows ?? []).map((r) => [r.countryCode ?? "", r.country])).entries()];
 
@@ -83,7 +88,8 @@ function QueuePage() {
           <h1 className="text-2xl font-bold">Pending Second Filter</h1>
           <p className="text-sm text-muted-foreground">Approved by Recruitment and waiting for the Manager's final decision.</p>
         </div>
-        <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-7">
+          <F label="LOB" value={lob} onChange={setLob} options={[["online", "Online"], ["onsite-SV", "El Salvador Onsite"], ["onsite-NI", "Nicaragua Onsite"], ["onsite-GT", "Guatemala Onsite"]]} />
           <F label="Country" value={country} onChange={setCountry} options={countries.map(([c, n]) => [c, n])} />
           <F label="Modality" value={modality} onChange={setModality} options={[["online", "Online"], ["onsite", "Onsite"]]} />
           <F label="Manager" value={manager} onChange={setManager} options={[["none", "Unassigned"], ...(data?.managers ?? []).map((m) => [m.id, m.name] as [string, string])]} />
