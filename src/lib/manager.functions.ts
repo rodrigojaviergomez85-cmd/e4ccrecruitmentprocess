@@ -635,6 +635,8 @@ export const reopenManagerEvaluation = createServerFn({ method: "POST" })
 
 // ---------------------------------------------------------------- Applicant response (public, token-based)
 
+const ACTION_PURPOSES = ["no_show_response", "manager_retake"];
+
 async function resolveActionToken(token: string) {
   const db = await getAdmin();
   const { sha256Hex } = await import("./scheduling.server");
@@ -643,9 +645,32 @@ async function resolveActionToken(token: string) {
     .select("id, application_id, expires_at, used_at, purpose")
     .eq("token_hash", await sha256Hex(token))
     .maybeSingle();
-  if (!row || row.purpose !== "no_show_response" || row.used_at || new Date(row.expires_at).getTime() < Date.now())
+  if (!row || !ACTION_PURPOSES.includes(row.purpose) || row.used_at || new Date(row.expires_at).getTime() < Date.now())
     return { db, row: null };
   return { db, row };
+}
+
+/** For a Manager retake, the candidate may schedule only from the eligible date on. */
+async function retakeEligibleDate(db: Db, applicationId: string): Promise<string | null> {
+  const { data } = await db
+    .from("manager_evaluations")
+    .select("eligible_again_date")
+    .eq("application_id", applicationId)
+    .eq("final_decision", "Retake")
+    .order("decided_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.eligible_again_date ?? null;
+}
+
+function isBeforeDate(date: string | null) {
+  return Boolean(date && new Date(`${date}T00:00:00Z`).getTime() > Date.now());
+}
+
+async function managerCalendlyUrl(db: Db) {
+  const { data } = await db.from("interview_settings").select("manager_calendly_url").eq("id", true).maybeSingle();
+  const { CALENDLY_SCHEDULE_URL } = await import("./candidate-emails");
+  return (data?.manager_calendly_url ?? "").trim() || CALENDLY_SCHEDULE_URL;
 }
 
 export const getCandidateResponse = createServerFn({ method: "POST" })
@@ -655,12 +680,20 @@ export const getCandidateResponse = createServerFn({ method: "POST" })
     if (!row) return { valid: false as const };
     const { data: app } = await db
       .from("applications")
-      .select("full_name, withdrawn_at")
+      .select("full_name, withdrawn_at, archived_at")
       .eq("id", row.application_id)
       .maybeSingle();
-    if (!app || app.withdrawn_at) return { valid: false as const };
-    // Only the first name is shared; nothing internal leaves the server.
-    return { valid: true as const, firstName: app.full_name.trim().split(/\s+/)[0] ?? "" };
+    if (!app || app.withdrawn_at || app.archived_at) return { valid: false as const };
+    const purpose = row.purpose === "manager_retake" ? ("retake" as const) : ("no_show" as const);
+    const eligibleDate = purpose === "retake" ? await retakeEligibleDate(db, row.application_id) : null;
+    // Only the first name and the public eligible date are shared.
+    return {
+      valid: true as const,
+      purpose,
+      eligibleDate,
+      canScheduleNow: !isBeforeDate(eligibleDate),
+      firstName: app.full_name.trim().split(/\s+/)[0] ?? "",
+    };
   });
 
 export const submitCandidateResponse = createServerFn({ method: "POST" })
@@ -670,6 +703,8 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
         token: z.string().min(20).max(100),
         action: z.enum(["reschedule", "withdraw"]),
         reason: z.string().trim().max(500).optional().default(""),
+        // Withdrawal is irreversible and requires an explicit confirmation.
+        confirmWithdraw: z.boolean().optional().default(false),
       })
       .parse(d),
   )
@@ -678,12 +713,14 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
     if (!row) return { ok: false as const, error: "This link is no longer available." };
     const { data: app } = await db
       .from("applications")
-      .select("id, full_name, email, status")
+      .select("id, full_name, email, status, archived_at, withdrawn_at")
       .eq("id", row.application_id)
       .maybeSingle();
-    if (!app) return { ok: false as const, error: "This link is no longer available." };
+    if (!app || app.archived_at || app.withdrawn_at) return { ok: false as const, error: "This link is no longer available." };
     const now = new Date().toISOString();
     if (data.action === "withdraw") {
+      if (!data.confirmWithdraw)
+        return { ok: false as const, error: "Please confirm that you want to withdraw your application." };
       await db
         .from("applications")
         .update({
@@ -706,7 +743,10 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
       });
       return { ok: true as const, action: "withdraw" as const };
     }
-    // Reschedule: back to the Manager queue and reuse the existing Calendly event.
+    if (row.purpose === "manager_retake" && isBeforeDate(await retakeEligibleDate(db, app.id)))
+      return { ok: false as const, error: "You can schedule your final interview starting on your eligible date." };
+    // Back to the Manager final filter queue (never the first interview). The
+    // Calendly booking is linked to the manager_final_filter stage on sync.
     await db.from("applications").update({ status: PENDING_SECOND_FILTER, last_contact_at: now }).eq("id", app.id);
     await writeAudit(db as never, {
       actorId: null,
@@ -716,10 +756,9 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
       entityId: app.id,
       applicationId: app.id,
       oldValue: { status: app.status },
-      newValue: { status: PENDING_SECOND_FILTER, reason: data.reason || null },
+      newValue: { status: PENDING_SECOND_FILTER, stage: "manager_final_filter", via: row.purpose, reason: data.reason || null },
     });
-    const { CALENDLY_SCHEDULE_URL } = await import("./candidate-emails");
-    const url = new URL(CALENDLY_SCHEDULE_URL);
+    const url = new URL(await managerCalendlyUrl(db));
     url.searchParams.set("name", app.full_name);
     url.searchParams.set("email", app.email);
     return { ok: true as const, action: "reschedule" as const, calendlyUrl: url.toString() };
