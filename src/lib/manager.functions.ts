@@ -468,8 +468,8 @@ async function applyDecision(
   }
 
   let result: { ok: boolean; status: string; detail: string };
-  if (d.decision === "Retake" || d.decision === "Not Approved") {
-    const kind = d.decision === "Retake" ? "retake" : "not_approved";
+  if (d.decision === "Not Approved") {
+    const kind = "not_approved";
     if (!d.force) {
       const { data: already } = await db
         .from("candidate_emails")
@@ -487,10 +487,10 @@ async function applyDecision(
         applicationId: d.applicationId,
         kind,
         // Never pass internal reasons, red flags, scores or comments.
-        areas: kind === "retake" ? d.retakeFeedbackText : "",
+        areas: "",
         reasons: [],
         actorId,
-        eligibleAgainDate: kind === "retake" ? d.eligibleAgainDate : null,
+        eligibleAgainDate: null,
         managerEvaluationId: d.evaluationId,
         skipStatusUpdate: true,
         force: true,
@@ -499,7 +499,12 @@ async function applyDecision(
       result = { ok: false, status: "failed", detail: e instanceof Error ? e.message : "Send failed" };
     }
   } else {
-    result = await sendNoShow(ctx, actorId, d);
+    // Retake and No Show both return the candidate to the Manager final filter
+    // through a secure token link, never to the first Recruitment interview.
+    result = await sendTokenEmail(ctx, actorId, {
+      ...d,
+      kind: d.decision === "Retake" ? "manager_retake" : "no_show",
+    });
   }
   if (result.ok) await db.from("applications").update({ last_contact_at: new Date().toISOString() }).eq("id", d.applicationId);
   await writeAudit(db as never, {
