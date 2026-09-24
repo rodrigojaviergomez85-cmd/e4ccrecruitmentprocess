@@ -344,3 +344,35 @@ export function buildNoShowEmail(input: { fullName: string; responseUrl: string 
     </div>`;
   return { subject, html };
 }
+
+/**
+ * Retake decided at the Manager final filter. Shares only the areas to improve
+ * and the eligible date; the link returns the candidate to the Manager stage.
+ */
+export function buildManagerRetakeEmail(input: {
+  fullName: string;
+  areas: string;
+  eligibleAgainDate: string | null;
+  responseUrl: string;
+}) {
+  const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
+  const subject = "Your E4CC final interview — next steps";
+  const url = escapeHtml(`${input.responseUrl}?action=reschedule`);
+  const date = input.eligibleAgainDate
+    ? new Intl.DateTimeFormat("en-US", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(
+        new Date(`${input.eligibleAgainDate}T00:00:00Z`),
+      )
+    : null;
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">Thank you for attending your final interview with our Country Manager.</p>
+      <p style="margin:0 0 12px">We would like to give you another opportunity to complete this final step once you have worked on the following:</p>
+      ${input.areas.trim() ? `<p style="margin:0 0 12px"><strong>${escapeHtml(input.areas.trim())}</strong></p>` : ""}
+      ${date ? `<p style="margin:0 0 12px">You can schedule your new final interview starting <strong>${escapeHtml(date)}</strong>.</p>` : ""}
+      <p style="margin:0 0 16px"><a href="${url}" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:bold">Schedule my final interview</a></p>
+      <p style="margin:0 0 12px">If the button does not work, copy this link: ${url}</p>
+      <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+  return { subject, html };
+}
