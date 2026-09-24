@@ -579,7 +579,13 @@ export const saveEvaluation = createServerFn({ method: "POST" })
           .select("status")
           .eq("id", current.application_id)
           .maybeSingle();
-        await db.from("applications").update({ status: nextStatus }).eq("id", current.application_id);
+        await db
+          .from("applications")
+          .update({
+            status: nextStatus,
+            ...(nextStatus === "Pending Second Filter" ? { recruitment_approved_at: new Date().toISOString() } : {}),
+          })
+          .eq("id", current.application_id);
         await writeAudit(db as never, {
           actorId: context.userId,
           actorEmail: ctx.email,
