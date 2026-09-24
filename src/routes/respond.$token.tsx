@@ -1,13 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { getCandidateResponse, submitCandidateResponse } from "@/lib/manager.functions";
+
+const WITHDRAW_TEXT = "Thank you for the opportunity. I do not wish to continue with the recruitment process.";
 
 type Search = { action?: "reschedule" | "withdraw" };
 
@@ -34,17 +34,26 @@ function RespondPage() {
   const get = useServerFn(getCandidateResponse);
   const submit = useServerFn(submitCandidateResponse);
   const q = useQuery({ queryKey: ["respond", token], queryFn: () => get({ data: { token } }) });
-  const [action, setAction] = useState<"reschedule" | "withdraw" | undefined>(initial);
-  const [reason, setReason] = useState("");
+  const [action] = useState<"reschedule" | "withdraw" | undefined>(initial);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<null | { kind: "withdraw" } | { kind: "reschedule"; url: string }>(null);
   const [err, setErr] = useState("");
+  const autoOpened = useRef(false);
+
+  // "Reschedule My Interview" from the email opens Calendly directly. Opening it
+  // changes nothing; the booking is recorded only when Calendly confirms it.
+  useEffect(() => {
+    if (autoOpened.current || action !== "reschedule" || !q.data?.valid || !q.data.canScheduleNow) return;
+    autoOpened.current = true;
+    void go("reschedule");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data, action]);
 
   async function go(kind: "reschedule" | "withdraw") {
     setBusy(true);
     setErr("");
     try {
-      const r = await submit({ data: { token, action: kind, reason, confirmWithdraw: kind === "withdraw" } });
+      const r = await submit({ data: { token, action: kind, reason: kind === "withdraw" ? WITHDRAW_TEXT : "", confirmWithdraw: kind === "withdraw" } });
       if (!r.ok) setErr(r.error);
       else if (r.action === "reschedule") setDone({ kind: "reschedule", url: r.calendlyUrl });
       else setDone({ kind: "withdraw" });
@@ -69,8 +78,7 @@ function RespondPage() {
         )}
         {q.data?.valid && done?.kind === "withdraw" && (
           <div className="space-y-2">
-            <h1 className="text-xl font-bold">Your application was withdrawn</h1>
-            <p className="text-sm text-muted-foreground">Thank you for letting us know. We wish you success in your professional journey.</p>
+            <h1 className="text-xl font-bold">Thank you for letting us know. We appreciate your interest in E4CC.</h1>
           </div>
         )}
         {q.data?.valid && done?.kind === "reschedule" && (
@@ -80,42 +88,26 @@ function RespondPage() {
             <Button asChild variant="outline"><a href={done.url} target="_blank" rel="noreferrer">Open Calendly</a></Button>
           </div>
         )}
-        {q.data?.valid && !done && (
+        {q.data?.valid && !done && action === "withdraw" && (
           <div className="space-y-4">
-            {q.data.purpose === "retake" ? (
-              <>
-                <h1 className="text-xl font-bold">Hi {q.data.firstName}, schedule your final interview</h1>
-                <p className="text-sm text-muted-foreground">
-                  Choose a new time for your final interview with our Country Manager.
-                  {q.data.eligibleDate && !q.data.canScheduleNow && ` You can schedule starting ${q.data.eligibleDate}.`}
-                </p>
-              </>
-            ) : (
-              <>
-                <h1 className="text-xl font-bold">Hi {q.data.firstName}, we missed you</h1>
-                <p className="text-sm text-muted-foreground">We were not able to connect at your final interview. Please tell us why and choose how you would like to continue.</p>
-                <div className="space-y-1.5">
-                  <Label>Why were you unable to attend? (optional)</Label>
-                  <Textarea value={reason} maxLength={500} onChange={(e) => setReason(e.target.value)} />
-                </div>
-              </>
+            <h1 className="text-xl font-bold">Hi {q.data.firstName}</h1>
+            <p className="rounded-xl border border-border bg-secondary/40 p-4 text-sm">{WITHDRAW_TEXT}</p>
+            {err && <p className="text-sm text-destructive">{err}</p>}
+            <Button disabled={busy} onClick={() => void go("withdraw")}>Send Response</Button>
+          </div>
+        )}
+        {q.data?.valid && !done && action !== "withdraw" && (
+          <div className="space-y-4">
+            <h1 className="text-xl font-bold">
+              {q.data.purpose === "retake" ? `Hi ${q.data.firstName}, schedule your final interview` : `Hi ${q.data.firstName}, reschedule your final interview`}
+            </h1>
+            {q.data.eligibleDate && !q.data.canScheduleNow && (
+              <p className="text-sm text-muted-foreground">You can schedule starting {q.data.eligibleDate}.</p>
             )}
             {err && <p className="text-sm text-destructive">{err}</p>}
-            {action === "withdraw" ? (
-              <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-                <p className="text-sm font-medium">Are you sure you want to withdraw your application? This cannot be undone.</p>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="destructive" disabled={busy} onClick={() => void go("withdraw")}>Yes, withdraw my application</Button>
-                  <Button variant="outline" onClick={() => setAction(undefined)}>Cancel</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <Button disabled={busy || !q.data.canScheduleNow} onClick={() => void go("reschedule")}>
-                  {q.data.purpose === "retake" ? "Schedule My Final Interview" : "Reschedule My Interview"}
-                </Button>
-                <Button variant="outline" onClick={() => setAction("withdraw")}>Withdraw My Application</Button>
-              </div>
+            {busy && <p className="text-sm text-muted-foreground">Opening calendar…</p>}
+            {!busy && q.data.canScheduleNow && (
+              <Button onClick={() => void go("reschedule")}>Reschedule My Interview</Button>
             )}
           </div>
         )}

@@ -720,13 +720,14 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
     if (data.action === "withdraw") {
       if (!data.confirmWithdraw)
-        return { ok: false as const, error: "Please confirm that you want to withdraw your application." };
+        return { ok: false as const, error: "Please press Send Response to confirm." };
+      const response = data.reason || WITHDRAW_RESPONSE;
       await db
         .from("applications")
         .update({
           withdrawn_at: now,
           withdrawn_stage: "manager_final_filter",
-          withdrawn_reason: data.reason || null,
+          withdrawn_reason: response,
           status: "Withdrawn by Applicant",
         })
         .eq("id", app.id);
@@ -739,27 +740,19 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
         entityId: app.id,
         applicationId: app.id,
         oldValue: { status: app.status },
-        newValue: { status: "Withdrawn by Applicant", stage: "manager_final_filter", reason: data.reason || null },
+        newValue: { status: "Withdrawn by Applicant", stage: "manager_final_filter", response, withdrawn_at: now },
       });
       return { ok: true as const, action: "withdraw" as const };
     }
     if (row.purpose === "manager_retake" && isBeforeDate(await retakeEligibleDate(db, app.id)))
       return { ok: false as const, error: "You can schedule your final interview starting on your eligible date." };
-    // Back to the Manager final filter queue (never the first interview). The
-    // Calendly booking is linked to the manager_final_filter stage on sync.
-    await db.from("applications").update({ status: PENDING_SECOND_FILTER, last_contact_at: now }).eq("id", app.id);
-    await writeAudit(db as never, {
-      actorId: null,
-      actorEmail: "applicant",
-      action: "application.reschedule_requested",
-      entityType: "application",
-      entityId: app.id,
-      applicationId: app.id,
-      oldValue: { status: app.status },
-      newValue: { status: PENDING_SECOND_FILTER, stage: "manager_final_filter", via: row.purpose, reason: data.reason || null },
-    });
+    // Opening Calendly does not change the candidate. The appointment and status
+    // update only when Calendly confirms the booking (webhook/sync), which keeps
+    // the manager_final_filter stage.
     const url = new URL(await managerCalendlyUrl(db));
     url.searchParams.set("name", app.full_name);
     url.searchParams.set("email", app.email);
     return { ok: true as const, action: "reschedule" as const, calendlyUrl: url.toString() };
   });
+
+const WITHDRAW_RESPONSE = "Thank you for the opportunity. I do not wish to continue with the recruitment process.";

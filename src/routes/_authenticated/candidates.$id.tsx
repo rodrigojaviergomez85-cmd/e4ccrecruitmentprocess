@@ -234,6 +234,10 @@ function CandidateDetail() {
           </div>
         </section>
 
+        {(app as { withdrawn_at?: string | null }).withdrawn_at && (
+          <WithdrawnNotice app={app as never} />
+        )}
+
         {cefrInternalLabel(evaluation?.cefr) && (
           <p className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-2 text-sm font-semibold text-warning-foreground">
             {cefrInternalLabel(evaluation?.cefr)}
@@ -1006,5 +1010,17 @@ function ReferenceNotes({
         Save note
       </Button>
     </div>
+  );
+}
+
+function WithdrawnNotice({ app }: { app: { withdrawn_at: string; withdrawn_stage?: string | null; withdrawn_reason?: string | null } }) {
+  return (
+    <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+      <p className="font-semibold">
+        Withdrawn by Applicant · {new Date(app.withdrawn_at).toLocaleString()}
+        {app.withdrawn_stage ? ` · Stage: ${app.withdrawn_stage}` : ""}
+      </p>
+      {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
+    </section>
   );
 }

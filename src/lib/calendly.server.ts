@@ -150,7 +150,12 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
         const { data: current } = await db.from("applications").select("status").eq("id", application.id).single();
         // Candidates approved for (or returning to) the Manager final filter book
         // that stage; they never go back to the first Recruitment interview.
-        const managerStage = (current?.status ?? "") === "Pending Second Filter";
+        const currentStatus = current?.status ?? "";
+        const managerStage = [
+          "Pending Second Filter",
+          "No Show – Manager Final Filter",
+          "Manager Retake – Email Sent",
+        ].includes(currentStatus);
         const { data: appointment, error } = await db
           .from("appointments")
           .insert({ ...payload, stage: managerStage ? "manager_final_filter" : "recruitment" })
@@ -158,7 +163,24 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
           .single();
         if (error) throw new Error(error.message);
         result.created += 1;
-        if (managerStage) continue;
+        if (managerStage) {
+          // Confirmed booking returns No Show / Manager Retake candidates to the Manager queue.
+          if (!canceled && currentStatus !== "Pending Second Filter") {
+            await db.from("applications").update({ status: "Pending Second Filter", last_contact_at: new Date().toISOString() }).eq("id", application.id);
+            const { writeAudit } = await import("./audit.server");
+            await writeAudit(db as never, {
+              actorId: null,
+              actorEmail: "calendly",
+              action: "application.manager_interview_rescheduled",
+              entityType: "appointment",
+              entityId: appointment.id,
+              applicationId: application.id,
+              oldValue: { status: currentStatus },
+              newValue: { status: "Pending Second Filter", stage: "manager_final_filter", starts_at: event.start_time },
+            });
+          }
+          continue;
+        }
         await db
           .from("recruitment_progress")
           .update({ scheduling_status: "Interview scheduled" })
