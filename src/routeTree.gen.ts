@@ -31,6 +31,7 @@ import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authen
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
 import { Route as AuthenticatedEvaluationsApplicationIdRouteImport } from './routes/_authenticated/evaluations.$applicationId'
 import { Route as AuthenticatedSecondFilterIndexRouteImport } from './routes/_authenticated/second-filter.index'
+import { Route as AuthenticatedSecondFilterApplicationIdRouteImport } from './routes/_authenticated/second-filter.$applicationId'
 import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 import { Route as ApiPublicWebhooksCalendlyRouteImport } from './routes/api/public/webhooks/calendly'
@@ -149,6 +150,12 @@ const AuthenticatedSecondFilterIndexRoute =
     path: '/second-filter/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSecondFilterApplicationIdRoute =
+  AuthenticatedSecondFilterApplicationIdRouteImport.update({
+    id: '/second-filter/$applicationId',
+    path: '/second-filter/$applicationId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicSpeedTestRoute = ApiPublicSpeedTestRouteImport.update({
   id: '/api/public/speed-test',
   path: '/api/public/speed-test',
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
@@ -212,6 +220,7 @@ export interface FileRoutesByTo {
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/second-filter': typeof AuthenticatedSecondFilterIndexRoute
@@ -240,6 +249,7 @@ export interface FileRoutesById {
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
+  '/_authenticated/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/_authenticated/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/second-filter/$applicationId'
     | '/api/public/speed-test'
     | '/evaluations/'
     | '/second-filter/'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
+    | '/second-filter/$applicationId'
     | '/api/public/speed-test'
     | '/evaluations'
     | '/second-filter'
@@ -321,6 +333,7 @@ export interface FileRouteTypes {
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
+    | '/_authenticated/second-filter/$applicationId'
     | '/api/public/speed-test'
     | '/_authenticated/evaluations/'
     | '/_authenticated/second-filter/'
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSecondFilterIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/second-filter/$applicationId': {
+      id: '/_authenticated/second-filter/$applicationId'
+      path: '/second-filter/$applicationId'
+      fullPath: '/second-filter/$applicationId'
+      preLoaderRoute: typeof AuthenticatedSecondFilterApplicationIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/speed-test': {
       id: '/api/public/speed-test'
       path: '/api/public/speed-test'
@@ -534,6 +554,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
+  AuthenticatedSecondFilterApplicationIdRoute: typeof AuthenticatedSecondFilterApplicationIdRoute
   AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
   AuthenticatedSecondFilterIndexRoute: typeof AuthenticatedSecondFilterIndexRoute
 }
@@ -548,6 +569,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCandidatesNewRoute: AuthenticatedCandidatesNewRoute,
   AuthenticatedEvaluationsApplicationIdRoute:
     AuthenticatedEvaluationsApplicationIdRoute,
+  AuthenticatedSecondFilterApplicationIdRoute:
+    AuthenticatedSecondFilterApplicationIdRoute,
   AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
   AuthenticatedSecondFilterIndexRoute: AuthenticatedSecondFilterIndexRoute,
 }

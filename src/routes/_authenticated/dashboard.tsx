@@ -104,6 +104,9 @@ function Dashboard() {
             <Button asChild variant="ghost" size="sm">
               <Link to="/candidates/new">Add candidate</Link>
             </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/second-filter">Pending Second Filter</Link>
+            </Button>
             <Button
               variant={archived ? "secondary" : "ghost"}
               size="sm"
