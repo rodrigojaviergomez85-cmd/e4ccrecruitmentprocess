@@ -1012,3 +1012,15 @@ function ReferenceNotes({
     </div>
   );
 }
+
+function WithdrawnNotice({ app }: { app: { withdrawn_at: string; withdrawn_stage?: string | null; withdrawn_reason?: string | null } }) {
+  return (
+    <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+      <p className="font-semibold">
+        Withdrawn by Applicant · {new Date(app.withdrawn_at).toLocaleString()}
+        {app.withdrawn_stage ? ` · Stage: ${app.withdrawn_stage}` : ""}
+      </p>
+      {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
+    </section>
+  );
+}
