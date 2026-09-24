@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { APPOINTMENT_STATUSES } from "./interviews";
+import { staffTier } from "./roles";
 
 async function staffCtx(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -11,14 +12,14 @@ async function staffCtx(userId: string) {
     supabaseAdmin.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("staff_countries").select("country_code").eq("user_id", userId),
   ]);
-  if (!roles?.length) throw new Error("You do not have staff access.");
+  const roleNames = (roles ?? []).map((r) => r.role as string);
+  if (!staffTier(roleNames).isStaff) throw new Error("You do not have staff access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
-  const roleNames = roles.map((r) => r.role as string);
   const isAdmin = roleNames.includes("admin");
   return {
     db: supabaseAdmin,
     isAdmin,
-    isViewer: !isAdmin && roleNames.includes("viewer") && !roleNames.includes("recruiter"),
+    isViewer: false,
     email: profile?.email ?? null,
     allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
   };

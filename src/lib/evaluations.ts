@@ -317,7 +317,7 @@ export function missingEarlyFinish(input: ComplianceInput): string[] {
 }
 
 export const STATUS_FOR_RESULT: Record<string, string> = {
-  "Approved for last step": "Interview completed",
+  "Approved for last step": "Pending Second Filter",
   "Retake required": "Reviewing",
   "Not approved": "Rejected",
 };

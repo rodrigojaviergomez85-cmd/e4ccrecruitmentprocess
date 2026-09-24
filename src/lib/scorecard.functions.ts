@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isLockedStatus, levelDifference } from "./evaluations";
+import { staffTier } from "./roles";
 
 /** Embedded Supabase relations arrive as a row or an array depending on the relationship. */
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -23,7 +24,7 @@ async function staffCtx(userId: string) {
     db.from("staff_countries").select("country_code").eq("user_id", userId),
   ]);
   const roleNames = (roles ?? []).map((r) => r.role as string);
-  if (!roleNames.length) throw new Error("You do not have staff access.");
+  if (!staffTier(roleNames).isStaff) throw new Error("You do not have staff access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
   const isAdmin = roleNames.includes("admin");
   return {

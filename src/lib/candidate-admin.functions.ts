@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildFollowUpEmail, type FollowUpKind } from "./candidate-emails";
+import { staffTier } from "./roles";
 
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -20,13 +21,14 @@ async function staffCtx(userId: string) {
     db.from("staff_countries").select("country_code").eq("user_id", userId),
   ]);
   const roleNames = (roles ?? []).map((r) => r.role as string);
-  if (!roleNames.length) throw new Error("You do not have staff access.");
+  const tier = staffTier(roleNames);
+  if (!tier.isStaff) throw new Error("You do not have staff access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
-  const isAdmin = roleNames.includes("admin");
+  const isAdmin = tier.isAdmin;
   return {
     db,
     isAdmin,
-    canManage: isAdmin || roleNames.includes("recruiter") || roleNames.includes("evaluator"),
+    canManage: isAdmin || tier.isRecruitment || tier.isManager,
     email: profile?.email ?? null,
     allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
   };
@@ -324,7 +326,7 @@ export const listCandidateEmails = createServerFn({ method: "POST" })
 /** Internal pipeline status stored on the application after a result email. */
 export function statusForResult(kind: FollowUpKind, eligibleAgainDate?: string | null) {
   if (kind === "retake") return "Retake – Email Sent";
-  if (kind === "approved") return "Approved – Final Filter Pending";
+  if (kind === "approved") return "Pending Second Filter";
   return kind === "not_approved" && eligibleAgainDate
     ? `Not Approved – Eligible Again: ${eligibleAgainDate}`
     : "Not Approved";
