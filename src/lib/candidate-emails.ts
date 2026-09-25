@@ -42,7 +42,6 @@ export function buildPreparationEmail(input: {
 export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
   retake: "Retake invitation",
   not_approved: "Process closed",
-  final_filter: "Final interview details",
   approved: "Approved — final filter",
   final_filter: "Final interview details",
 };
