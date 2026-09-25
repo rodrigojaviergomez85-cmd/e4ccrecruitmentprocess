@@ -12,7 +12,7 @@
 ## Convenio Onsite
 - Datos que cambian: nombre, fecha de inicio, días y horario de Training, LOB / tipo de plaza, sucursal de Training, sucursal donde dará clases (con la casilla "Same as training branch"), días y horario de clases y Trainer.
 - Se reemplazan el nombre de ejemplo ("Chrisstick…") y los horarios de ejemplo; no queda ningún horario viejo que los contradiga.
-- **"cincuenta (40) horas"**: queda marcado como pendiente. Los envíos reales de Onsite siguen bloqueados hasta que confirmes 40 o 50. Las muestras TEST sí se pueden generar.
+- **"cincuenta (40) horas"** se corrige a **"cuarenta (40) horas"**: el 50 % de los honorarios se paga al completar 40 horas. Onsite ya no queda bloqueado por esto.
 
 ## PDF
 - La app crea el PDF por su cuenta, con un diseño limpio de E4CC: el mismo texto, las mismas cláusulas y las mismas tablas (Addendum A y B), más un bloque corto de "Datos del participante". Nombre, firma y fecha de firma quedan en blanco para el candidato.
