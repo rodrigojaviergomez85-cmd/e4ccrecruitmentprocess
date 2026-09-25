@@ -966,6 +966,7 @@ export type Database = {
           submitted_at: string | null
           total_score: number | null
           updated_at: string
+          verifications: Json
         }
         Insert: {
           application_id: string
@@ -998,6 +999,7 @@ export type Database = {
           submitted_at?: string | null
           total_score?: number | null
           updated_at?: string
+          verifications?: Json
         }
         Update: {
           application_id?: string
@@ -1030,6 +1032,7 @@ export type Database = {
           submitted_at?: string | null
           total_score?: number | null
           updated_at?: string
+          verifications?: Json
         }
         Relationships: [
           {

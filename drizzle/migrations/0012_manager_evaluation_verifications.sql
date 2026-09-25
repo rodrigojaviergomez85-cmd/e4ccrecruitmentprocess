@@ -1,0 +1,1 @@
+ALTER TABLE public.manager_evaluations ADD COLUMN IF NOT EXISTS verifications jsonb NOT NULL DEFAULT '{}'::jsonb; COMMENT ON COLUMN public.manager_evaluations.verifications IS 'Per-item Manager verification state: confirmed | clarification | discrepancy | not_reviewed';

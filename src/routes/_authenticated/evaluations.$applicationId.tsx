@@ -1359,8 +1359,8 @@ function EvaluationForm() {
       <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="text-sm font-semibold">Candidate result email</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          The candidate is only notified when you press and confirm this button. Nothing is
-          sent while you edit or autosave the evaluation.
+          The result email goes out automatically when you confirm and finish the interview,
+          with the final filter details you entered. Use this button only to send it again.
         </p>
         {emailState === "sent" && (
           <p className="mt-2 text-xs text-emerald-600">Result email sent successfully.</p>
