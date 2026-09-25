@@ -92,6 +92,13 @@
       "when": 1790351830726,
       "tag": "0012_manager_evaluation_verifications",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790357560482,
+      "tag": "0013_candidate_agreements",
+      "breakpoints": true
     }
   ]
 }
