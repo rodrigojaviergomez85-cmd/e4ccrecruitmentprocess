@@ -345,7 +345,7 @@ export async function sendFollowUp(
     force?: boolean;
     managerEvaluationId?: string | null;
     skipStatusUpdate?: boolean;
-    finalFilter?: { date: string; time: string; interviewer: string; place?: string | null } | null;
+    finalFilter?: import("./evaluations").FinalFilterDetails | null;
   },
 ) {
   const { data: app } = await db
@@ -408,7 +408,7 @@ export async function sendFollowUp(
     sent_by: input.actorId ?? null,
   });
 
-  if (result.ok && !input.skipStatusUpdate) {
+  if (result.ok && !input.skipStatusUpdate && input.kind !== "final_filter") {
     await db
       .from("applications")
       .update({ status: statusForResult(input.kind, input.eligibleAgainDate) })
@@ -457,7 +457,7 @@ export const listInterviewAttempts = createServerFn({ method: "POST" })
     await assertCandidateAccess(ctx.db, ctx.allowedCountries, data.applicationId);
     const { data: rows } = await ctx.db
       .from("interview_evaluations")
-      .select("id, attempt_number, status, final_result, interview_date, submitted_at, created_at")
+      .select("id, attempt_number, status, final_result, interview_date, submitted_at, created_at, sections")
       .eq("application_id", data.applicationId)
       .order("attempt_number", { ascending: false });
     return rows ?? [];

@@ -1,3 +1,4 @@
+import { readFinalFilter } from "@/lib/evaluations";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -398,6 +399,9 @@ function ReviewPage() {
                 <span>Manager: <strong className="text-foreground">{managerName}</strong></span>
                 <span>First interview: {fmt(interview?.submitted_at)}</span>
                 <span>Recruitment result: <strong className="text-foreground">{resultLabel(interview?.final_result) || "Not recorded"}</strong></span>
+                {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
+                  <span>Final filter: <strong className="text-foreground">{ff.details.date} · {ff.details.time} · {ff.details.interviewer}</strong>{ff.details.link ? <> · <a className="underline" href={ff.details.link} target="_blank" rel="noreferrer">Join</a></> : ff.details.location ? ` · ${ff.details.location}` : ""}</span>
+                ) : null; })()}
                 <span>Approved by Recruitment: {fmt(app.recruitment_approved_at)}</span>
               </p>
             </div>

@@ -50,6 +50,9 @@ import {
   missingEarlyFinish,
   missingRequired,
   verbStats,
+  FF_TIMEZONES,
+  defaultFfTimezone,
+  readFinalFilter,
 } from "@/lib/evaluations";
 import {
   openEvaluation,
@@ -218,6 +221,39 @@ function EvaluationForm() {
       return { ...prev, equipment: eq };
     });
   }, [hydrated, candidate]);
+
+  const ffCheck = readFinalFilter(sections["result"]);
+
+  // Prefill the final filter appointment when one is already booked.
+  useEffect(() => {
+    const appt = data?.finalFilterAppointment;
+    if (!finishOpen || !appt || finalResult !== "Approved for last step") return;
+    if (String(sections["result"]?.["ff_known"] ?? "")) return;
+    const tz = appt.timezone || "America/El_Salvador";
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+        .formatToParts(new Date(appt.startsAt)).map((p) => [p.type, p.value]),
+    );
+    setSections((prev) => ({
+      ...prev,
+      result: {
+        ...(prev["result"] ?? {}),
+        ff_known: "yes",
+        ff_date: `${parts['year']}-${parts['month']}-${parts['day']}`,
+        ff_time: `${parts['hour']}:${parts['minute']}`,
+        ff_timezone: defaultFfTimezone(candidate?.countryCode),
+        ff_interviewer: appt.interviewer ?? "",
+        ...(appt.meetingLink ? { ff_mode: "video", ff_link: appt.meetingLink } : {}),
+      },
+    }));
+  }, [finishOpen, finalResult, data?.finalFilterAppointment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Store the default time zone so it reaches the email.
+  useEffect(() => {
+    if (sections["result"]?.["ff_known"] === "yes" && !sections["result"]?.["ff_timezone"]) {
+      set("result", "ff_timezone", defaultFfTimezone(candidate?.countryCode));
+    }
+  }, [sections, candidate?.countryCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lobRaw = String(sections["candidate"]?.["lob"] ?? candidate?.lob ?? "");
   const isOnline = lobRaw.toLowerCase() === "online";
@@ -1360,7 +1396,8 @@ function EvaluationForm() {
         <h3 className="text-sm font-semibold">Candidate result email</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           The result email goes out automatically when you confirm and finish the interview,
-          with the final filter details you entered. Use this button only to send it again.
+          with the final filter details you entered. If the appointment is added after the approval
+          was sent, this button sends only the appointment confirmation.
         </p>
         {emailState === "sent" && (
           <p className="mt-2 text-xs text-emerald-600">Result email sent successfully.</p>
@@ -1378,7 +1415,7 @@ function EvaluationForm() {
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
             onClick={() => setSendOpen(true)}
-            disabled={!finalResult || sendingEmail}
+            disabled={!finalResult || sendingEmail || !isLockedStatus(evaluation?.status ?? "")}
           >
             {sendingEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Send Result
@@ -1583,15 +1620,37 @@ function EvaluationForm() {
                 {str("result", "ff_known") === "yes" && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Final filter date"><Input type="date" value={str("result", "ff_date")} onChange={(e) => set("result", "ff_date", e.target.value)} /></Field>
-                    <Field label="Final filter time (candidate's local time)"><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
+                    <Field label="Time"><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
+                    <Field label="Time zone">
+                      <Select value={str("result", "ff_timezone") || defaultFfTimezone(candidate?.countryCode)} onValueChange={(v) => set("result", "ff_timezone", v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>{FF_TIMEZONES.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </Field>
                     <Field label="Interviewer name"><Input value={str("result", "ff_interviewer")} onChange={(e) => set("result", "ff_interviewer", e.target.value)} /></Field>
-                    {!isOnline && (
-                      <Field label="Place (onsite address)"><Input value={str("result", "ff_place")} onChange={(e) => set("result", "ff_place", e.target.value)} /></Field>
+                    <Field label="Interview format" hint="How the final interview happens — not the position's modality.">
+                      <div className="flex gap-2">
+                        {[["video", "Video call"], ["onsite", "In person"]].map(([v, label]) => (
+                          <Button key={v} type="button" size="sm" variant={str("result", "ff_mode") === v ? "default" : "outline"} onClick={() => set("result", "ff_mode", v)}>{label}</Button>
+                        ))}
+                      </div>
+                    </Field>
+                    {str("result", "ff_mode") === "video" && (
+                      <Field label="Meeting link"><Input type="url" placeholder="https://zoom.us/j/..." value={str("result", "ff_link")} onChange={(e) => set("result", "ff_link", e.target.value)} /></Field>
+                    )}
+                    {str("result", "ff_mode") === "onsite" && (
+                      <>
+                        <Field label="Branch"><Input value={str("result", "ff_branch")} onChange={(e) => set("result", "ff_branch", e.target.value)} /></Field>
+                        <Field label="Address"><Input value={str("result", "ff_address")} onChange={(e) => set("result", "ff_address", e.target.value)} /></Field>
+                      </>
                     )}
                   </div>
                 )}
-                {str("result", "ff_known") === "yes" && (!str("result", "ff_date") || !str("result", "ff_time") || !str("result", "ff_interviewer") || (!isOnline && !str("result", "ff_place"))) && (
-                  <p className="text-xs text-destructive">Complete date, time, interviewer{isOnline ? "" : " and place"} to include them in the approval email.</p>
+                {ffCheck.state === "incomplete" && (
+                  <p className="text-xs text-destructive">Complete the {ffCheck.missing.join(", ")} to finish. The approval email will include these details.</p>
+                )}
+                {str("result", "ff_known") === "no" && (
+                  <p className="text-xs text-muted-foreground">The general approval email will be sent, asking the candidate to watch their phone and WhatsApp.</p>
                 )}
               </div>
             )}
@@ -1629,7 +1688,7 @@ function EvaluationForm() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFinishOpen(false)}>Cancel</Button>
-            <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving"}>
+            <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving" || (finalResult === "Approved for last step" && (!str("result", "ff_known") || ffCheck.state === "incomplete"))}>
               Confirm and finish
             </Button>
           </DialogFooter>

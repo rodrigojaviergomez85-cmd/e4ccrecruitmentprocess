@@ -9,6 +9,7 @@ import {
   complianceScore,
   missingEarlyFinish,
   missingRequired,
+  readFinalFilter,
   totalScore,
   type Weights,
 } from "./evaluations";
@@ -350,7 +351,26 @@ export const openEvaluation = createServerFn({ method: "POST" })
       resumeUrl = signed?.signedUrl ?? null;
     }
 
+    const { data: mgrAppt } = await db
+      .from("appointments")
+      .select("starts_at, meeting_link, candidate_timezone, interviewers(full_name)")
+      .eq("application_id", app.id)
+      .eq("stage", "manager_final_filter")
+      .in("status", ["Scheduled", "Confirmed"])
+      .gte("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(1)
+      .maybeSingle();
+
     return {
+      finalFilterAppointment: mgrAppt
+        ? {
+            startsAt: mgrAppt.starts_at,
+            meetingLink: mgrAppt.meeting_link || null,
+            timezone: mgrAppt.candidate_timezone,
+            interviewer: one(mgrAppt.interviewers)?.full_name ?? null,
+          }
+        : null,
       access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView },
       weights: await loadWeights(db),
       candidate: {
@@ -411,14 +431,54 @@ export const openEvaluation = createServerFn({ method: "POST" })
   });
 
 function finalFilterFrom(sections: Record<string, Record<string, unknown>>) {
-  const r = sections["result"] ?? {};
-  const g = (k: string) => String(r[k] ?? "").trim();
-  if (g("ff_known") !== "yes" || !g("ff_date") || !g("ff_time") || !g("ff_interviewer")) return null;
-  const [y, m, d] = g("ff_date").split("-");
-  const date = y && m && d ? new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : g("ff_date");
-  const [hh, mm] = g("ff_time").split(":").map(Number);
-  const time = Number.isFinite(hh) ? `${((hh! + 11) % 12) + 1}:${String(mm ?? 0).padStart(2, "0")} ${hh! < 12 ? "AM" : "PM"}` : g("ff_time");
-  return { date, time, interviewer: g("ff_interviewer"), place: g("ff_place") || null };
+  const ff = readFinalFilter(sections["result"]);
+  return ff.state === "complete" ? ff.details : null;
+}
+
+/**
+ * Approved delivery rule: one approval email. When the appointment is already
+ * known it goes inside that email. If the general approval was sent earlier and
+ * the appointment is defined later, only a single appointment confirmation is
+ * sent — the approval is never repeated.
+ */
+async function deliverApproved(
+  db: Db,
+  input: { applicationId: string; evaluationId: string; sections: Record<string, Record<string, unknown>>; actorId: string; force?: boolean },
+) {
+  const { sendFollowUp } = await import("./candidate-admin.functions");
+  const finalFilter = finalFilterFrom(input.sections);
+  const { data: approvedSent } = await db
+    .from("candidate_emails")
+    .select("id, body")
+    .eq("evaluation_id", input.evaluationId)
+    .eq("kind", "approved")
+    .eq("status", "sent")
+    .limit(1)
+    .maybeSingle();
+  if (!approvedSent || input.force) {
+    return sendFollowUp(db, {
+      applicationId: input.applicationId,
+      evaluationId: input.evaluationId,
+      kind: "approved",
+      areas: "",
+      finalFilter,
+      actorId: input.actorId,
+      force: input.force ?? false,
+    });
+  }
+  const alreadyHadDetails = /final interview details/i.test(approvedSent.body ?? "");
+  if (!finalFilter || alreadyHadDetails) {
+    return { ok: true, status: "duplicate" as const, detail: "The result email was already sent for this interview." };
+  }
+  return sendFollowUp(db, {
+    applicationId: input.applicationId,
+    evaluationId: input.evaluationId,
+    kind: "final_filter",
+    areas: "",
+    finalFilter,
+    actorId: input.actorId,
+    skipStatusUpdate: true,
+  });
 }
 
 const jobSchema = z.object({
@@ -522,6 +582,10 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     const missing = data.earlyFinish
       ? missingEarlyFinish(complianceInput)
       : missingRequired(complianceInput);
+    if (data.submit && data.finalResult === "Approved for last step") {
+      const ff = readFinalFilter(sections["result"]);
+      if (ff.state === "incomplete") missing.push(...ff.missing.map((m) => `Final filter ${m}`));
+    }
     if (data.submit && missing.length) return { ok: false as const, missing };
 
     const total = totalScore(data.categoryScores, weights);
@@ -645,13 +709,15 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       if (kind) {
         const { sendFollowUp } = await import("./candidate-admin.functions");
         try {
-          emailResult = await sendFollowUp(db, {
+          emailResult = kind === "approved"
+            ? await deliverApproved(db, { applicationId: current.application_id, evaluationId: data.evaluationId, sections, actorId: context.userId })
+            : await sendFollowUp(db, {
             applicationId: current.application_id,
             evaluationId: data.evaluationId,
             kind,
             areas: resultAreas(kind, sections, data.comments),
             reasons: data.notApprovedReasons ?? [],
-            finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
+            finalFilter: null,
             actorId: context.userId,
             eligibleAgainDate:
               kind === "not_approved"
@@ -780,7 +846,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     const { data: evaluation } = await db
       .from("interview_evaluations")
       .select(
-        "id, application_id, final_result, sections, comments, not_approved_reasons, retake_date",
+        "id, application_id, status, final_result, sections, comments, not_approved_reasons, retake_date",
       )
       .eq("id", data.evaluationId)
       .maybeSingle();
@@ -811,14 +877,19 @@ export const sendResultEmail = createServerFn({ method: "POST" })
           ? evaluation.retake_date
           : null;
 
+    if (!isLockedStatus(evaluation.status)) {
+      throw new Error("Finish the interview first — the result email is sent automatically when you confirm and finish.");
+    }
     const { sendFollowUp } = await import("./candidate-admin.functions");
-    const delivery = await sendFollowUp(db, {
+    const delivery = kind === "approved"
+      ? await deliverApproved(db, { applicationId: evaluation.application_id, evaluationId: evaluation.id, sections, actorId: context.userId, force: data.force })
+      : await sendFollowUp(db, {
       applicationId: evaluation.application_id,
       evaluationId: evaluation.id,
       kind,
       areas,
       reasons,
-      finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
+      finalFilter: null,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,

@@ -2,7 +2,8 @@
 
 export const CALENDLY_SCHEDULE_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 
-export type FollowUpKind = "retake" | "not_approved" | "approved";
+export type FollowUpKind = "retake" | "not_approved" | "approved" | "final_filter";
+import type { FinalFilterDetails } from "./evaluations";
 
 export function buildPreparationEmail(input: {
   fullName: string;
@@ -42,6 +43,7 @@ export const FOLLOW_UP_LABELS: Record<FollowUpKind, string> = {
   retake: "Retake invitation",
   not_approved: "Process closed",
   approved: "Approved — final filter",
+  final_filter: "Final interview details",
 };
 
 /**
@@ -230,6 +232,13 @@ function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl:
  * The wording of both templates is fixed; only the candidate name and the area
  * of opportunity change from one interview to the next.
  */
+function ffPlace(ff: FinalFilterDetails) {
+  if (ff.link)
+    return `<li><strong>Join Interview:</strong> <a href="${escapeHtml(ff.link)}">${escapeHtml(ff.link)}</a></li>`;
+  if (ff.location) return `<li><strong>Location:</strong> ${escapeHtml(ff.location)}</li>`;
+  return "";
+}
+
 export function buildFollowUpEmail(input: {
   kind: FollowUpKind;
   fullName: string;
@@ -237,7 +246,7 @@ export function buildFollowUpEmail(input: {
   reasons?: string[];
   scheduleUrl?: string | null;
   eligibleAgainDate?: string | null;
-  finalFilter?: { date: string; time: string; interviewer: string; place?: string | null } | null;
+  finalFilter?: FinalFilterDetails | null;
 }) {
   const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
 
@@ -245,6 +254,26 @@ export function buildFollowUpEmail(input: {
   if (input.kind === "retake") {
     const link = input.scheduleUrl || CALENDLY_SCHEDULE_URL;
     return buildRetakeEmail({ fullName: input.fullName, areas: input.areas, scheduleUrl: link, retakeDate: input.eligibleAgainDate ?? null });
+  }
+
+  if (input.kind === "final_filter" && input.finalFilter) {
+    const ff = input.finalFilter;
+    const subject = "Your E4CC final interview details";
+    const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">Your final interview with our <strong>Country Manager</strong> has been scheduled.</p>
+      <p style="margin:0 0 8px"><strong>Your final interview details:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        <li><strong>Date:</strong> ${escapeHtml(ff.date)}</li>
+        <li><strong>Time:</strong> ${escapeHtml(ff.time)}</li>
+        <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
+        ${ffPlace(ff)}
+      </ul>
+      <p style="margin:0 0 12px">Please join the interview on time and keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.</p>
+      <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+    return { subject, html, scheduleUrl: null };
   }
 
   if (input.kind === "approved") {
@@ -267,7 +296,7 @@ export function buildFollowUpEmail(input: {
         <li><strong>Date:</strong> ${escapeHtml(ff.date)}</li>
         <li><strong>Time:</strong> ${escapeHtml(ff.time)}</li>
         <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
-        ${ff.place ? `<li><strong>Place:</strong> ${escapeHtml(ff.place)}</li>` : ""}
+        ${ffPlace(ff)}
       </ul>
       <p style="margin:0 0 12px">Please join the interview on time and keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.</p>` : `
       <p style="margin:0 0 12px">
