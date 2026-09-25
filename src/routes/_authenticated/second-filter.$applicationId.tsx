@@ -1,3 +1,4 @@
+import { ONLINE_FIXED, ONSITE_TRAINING_HOURS } from "@/lib/agreements/constants";
 import { readFinalFilter } from "@/lib/evaluations";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -39,6 +40,7 @@ import {
   RECONFIRM_CHECKS,
   STAGE_NOTE_KEYS,
   TRAINING_KEYS,
+  AGREEMENT_KEYS,
   missingTraining,
   type ManagerDecision,
   type ManagerVerificationState,
@@ -865,8 +867,17 @@ function ReviewPage() {
                   {form.finalDecision === "Approved for Training" && (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <TField label="Training start date" value={tv(TRAINING_KEYS.startDate)} onChange={(v) => setT(TRAINING_KEYS.startDate, v)} type="date" />
-                      <TField label="Training schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 8:00 AM – 12:00 PM" />
-                      <TField label="Time zone" value={tv(TRAINING_KEYS.timezone)} onChange={(v) => setT(TRAINING_KEYS.timezone, v)} placeholder="America/El_Salvador" />
+                      {isOnline ? (
+                        <>
+                          <Fact label="Training schedule (fixed)" value={ONLINE_FIXED.training} />
+                          <Fact label="Classes (fixed)" value={`${ONLINE_FIXED.classes} · ${ONLINE_FIXED.fixedClass}; ${ONLINE_FIXED.extraClass}`} />
+                        </>
+                      ) : (
+                        <>
+                          <TField label="Training days and schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 7:00 AM – 4:00 PM" />
+                          <TField label="Time zone" value={tv(TRAINING_KEYS.timezone)} onChange={(v) => setT(TRAINING_KEYS.timezone, v)} placeholder="America/El_Salvador" />
+                        </>
+                      )}
                       <Fact label="Modality" value={shown(p?.work_modality ?? S["candidate"]?.["lob"])} />
                       <TField label="Trainer name" value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
                       <TField label="Trainer contact" value={tv(TRAINING_KEYS.trainerContact)} onChange={(v) => setT(TRAINING_KEYS.trainerContact, v)} placeholder="Email or WhatsApp" />
@@ -874,12 +885,22 @@ function ReviewPage() {
                         <TField label="Zoom link" value={tv(TRAINING_KEYS.zoom)} onChange={(v) => setT(TRAINING_KEYS.zoom, v)} placeholder="https://zoom.us/j/…" />
                       ) : (
                         <>
+                          <TField label="LOB / position type" value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} placeholder="Onsite Full-Time" />
                           <TField label="Training branch" value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
                           <TField label="Training address" value={tv(TRAINING_KEYS.address)} onChange={(v) => setT(TRAINING_KEYS.address, v)} />
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={tv(AGREEMENT_KEYS.classSameBranch) === "yes"} onCheckedChange={(v) => setT(AGREEMENT_KEYS.classSameBranch, v === true ? "yes" : "")} />
+                            Class branch is the same as the training branch
+                          </label>
+                          {tv(AGREEMENT_KEYS.classSameBranch) !== "yes" && (
+                            <TField label="Assigned class branch" value={tv(AGREEMENT_KEYS.classBranch)} onChange={(v) => setT(AGREEMENT_KEYS.classBranch, v)} />
+                          )}
+                          <TField label="Class days and schedule" value={tv(AGREEMENT_KEYS.classSchedule)} onChange={(v) => setT(AGREEMENT_KEYS.classSchedule, v)} placeholder="Mon–Fri 7:00 AM – 3:40 PM" />
                         </>
                       )}
                       <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-4">
-                        {trainingMissing.length ? `Still missing: ${trainingMissing.join(", ")}.` : "Training details complete."} The welcome email with the country documentation is sent automatically when you confirm.
+                        {trainingMissing.length ? `Still missing: ${trainingMissing.join(", ")}.` : "Training details complete."} On confirm, the {isOnline ? "Online" : "Onsite"} agreement PDF is generated and attached to the single welcome email.
+                        {!isOnline && ONSITE_TRAINING_HOURS === null && " Onsite sending is on hold until the training hours clause (40 or 50) is confirmed."}
                       </p>
                     </div>
                   )}

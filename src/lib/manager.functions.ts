@@ -495,7 +495,46 @@ async function applyDecision(
       address: t(TRAINING_KEYS.address),
       zoom: t(TRAINING_KEYS.zoom),
     });
-    const r = await sendEmail({ to: d.applicantEmail, subject, html, candidateName: d.applicantName, result: "training_welcome" });
+    // One welcome email with the matching agreement PDF attached. If the PDF cannot be
+    // produced, the decision stays saved and the email waits as "pending agreement".
+    const ag = await import("./agreements/agreements.server");
+    const { AGREEMENT_KEYS } = await import("./manager-scorecard");
+    const kind = d.isOnline ? "online" : "onsite";
+    const sameBranch = t(AGREEMENT_KEYS.classSameBranch) === "yes";
+    const prepared = await ag.prepareAgreement({
+      applicationId: d.applicationId,
+      managerEvaluationId: d.evaluationId,
+      kind,
+      actorId,
+      data: {
+        fullName: d.applicantName,
+        startDate: t(TRAINING_KEYS.startDate),
+        trainer: t(TRAINING_KEYS.trainer),
+        ...(kind === "onsite"
+          ? {
+              trainingSchedule: t(TRAINING_KEYS.schedule),
+              lob: t(AGREEMENT_KEYS.lob),
+              trainingBranch: t(TRAINING_KEYS.branch),
+              classBranch: sameBranch ? t(TRAINING_KEYS.branch) : t(AGREEMENT_KEYS.classBranch),
+              classSchedule: t(AGREEMENT_KEYS.classSchedule),
+            }
+          : {}),
+      },
+    });
+    let r: { ok: boolean; status: "sent" | "skipped" | "failed"; detail: string; httpStatus?: number | null };
+    if (!prepared.ok) {
+      r = { ok: false, status: "failed", detail: `Pending agreement: ${prepared.reason}`, httpStatus: null };
+    } else {
+      r = await sendEmail({
+        to: d.applicantEmail,
+        subject,
+        html,
+        candidateName: d.applicantName,
+        result: "training_welcome",
+        attachment: { url: prepared.url, name: prepared.name },
+      });
+      await ag.markAgreementEmail(prepared.agreementId, r.ok ? "sent" : "failed", r.detail);
+    }
     await db.from("candidate_emails").insert({
       application_id: d.applicationId,
       manager_evaluation_id: d.evaluationId,
@@ -508,6 +547,18 @@ async function applyDecision(
       http_status: r.httpStatus ?? null,
       response_message: r.detail,
       sent_by: actorId,
+    });
+    await writeAudit(db as never, {
+      actorId,
+      actorEmail: ctx.email,
+      action: prepared.ok ? "application.agreement_generated" : "application.agreement_pending",
+      entityType: "application",
+      entityId: d.applicationId,
+      applicationId: d.applicationId,
+      oldValue: null,
+      newValue: prepared.ok
+        ? { kind, agreement_id: prepared.agreementId, file: prepared.name, email_status: r.status, signed: false }
+        : { kind, agreement_id: prepared.agreementId, reason: prepared.reason },
     });
     // Record the exact list requested; documents are never marked as received here.
     await writeAudit(db as never, {

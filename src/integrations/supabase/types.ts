@@ -389,6 +389,77 @@ export type Database = {
           },
         ]
       }
+      candidate_agreements: {
+        Row: {
+          application_id: string
+          created_at: string
+          created_by: string | null
+          data: Json
+          document_status: string
+          email_status: string
+          error_message: string | null
+          generated_at: string | null
+          id: string
+          is_test: boolean
+          kind: string
+          manager_evaluation_id: string | null
+          sent_at: string | null
+          signed: boolean
+          storage_path: string | null
+          template_file: string
+          template_version: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          document_status?: string
+          email_status?: string
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          is_test?: boolean
+          kind: string
+          manager_evaluation_id?: string | null
+          sent_at?: string | null
+          signed?: boolean
+          storage_path?: string | null
+          template_file: string
+          template_version: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          document_status?: string
+          email_status?: string
+          error_message?: string | null
+          generated_at?: string | null
+          id?: string
+          is_test?: boolean
+          kind?: string
+          manager_evaluation_id?: string | null
+          sent_at?: string | null
+          signed?: boolean
+          storage_path?: string | null
+          template_file?: string
+          template_version?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_agreements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_emails: {
         Row: {
           application_id: string

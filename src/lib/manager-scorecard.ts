@@ -216,19 +216,30 @@ export const TRAINING_KEYS = {
   zoom: "training:zoom",
 } as const;
 
+/** Onsite agreement fields (Online uses fixed schedules from the agreement). */
+export const AGREEMENT_KEYS = {
+  lob: "agreement:lob",
+  classSameBranch: "agreement:class_same_branch",
+  classBranch: "agreement:class_branch",
+  classSchedule: "agreement:class_schedule",
+} as const;
+
 export function missingTraining(evidence: Record<string, string>, isOnline: boolean): string[] {
   const t = (k: string) => (evidence[k] ?? "").trim();
   const out: string[] = [];
   if (!t(TRAINING_KEYS.startDate)) out.push("Training start date");
-  if (!t(TRAINING_KEYS.schedule)) out.push("Training schedule");
-  if (!t(TRAINING_KEYS.timezone)) out.push("Time zone");
   if (!t(TRAINING_KEYS.trainer)) out.push("Trainer name");
   if (!t(TRAINING_KEYS.trainerContact)) out.push("Trainer contact");
   if (isOnline) {
     if (!t(TRAINING_KEYS.zoom)) out.push("Zoom link");
   } else {
+    if (!t(TRAINING_KEYS.schedule)) out.push("Training days and schedule");
+    if (!t(TRAINING_KEYS.timezone)) out.push("Time zone");
     if (!t(TRAINING_KEYS.branch)) out.push("Training branch");
     if (!t(TRAINING_KEYS.address)) out.push("Training address");
+    if (!t(AGREEMENT_KEYS.lob)) out.push("LOB / position type");
+    if (t(AGREEMENT_KEYS.classSameBranch) !== "yes" && !t(AGREEMENT_KEYS.classBranch)) out.push("Assigned class branch");
+    if (!t(AGREEMENT_KEYS.classSchedule)) out.push("Class days and schedule");
   }
   return out;
 }
