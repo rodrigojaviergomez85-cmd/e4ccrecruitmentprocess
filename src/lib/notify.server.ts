@@ -26,6 +26,7 @@ async function sendViaMake(opts: {
   html: string;
   candidateName?: string;
   result?: string;
+  attachment?: { url: string; name: string };
 }): Promise<SendResult | null> {
   const url = process.env["MAKE_RECRUITMENT_WEBHOOK_URL"];
   if (!url) return null;
@@ -39,6 +40,12 @@ async function sendViaMake(opts: {
         result: opts.result ?? "notification",
         subject: opts.subject,
         html_body: opts.html,
+        // Make routes on this field with mutually exclusive filters:
+        // "standard" -> existing Outlook module; "with_attachment" -> download PDF, then Outlook with attachment.
+        route: opts.attachment ? "with_attachment" : "standard",
+        has_attachment: Boolean(opts.attachment),
+        attachment_url: opts.attachment?.url ?? "",
+        attachment_name: opts.attachment?.name ?? "",
       }),
     });
     const text = (await res.text()).slice(0, 300);
@@ -60,9 +67,12 @@ export async function sendEmail(opts: {
   html: string;
   candidateName?: string;
   result?: string;
+  attachment?: { url: string; name: string };
 }): Promise<SendResult> {
   const viaMake = await sendViaMake(opts);
   if (viaMake) return viaMake;
+  // Never send an attachment-required email through a path that would drop the file.
+  if (opts.attachment) return { ok: false, status: "failed", detail: "Attachment delivery requires the Make scenario" };
   const key = process.env["RESEND_API_KEY"];
   if (!key) return { ok: false, status: "skipped", detail: "Email not configured" };
   const from = process.env["EMAIL_FROM"] ?? "E4CC Recruitment <onboarding@resend.dev>";
