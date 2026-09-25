@@ -13,3 +13,4 @@
 - [x] Prueba real a kennia.vasquez@e4ccglobal.com: correo normal limpio y PDF adjunto que abre correctamente
 - [x] Onsite: confirmado cuarenta (40) horas; envÃ­os Onsite reales desbloqueados
 
+- [ ] Revisar "Not Approved" de Kevin: la plataforma no lo envió
