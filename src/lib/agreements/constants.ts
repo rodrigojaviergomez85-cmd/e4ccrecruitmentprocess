@@ -6,12 +6,12 @@ export const AGREEMENT_TEMPLATE_FILES = {
 } as const;
 
 /**
- * Onsite source says "cincuenta (40) horas". E4CC has not confirmed 40 or 50,
- * so real Onsite sends stay blocked until this is set. TEST samples may render
- * with the pending marker.
+ * Onsite training hours confirmed by E4CC (2026-09): cuarenta (40) horas.
+ * Real Onsite sends are unblocked.
  */
-export const ONSITE_TRAINING_HOURS: null | 40 | 50 = null;
+export const ONSITE_TRAINING_HOURS: null | 40 | 50 = 40;
 export const ONSITE_HOURS_PENDING_TEXT = "[PENDIENTE DE CONFIRMAR: 40 o 50] horas";
+
 
 export const ONLINE_FIXED = {
   training: "Lunes a viernes, 5:00–9:00 p. m. (UTC-6)",
