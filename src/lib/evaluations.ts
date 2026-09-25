@@ -91,6 +91,9 @@ export const VARIABLE_SCHEDULE_WARNING =
 export const ENGLISH_INTRO =
   "This interview may last from 20 to 30 minutes. We will review your English, work experience, goals and aspirations. At the end, you will have an opportunity to ask questions.";
 
+export const B2_PAST_READING =
+  "Last year, a young teacher joined a language program that had struggled to keep students engaged. During her first weeks, she observed the classes and noticed that many learners had stopped participating because they were afraid of making mistakes. She redesigned several activities, gave clearer instructions, and encouraged students to discuss experiences they had already had outside the classroom. By the end of the term, attendance had improved, students were speaking more confidently, and the team had adopted some of her ideas. Although the change had required patience, she believed the results had proved that learners progressed faster when they felt supported.";
+
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B1+", "B2", "B2+", "C1", "C2"] as const;
 
 export const WRITING_TOPICS = [
@@ -231,6 +234,11 @@ export function complianceItems(input: ComplianceInput) {
       applies: true,
       done: input.verbs.filter((v) => v.verb.trim()).length >= 5,
     },
+    {
+      label: "B2 past-tense reading documented",
+      applies: true,
+      done: filled(get("english", "reading_observations")),
+    },
     { label: "Job history completed", applies: true, done: input.jobsCount >= 1 },
     { label: "Final result selected", applies: true, done: filled(input.finalResult) },
     {
@@ -265,6 +273,8 @@ export function missingRequired(input: ComplianceInput): string[] {
   if (!filled(get("profile", "availability_required"))) missing.push("Availability confirmation");
   if (input.verbs.filter((v) => v.verb.trim()).length < 5)
     missing.push("At least 5 irregular verbs evaluated");
+  if (!filled(get("english", "reading_observations")))
+    missing.push("B2 reading observations");
   if (input.jobsCount < 1) missing.push("At least one job history entry");
   if (!filled(input.finalResult)) missing.push("Final result");
 

@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { resultLabel } from "@/lib/roles";
 import {
+  B2_PAST_READING,
   ENGLISH_ACTIVITIES,
   FINAL_RESULTS,
   HIRING_BONUS_OPTIONS,
@@ -459,8 +460,8 @@ function EvaluationForm() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-5">
+      <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-5 lg:col-start-2 lg:row-start-1">
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -831,21 +832,6 @@ function EvaluationForm() {
                   onChange={(e) => set("profile", "routine_answer", e.target.value)}
                 />
               </Field>
-              <Field label="Commitment sustainability for at least six months (1–10)">
-                <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={str("profile", "commitment_score")}
-                  onChange={(e) => set("profile", "commitment_score", e.target.value)}
-                />
-              </Field>
-              <Field label="Explanation">
-                <Textarea
-                  value={str("profile", "commitment_reason")}
-                  onChange={(e) => set("profile", "commitment_reason", e.target.value)}
-                />
-              </Field>
             </div>
           )}
 
@@ -879,6 +865,20 @@ function EvaluationForm() {
               <p className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
                 Read to the candidate: “{ENGLISH_INTRO}”
               </p>
+               <div className="space-y-3 rounded-xl border border-border p-4">
+                 <h3 className="text-sm font-semibold">B2 past-tense reading</h3>
+                 <p className="text-sm leading-6 text-foreground">{B2_PAST_READING}</p>
+                 <Field
+                   label="Reading observations"
+                   hint="Note pronunciation, fluency, reading comprehension and use of past-tense structures."
+                 >
+                   <Textarea
+                     rows={4}
+                     value={str("english", "reading_observations")}
+                     onChange={(e) => set("english", "reading_observations", e.target.value)}
+                   />
+                 </Field>
+               </div>
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Irregular verbs (5 to 10)</h3>
                 <p className="text-xs text-muted-foreground">
@@ -993,12 +993,6 @@ function EvaluationForm() {
                     onChange={(e) => set("english", "writing_text", e.target.value)}
                   />
                 </Field>
-                <Field label="Writing test observations">
-                  <Textarea
-                    value={str("english", "writing_notes")}
-                    onChange={(e) => set("english", "writing_notes", e.target.value)}
-                  />
-                </Field>
                 <Field label="Evaluator notes">
                   <Textarea
                     value={str("english", "notes")}
@@ -1040,34 +1034,16 @@ function EvaluationForm() {
                   onChange={(e) => set("studies", "major", e.target.value)}
                 />
               </Field>
-              <Field label="Start year">
-                <Input
-                  value={str("studies", "start_year")}
-                  onChange={(e) => set("studies", "start_year", e.target.value)}
-                />
-              </Field>
-              <Field label="End year">
+               <Field label="End year / Finished">
                 <Input
                   value={str("studies", "end_year")}
                   onChange={(e) => set("studies", "end_year", e.target.value)}
-                />
-              </Field>
-              <Field label="Evaluator notes">
-                <Textarea
-                  value={str("studies", "notes")}
-                  onChange={(e) => set("studies", "notes", e.target.value)}
                 />
               </Field>
               <Field label="Additional studies, courses or certifications">
                 <Textarea
                   value={str("studies", "additional")}
                   onChange={(e) => set("studies", "additional", e.target.value)}
-                />
-              </Field>
-              <Field label="TESOL / CELTA or other relevant certifications">
-                <Textarea
-                  value={str("studies", "certifications")}
-                  onChange={(e) => set("studies", "certifications", e.target.value)}
                 />
               </Field>
             </div>
@@ -1100,15 +1076,11 @@ function EvaluationForm() {
                     {(
                       [
                         ["company", "Company", false],
-                        ["position", "Position", false],
                         ["start_date", "Start date", false],
                         ["end_date", "End date", false],
                         ["hired_to_do", "What was the candidate hired to do", true],
                         ["accomplishment", "Most important accomplishment (measurable)", true],
                         ["biggest_mistake", "Biggest mistake or failure and what they did after", true],
-                        ["supervisor_name", "Direct supervisor's name", false],
-                        ["supervisor_contact", "Supervisor's contact information", false],
-                        ["rating_reason", "Why would the supervisor give that rating", true],
                         ["reason_for_leaving", "Reason for leaving", true],
                         ["gap_explanation", "Employment gaps and explanation", true],
                       ] as Array<[keyof JobRow, string, boolean]>
@@ -1139,7 +1111,31 @@ function EvaluationForm() {
                         )}
                       </Field>
                     ))}
-                    <Field label="Expected supervisor rating (1–10)">
+                     <Field label="Direct supervisor's name">
+                       <Input
+                         value={job.supervisor_name}
+                         onChange={(e) =>
+                           setJobs((prev) =>
+                             prev.map((j, idx) =>
+                               idx === i ? { ...j, supervisor_name: e.target.value } : j,
+                             ),
+                           )
+                         }
+                       />
+                     </Field>
+                     <Field label="Supervisor phone number">
+                       <Input
+                         value={job.supervisor_contact}
+                         onChange={(e) =>
+                           setJobs((prev) =>
+                             prev.map((j, idx) =>
+                               idx === i ? { ...j, supervisor_contact: e.target.value } : j,
+                             ),
+                           )
+                         }
+                       />
+                     </Field>
+                     <Field label="Expected supervisor rating (1–10)">
                       <Input
                         type="number"
                         min={1}
@@ -1161,6 +1157,18 @@ function EvaluationForm() {
                         }
                       />
                     </Field>
+                     <Field label="Why would the supervisor give that rating">
+                       <Textarea
+                         value={job.rating_reason}
+                         onChange={(e) =>
+                           setJobs((prev) =>
+                             prev.map((j, idx) =>
+                               idx === i ? { ...j, rating_reason: e.target.value } : j,
+                             ),
+                           )
+                         }
+                       />
+                     </Field>
                   </div>
                 </div>
               ))}
@@ -1205,12 +1213,6 @@ function EvaluationForm() {
                 ))}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Red flags">
-                  <Textarea
-                    value={str("values", "red_flags")}
-                    onChange={(e) => set("values", "red_flags", e.target.value)}
-                  />
-                </Field>
                 <Field label="General evaluator comments (private)">
                   <Textarea
                     value={str("values", "private_notes")}
@@ -1257,9 +1259,6 @@ function EvaluationForm() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Interview comments">
                     <Textarea value={comments} onChange={(e) => setComments(e.target.value)} />
-                  </Field>
-                  <Field label="Red flags (or 'No red flags identified')">
-                    <Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} />
                   </Field>
                   <Field label="Last roleplay interview date">
                     <Input
@@ -1335,9 +1334,6 @@ function EvaluationForm() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Final interview comments">
                       <Textarea value={comments} onChange={(e) => setComments(e.target.value)} />
-                    </Field>
-                    <Field label="Red flags identified">
-                      <Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} />
                     </Field>
                     <Field label="When can this candidate apply again?">
                       <Input
@@ -1441,7 +1437,20 @@ function EvaluationForm() {
         </div>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="space-y-4 lg:col-start-1 lg:row-start-1 lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <Field
+              label="Red Flags comments"
+              hint="Available throughout the interview. Enter “No red flags identified” when applicable."
+            >
+              <Textarea
+                rows={7}
+                value={redFlags}
+                disabled={locked}
+                onChange={(e) => setRedFlags(e.target.value)}
+              />
+            </Field>
+          </div>
           <div className="rounded-2xl border border-border bg-card p-4 text-sm">
             <h2 className="text-sm font-semibold">Candidate</h2>
             <p className="mt-1 font-medium">{candidate.fullName}</p>
@@ -1550,7 +1559,6 @@ function EvaluationForm() {
             {finalResult === "Approved for last step" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Interview comments"><Textarea value={comments} onChange={(e) => setComments(e.target.value)} /></Field>
-                <Field label="Red flags (or 'No red flags identified')"><Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} /></Field>
                 <Field label="Last roleplay interview date"><Input type="date" value={lastRoleplayDate} onChange={(e) => setLastRoleplayDate(e.target.value)} /></Field>
                 <Field label="Hiring bonus recommendation">
                   <Select value={hiringBonus} onValueChange={setHiringBonus}>
@@ -1610,7 +1618,6 @@ function EvaluationForm() {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Final interview comments"><Textarea value={comments} onChange={(e) => setComments(e.target.value)} /></Field>
-                  <Field label="Red flags identified"><Textarea value={redFlags} onChange={(e) => setRedFlags(e.target.value)} /></Field>
                 </div>
               </div>
             )}
