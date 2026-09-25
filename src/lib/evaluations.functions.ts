@@ -463,7 +463,7 @@ async function deliverApproved(
       areas: "",
       finalFilter,
       actorId: input.actorId,
-      force: input.force,
+      force: input.force ?? false,
     });
   }
   const alreadyHadDetails = /final interview details/i.test(approvedSent.body ?? "");
@@ -717,7 +717,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
             kind,
             areas: resultAreas(kind, sections, data.comments),
             reasons: data.notApprovedReasons ?? [],
-            finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
+            finalFilter: null,
             actorId: context.userId,
             eligibleAgainDate:
               kind === "not_approved"
@@ -889,7 +889,7 @@ export const sendResultEmail = createServerFn({ method: "POST" })
       kind,
       areas,
       reasons,
-      finalFilter: kind === "approved" ? finalFilterFrom(sections) : null,
+      finalFilter: null,
       actorId: context.userId,
       eligibleAgainDate: eligibleAgainDate || null,
       force: data.force,

@@ -239,8 +239,8 @@ function EvaluationForm() {
       result: {
         ...(prev["result"] ?? {}),
         ff_known: "yes",
-        ff_date: `${parts.year}-${parts.month}-${parts.day}`,
-        ff_time: `${parts.hour}:${parts.minute}`,
+        ff_date: `${parts['year']}-${parts['month']}-${parts['day']}`,
+        ff_time: `${parts['hour']}:${parts['minute']}`,
         ff_timezone: defaultFfTimezone(candidate?.countryCode),
         ff_interviewer: appt.interviewer ?? "",
         ...(appt.meetingLink ? { ff_mode: "video", ff_link: appt.meetingLink } : {}),
