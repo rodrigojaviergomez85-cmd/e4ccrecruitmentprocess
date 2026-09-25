@@ -331,3 +331,90 @@ export const STATUS_FOR_RESULT: Record<string, string> = {
   "Retake required": "Reviewing",
   "Not approved": "Rejected",
 };
+
+/* ---------------- Final filter (second filter) appointment ---------------- */
+
+export const FF_TIMEZONES = [
+  "El Salvador time (GMT-6)",
+  "Guatemala time (GMT-6)",
+  "Honduras time (GMT-6)",
+  "Nicaragua time (GMT-6)",
+  "Mexico City time (GMT-6)",
+  "Colombia time (GMT-5)",
+] as const;
+
+const TZ_BY_COUNTRY: Record<string, string> = {
+  SV: FF_TIMEZONES[0],
+  GT: FF_TIMEZONES[1],
+  HN: FF_TIMEZONES[2],
+  NI: FF_TIMEZONES[3],
+  MX: FF_TIMEZONES[4],
+  CO: FF_TIMEZONES[5],
+};
+
+export function defaultFfTimezone(countryCode?: string | null): string {
+  return TZ_BY_COUNTRY[countryCode ?? ""] ?? FF_TIMEZONES[0];
+}
+
+export type FinalFilterDetails = {
+  date: string;
+  time: string;
+  interviewer: string;
+  link: string | null;
+  location: string | null;
+};
+
+type FfResult =
+  | { state: "none" }
+  | { state: "incomplete"; missing: string[] }
+  | { state: "complete"; details: FinalFilterDetails };
+
+/**
+ * Reads the final filter appointment the recruiter captured in Finish interview.
+ * "Yes" with missing data is reported as incomplete so it is never silently
+ * replaced by the general approval email.
+ */
+export function readFinalFilter(result: Record<string, unknown> | undefined): FfResult {
+  const r = result ?? {};
+  const g = (k: string) => String(r[k] ?? "").trim();
+  if (g("ff_known") !== "yes") return { state: "none" };
+  const legacyPlace = g("ff_place");
+  const mode = g("ff_mode") || (legacyPlace ? (/^https?:\/\//i.test(legacyPlace) ? "video" : "onsite") : "");
+  const link = g("ff_link") || (mode === "video" && /^https?:\/\//i.test(legacyPlace) ? legacyPlace : "");
+  const branch = g("ff_branch");
+  const address = g("ff_address") || (mode === "onsite" && !g("ff_branch") ? legacyPlace : "");
+  const missing: string[] = [];
+  if (!g("ff_date")) missing.push("date");
+  if (!g("ff_time")) missing.push("time");
+  if (!g("ff_interviewer")) missing.push("interviewer");
+  if (!mode) missing.push("interview modality");
+  if (mode === "video" && !link) missing.push("meeting link");
+  if (mode === "onsite" && !branch && !address) missing.push("branch and address");
+  if (missing.length) return { state: "incomplete", missing };
+
+  const [y, m, d] = g("ff_date").split("-");
+  const date =
+    y && m && d
+      ? new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : g("ff_date");
+  const [hh, mm] = g("ff_time").split(":").map(Number);
+  const clock = Number.isFinite(hh)
+    ? `${((hh! + 11) % 12) + 1}:${String(mm ?? 0).padStart(2, "0")} ${hh! < 12 ? "AM" : "PM"}`
+    : g("ff_time");
+  const tz = g("ff_timezone");
+  return {
+    state: "complete",
+    details: {
+      date,
+      time: tz ? `${clock} (${tz})` : clock,
+      interviewer: g("ff_interviewer"),
+      link: mode === "video" ? link : null,
+      location: mode === "onsite" ? [branch, address].filter(Boolean).join(" — ") : null,
+    },
+  };
+}
