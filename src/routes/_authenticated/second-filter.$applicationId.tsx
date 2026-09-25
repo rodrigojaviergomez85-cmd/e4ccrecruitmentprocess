@@ -33,11 +33,13 @@ import {
 } from "@/lib/manager.functions";
 import {
   MANAGER_DECISIONS,
-  MANAGER_SECTIONS,
+  MANAGER_STAGES,
+  MANAGER_TOTAL_TIME,
   MANAGER_VERIFICATION_STATES,
-  VERIFICATION_CHECKS,
-  clampScores,
-  scoreManager,
+  RECONFIRM_CHECKS,
+  STAGE_NOTE_KEYS,
+  TRAINING_KEYS,
+  missingTraining,
   type ManagerDecision,
   type ManagerVerificationState,
 } from "@/lib/manager-scorecard";
@@ -47,10 +49,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/second-filter/$applicationId")({
   head: () => ({
     meta: [
-      { title: "Manager Final Filter — E4CC" },
-      { name: "description", content: "Review the candidate and complete the Manager second filter scorecard." },
-      { property: "og:title", content: "Manager Final Filter — E4CC" },
-      { property: "og:description", content: "Internal E4CC Manager scorecard." },
+      { title: "Manager Final Interview — E4CC" },
+      { name: "description", content: "Six-stage Manager final interview for E4CC candidates." },
+      { property: "og:title", content: "Manager Final Interview — E4CC" },
+      { property: "og:description", content: "Internal E4CC Manager final interview." },
     ],
   }),
   component: ReviewPage,
@@ -95,15 +97,7 @@ const EMPTY_FORM: Form = {
   finalDecision: "",
 };
 
-const NAV: [string, string][] = [
-  ["perfil", "1 · Profile"],
-  ["expectativas", "2 · Expectations"],
-  ["metas", "3 · Goals"],
-  ["ingles", "4 · English"],
-  ["experiencia", "5 · Experience"],
-  ["valores", "6 · Values"],
-  ["decision", "7 · Decision"],
-];
+const NAV: [string, string][] = MANAGER_STAGES.map((st) => [st.id, `${st.n} · ${st.title}`]);
 
 /** Every item the Manager is expected to verify. Job items are added per candidate. */
 const VERIFY_KEYS = [
@@ -165,7 +159,13 @@ function jobStatus(start: string | null, end: string | null) {
   return "Finished";
 }
 
-const CRITERIA = Object.fromEntries(MANAGER_SECTIONS.flatMap((s) => s.criteria.map((c) => [c.key, c])));
+/** Adds today + period (days/weeks/months) and returns yyyy-mm-dd. */
+function addPeriod(amount: number, unit: "days" | "weeks" | "months") {
+  const dt = new Date();
+  if (unit === "months") dt.setMonth(dt.getMonth() + amount);
+  else dt.setDate(dt.getDate() + amount * (unit === "weeks" ? 7 : 1));
+  return dt.toISOString().slice(0, 10);
+}
 
 function ReviewPage() {
   const { applicationId } = Route.useParams();
@@ -184,7 +184,9 @@ function ReviewPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [confirm, setConfirm] = useState(false);
-  const [active, setActive] = useState<string>("perfil");
+  const [active, setActive] = useState<string>("reconfirmation");
+  const [period, setPeriod] = useState<{ amount: string; unit: "days" | "weeks" | "months" }>({ amount: "", unit: "months" });
+  const [submitting, setSubmitting] = useState(false);
   const dirty = useRef(false);
 
   useEffect(() => {
@@ -227,16 +229,25 @@ function ReviewPage() {
     return () => observer.disconnect();
   }, [q.isLoading, Boolean(current)]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const result = useMemo(
-    () => (form ? scoreManager(clampScores(form.scores), form.criticalRedFlag) : null),
-    [form],
-  );
+  // Training defaults come from the Recruitment file; the Manager confirms or corrects them.
+  const trainingDefaults = useMemo(() => {
+    if (!d) return {} as Record<string, string>;
+    const iv = d.interviews.find((i) => i.final_result === "Approved for last step") ?? d.interviews[0];
+    const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
+    const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
+    return { [TRAINING_KEYS.startDate]: start, [TRAINING_KEYS.branch]: String(d.app.city ?? "") } as Record<string, string>;
+  }, [d]);
+  const withDefaults = (ev: Record<string, string>) => {
+    const out = { ...ev };
+    for (const [k, v] of Object.entries(trainingDefaults)) if (!(k in out) && v) out[k] = v;
+    return out;
+  };
 
   const payload = (submit: boolean) => ({
     evaluationId: current!.id,
     demoTopic: form!.demoTopic || null,
-    scores: form!.scores,
-    evidence: form!.evidence,
+    scores: {},
+    evidence: withDefaults(form!.evidence),
     checks: form!.checks,
     verifications: form!.verifications,
     criticalRedFlag: form!.criticalRedFlag,
@@ -284,19 +295,24 @@ function ReviewPage() {
     }
   }
   async function onSubmit() {
+    if (submitting) return;
     setConfirm(false);
+    setSubmitting(true);
     try {
       const r = await save({ data: payload(true) });
       if (!r.ok) {
         toast.error(`Missing: ${r.missing.join(", ")}`);
         return;
       }
-      if (r.email && !r.email.ok) toast.error(`Decision saved, but the email failed: ${r.email.detail}`);
-      else toast.success("Decision submitted");
+      if (r.duplicate) toast.info("This interview was already finished.");
+      else if (r.email && !r.email.ok) toast.error(`Interview finished, but the email failed: ${r.email.detail}`);
+      else toast.success("Interview finished");
       dirty.current = false;
       await refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit");
+      toast.error(e instanceof Error ? e.message : "Could not finish");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -353,22 +369,6 @@ function ReviewPage() {
       onNote={(t) => setVNote(key, t)}
       disabled={!editable}
     />
-  );
-
-  const criteriaBlock = (keys: string[], emptyLabel?: string) => (
-    <div className="px-5 py-2">
-      {emptyLabel && <p className="text-xs font-semibold uppercase text-muted-foreground">{emptyLabel}</p>}
-      {keys.map((k) => (
-        <ScoreRow
-          key={k}
-          criterion={CRITERIA[k]!}
-          score={form?.scores[k] ?? ""}
-          evidence={form?.evidence[k] ?? ""}
-          onScore={(v) => set({ scores: { ...(form?.scores ?? {}), [k]: v } })}
-          onEvidence={(v) => set({ evidence: { ...(form?.evidence ?? {}), [k]: v } })}
-        />
-      ))}
-    </div>
   );
 
   return (
@@ -497,7 +497,6 @@ function ReviewPage() {
                 {item("perfil.payment", "Payment conditions accepted", answer("profile", "agrees_payment"))}
                 {item("perfil.availability", "Availability required", answer("profile", "availability_required"))}
                 {item("perfil.main_schedule", "Schedule type", answer("profile", "main_schedule"))}
-                {criteriaBlock(["p1", "p2", "p3"], "Manager scoring — Profile and Information Confirmation")}
               </Part>
 
               <Part id="expectativas" n={2} title="Expectations of position">
@@ -627,34 +626,7 @@ function ReviewPage() {
                   `Topic: ${answer("english", "writing_topic")} · ${answer("english", "writing_text")} · Notes: ${answer("english", "writing_notes")}`,
                 )}
                 {item("english.reading", "Reading (B2 past-tense passage)", answer("english", "reading_observations"))}
-                {criteriaBlock(["g1", "g2", "g3", "g4", "g5", "g6", "g7", "g8", "g9", "g10"], "Manager scoring — Grammar and English Knowledge")}
-                <div className="px-5 py-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Teaching demo</p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm">{answer("english", "roleplay_notes")}</p>
-                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-xs">Demo topic</Label>
-                      <Input value={form.demoTopic} onChange={(e) => set({ demoTopic: e.target.value })} placeholder="e.g. Simple Present" />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Kudos</Label>
-                      <Input value={vNote("english.demo_kudos")} onChange={(e) => setVNote("english.demo_kudos", e.target.value)} placeholder="What worked well" />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Areas for improvement</Label>
-                      <Input value={vNote("english.demo_areas")} onChange={(e) => setVNote("english.demo_areas", e.target.value)} placeholder="What must change" />
-                    </div>
-                    <Verify value={vState("english.demo")} onChange={(s) => setVerify("english.demo", s)} />
-                  </div>
-                </div>
-                {criteriaBlock(["d1", "d2", "d3", "d4", "d5", "d6"], "Manager scoring — Teaching Demo")}
-                <div className="px-5 py-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Coachability</p>
-                  <p className="mt-1 text-sm">Feedback was given during the demo; score how it was received and applied.</p>
-                  <Verify className="mt-2" value={vState("english.coachability")} onChange={(s) => setVerify("english.coachability", s)} />
-                </div>
-                {criteriaBlock(["c1", "c2", "c3", "c4", "c5"], "Manager scoring — Coachability")}
-                {criteriaBlock(["e1"], "Manager scoring — English communication")}
+                {item("english.demo", "Teaching demo (Recruitment)", answer("english", "roleplay_notes"))}
               </Part>
 
               <Part id="experiencia" n={5} title="Studies and job experience · Method A">
@@ -776,7 +748,6 @@ function ReviewPage() {
                 {item("values.consistency", "Commitment and consistency", `${answer("candidate", "referred")} referred · source ${answer("candidate", "referral_source")}`)}
                 {item("values.behaviour", "Behaviour and interests shared", answer("values", "energy"))}
                 {item("values.anything_else", "Anything else the candidate shared", answer("values", "anything_else"))}
-                {criteriaBlock(["e2", "e3"], "Manager scoring — Instructions and Professionalism")}
               </Part>
 
               <Part id="decision" n={7} title="Questions and final decision">
