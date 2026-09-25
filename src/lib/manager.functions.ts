@@ -205,6 +205,17 @@ export const getManagerReview = createServerFn({ method: "POST" })
       resumeUrl = signed?.signedUrl ?? null;
     }
     const managers = await managerNames(db);
+    // Names of the recruiters who ran each interview, so the sheet can credit
+    // who captured each answer without a second round-trip.
+    const evaluatorIds = [...new Set((interviews ?? []).map((i) => i.evaluator_id).filter(Boolean) as string[])];
+    let evaluators: { id: string; name: string }[] = [];
+    if (evaluatorIds.length) {
+      const { data: evaluatorProfiles } = await db
+        .from("staff_profiles")
+        .select("user_id, full_name, email")
+        .in("user_id", evaluatorIds);
+      evaluators = (evaluatorProfiles ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email }));
+    }
     const latest = managerEvals?.[0] ?? null;
     return {
       app: { ...app, recruitment_progress: undefined, work_references: undefined },
@@ -217,6 +228,7 @@ export const getManagerReview = createServerFn({ method: "POST" })
       emails: emails ?? [],
       history: history ?? [],
       managers,
+      evaluators,
       access: {
         canDecide: ctx.canDecide,
         isAdmin: ctx.isAdmin,
@@ -273,6 +285,9 @@ const savePayload = z.object({
   scores: z.record(z.string(), z.unknown()).default({}),
   evidence: z.record(z.string(), z.string().max(2000)).default({}),
   checks: z.record(z.string(), z.boolean()).default({}),
+  verifications: z
+    .record(z.string(), z.enum(["confirmed", "clarification", "discrepancy", "not_reviewed"]))
+    .default({}),
   criticalRedFlag: z.boolean().default(false),
   redFlags: z.string().max(4000).nullable().default(null),
   internalComments: z.string().max(4000).nullable().default(null),
@@ -335,6 +350,7 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       scores: scores as never,
       evidence: data.evidence as never,
       checks: data.checks as never,
+      verifications: data.verifications as never,
       critical_red_flag: data.criticalRedFlag,
       red_flags: data.redFlags,
       internal_comments: data.internalComments,

@@ -6,3 +6,4 @@
 - [x] Fase 1: roles Recruitment/Manager/Admin, permisos por país (servidor + base de datos), Pending Second Filter, decision_stage, auditoría ampliada
 - [x] Fase 2: cola y scorecard del Manager
 - [x] Simplificar entrevista de Recruitment, añadir Reading B2 y Red Flags persistente
+- [ ] Rediseñar la ficha del segundo filtro del Manager (formato compacto, secciones numeradas, verificación lado a lado) — nombre completo sin ID

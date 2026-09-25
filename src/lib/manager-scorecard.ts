@@ -83,6 +83,16 @@ export const MANAGER_SECTIONS: ScoreSection[] = [
   },
 ];
 
+/** Per-item verification a Manager records next to each Recruitment answer. */
+export const MANAGER_VERIFICATION_STATES = [
+  ["confirmed", "Confirmed"],
+  ["clarification", "Needs Clarification"],
+  ["discrepancy", "Discrepancy Found"],
+  ["not_reviewed", "Not Reviewed"],
+] as const;
+
+export type ManagerVerificationState = (typeof MANAGER_VERIFICATION_STATES)[number][0];
+
 /** Double-check items the Manager confirms before deciding. */
 export const VERIFICATION_CHECKS = [
   ["schedule", "Class schedule confirmed"],

@@ -85,6 +85,13 @@
       "when": 1790279238897,
       "tag": "0011_manager_stage_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790351830726,
+      "tag": "0012_manager_evaluation_verifications",
+      "breakpoints": true
     }
   ]
 }
