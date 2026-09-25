@@ -269,10 +269,10 @@ export function buildFollowUpEmail(input: {
         <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
         ${ff.place ? `<li><strong>Place:</strong> ${escapeHtml(ff.place)}</li>` : ""}
       </ul>
-      <p style="margin:0 0 12px">Please be on time. If you have any issue, stay attentive to your phone and WhatsApp.</p>` : `
+      <p style="margin:0 0 12px">Please join the interview on time and keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.</p>` : `
       <p style="margin:0 0 12px">
-        Please <strong>stay attentive to your phone and WhatsApp</strong> over the next few days.
-        Our team will contact you directly to coordinate this final step.
+        Please keep your phone nearby, as we may contact you via WhatsApp to coordinate this final
+        step. If you experience any difficulties connecting, please let us know as soon as possible.
       </p>`}
       <p style="margin:0 0 12px">Thank you for your time and effort throughout the process.</p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
