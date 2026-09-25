@@ -418,10 +418,57 @@ export function buildManagerRetakeEmail(input: {
 
 
 /**
- * Documentation required for Training, per country code. Only fill with the
- * official lists; an empty list keeps the email generic (never invented).
+ * Official E4CC documentation required for Training, per country code.
+ * A country without an entry blocks the welcome email until a Manager reviews it.
  */
-export const TRAINING_DOCUMENTS_BY_COUNTRY: Record<string, string[]> = {};
+export type TrainingDocs = { items: string[]; links: { label: string; url: string }[]; note?: string };
+export const TRAINING_DOCUMENTS_BY_COUNTRY: Record<string, TrainingDocs> = {
+  SV: {
+    items: ["DUI, both sides", "High school diploma (Título de Bachillerato)", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)"],
+    links: [{ label: "simple.sv", url: "https://simple.sv/" }],
+  },
+  GT: {
+    items: [
+      "DPI, both sides",
+      "Secondary education diploma (Título de nivel medio)",
+      "RTU",
+      "Police record (Antecedentes Policíacos)",
+      "Judicial record (Antecedentes Judiciales)",
+      "RENAS",
+      "Agreement: read it, sign it through DocuSign and upload it once it is provided to you",
+    ],
+    links: [
+      { label: "RENAS", url: "https://consultasmp.mp.gob.gt/constanciaIndividual/index.html?q=" },
+      { label: "Antecedentes Policíacos", url: "https://policiales.pnc.gob.gt/" },
+      { label: "Antecedentes Judiciales", url: "https://portal.oj.gob.gt/oauth/3/login" },
+    ],
+    note: "The agreement will be shared with you separately.",
+  },
+  NI: {
+    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Health certificate (Certificado de Salud)", "Conduct certificate (Certificado de Conducta)"],
+    links: [{ label: "Policía Nacional — trámites en línea", url: "https://tramitesenlinea.policia.gob.ni/" }],
+  },
+  HN: {
+    items: ["Identity card (Tarjeta de Identidad), both sides", "High school diploma (Título de Bachillerato)", "PayPal link", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)", "Curriculum Vitae"],
+    links: [],
+  },
+  CO: {
+    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Police record (Antecedentes Policiales)", "Judicial record (Antecedentes Judiciales)", "PayPal link"],
+    links: [],
+  },
+  MX: {
+    items: ["Voter ID (Credencial para Votar — INE)", "High school diploma (Título de Bachillerato)", "Certificate of no criminal record (Constancia de No Antecedentes Penales)", "PayPal link"],
+    links: [{ label: "Mexico City (CDMX) only — Constancia de No Antecedentes Penales", url: "https://www.cdmx.gob.mx/public/InformacionTramite.xhtml?idTramite=872" }],
+  },
+  CR: {
+    items: ["ID / Cédula, both sides", "High school diploma (Título de Bachillerato)", "Wise or PayPal link", "Criminal record (Antecedentes Penales)", "Curriculum Vitae"],
+    links: [],
+  },
+};
+export function trainingDocsFor(countryCode: string | null | undefined): TrainingDocs | null {
+  const d = TRAINING_DOCUMENTS_BY_COUNTRY[(countryCode ?? "").toUpperCase()];
+  return d && d.items.length ? d : null;
+}
 export const TRAINING_DOCUMENTS_UPLOAD_URL = "https://forms.gle/WCSE7TwHBTfTffFa6";
 
 /** Welcome to Training — sent once when the Manager approves the candidate. */
@@ -443,7 +490,8 @@ export function buildTrainingWelcomeEmail(input: {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(input.startDate)
     ? new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", year: "numeric", month: "long", day: "numeric" }).format(new Date(`${input.startDate}T00:00:00Z`))
     : input.startDate;
-  const docs = TRAINING_DOCUMENTS_BY_COUNTRY[input.countryCode ?? ""] ?? [];
+  const docSet = trainingDocsFor(input.countryCode);
+  const docs = docSet?.items ?? [];
   const link = (label: string) => {
     const hit = RETAKE_LINKS.grammarReinforcement.find(([l]) => l.toLowerCase().startsWith(label.toLowerCase()));
     return hit ? `<a href="${hit[1]}" style="color:#0f766e">${e(label)}</a>` : e(label);
