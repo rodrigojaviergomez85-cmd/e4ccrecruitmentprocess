@@ -457,7 +457,7 @@ export const listInterviewAttempts = createServerFn({ method: "POST" })
     await assertCandidateAccess(ctx.db, ctx.allowedCountries, data.applicationId);
     const { data: rows } = await ctx.db
       .from("interview_evaluations")
-      .select("id, attempt_number, status, final_result, interview_date, submitted_at, created_at")
+      .select("id, attempt_number, status, final_result, interview_date, submitted_at, created_at, sections")
       .eq("application_id", data.applicationId)
       .order("attempt_number", { ascending: false });
     return rows ?? [];

@@ -1,3 +1,4 @@
+import { readFinalFilter } from "@/lib/evaluations";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -539,6 +540,7 @@ function CandidateManagementPanel({
                   <span>
                     Attempt {a.attempt_number ?? 1} · {a.status}
                     {a.final_result ? ` · ${a.final_result}` : ""}
+                    <FinalFilterLine sections={a.sections} />
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {a.interview_date ?? (a.created_at ? new Date(a.created_at).toLocaleDateString() : "")}
@@ -1022,5 +1024,17 @@ function WithdrawnNotice({ app }: { app: { withdrawn_at: string; withdrawn_stage
       </p>
       {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
     </section>
+  );
+}
+
+function FinalFilterLine({ sections }: { sections: unknown }) {
+  const ff = readFinalFilter((sections as Record<string, Record<string, unknown>> | null)?.["result"]);
+  if (ff.state !== "complete") return null;
+  const d = ff.details;
+  return (
+    <span className="mt-1 block text-xs text-muted-foreground">
+      Final filter: {d.date} · {d.time} · {d.interviewer}
+      {d.link ? <> · <a className="underline" href={d.link} target="_blank" rel="noreferrer">Join</a></> : d.location ? ` · ${d.location}` : ""}
+    </span>
   );
 }
