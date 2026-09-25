@@ -333,6 +333,9 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       if (decision === "Approved for Training") {
         missing.push(...missingTraining(data.evidence, isOnline));
         if (isOnline && !data.checks["equipment"]) missing.push("Equipment and internet reviewed");
+        const { trainingDocsFor } = await import("./candidate-emails");
+        if (!trainingDocsFor(app.country_code))
+          missing.push("Candidate country (no documentation requirements configured — please review the country before sending)");
       }
       if (decision === "Retake") {
         if (!data.improvementAreas.length) missing.push("At least one area to improve");
@@ -479,7 +482,7 @@ async function applyDecision(
     const { sendEmail } = await import("./notify.server");
     const { buildTrainingWelcomeEmail } = await import("./candidate-emails");
     const t = (k: string) => (d.training[k] ?? "").trim();
-    const { subject, html } = buildTrainingWelcomeEmail({
+    const { subject, html, requestedDocuments } = buildTrainingWelcomeEmail({
       fullName: d.applicantName,
       countryCode: d.countryCode,
       isOnline: d.isOnline,

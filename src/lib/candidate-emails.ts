@@ -526,8 +526,11 @@ export function buildTrainingWelcomeEmail(input: {
       <p style="margin:0 0 12px">This material will be evaluated on your first day of Training.</p>
       <p style="margin:0 0 6px"><strong>Documentation</strong></p>
       ${docs.length ? `<ul style="margin:0 0 12px;padding-left:20px">${docs.map((d) => `<li>${e(d)}</li>`).join("")}</ul>` : ""}
-      <p style="margin:0 0 12px">Please upload your documentation here: <a href="${TRAINING_DOCUMENTS_UPLOAD_URL}">${TRAINING_DOCUMENTS_UPLOAD_URL}</a></p>
+      ${docSet?.links.length ? `<p style="margin:0 0 6px">Useful links:</p><ul style="margin:0 0 12px;padding-left:20px">${docSet.links.map((l) => `<li><a href="${e(l.url)}" style="color:#0f766e">${e(l.label)}</a></li>`).join("")}</ul>` : ""}
+      ${docSet?.note ? `<p style="margin:0 0 12px">${e(docSet.note)}</p>` : ""}
+      <p style="margin:0 0 12px">Please upload your documents before training begins or on Day 1. If any documents are still pending, contact your Trainer to establish an action plan. All required documents must be submitted no later than Day 5 of training.</p>
+      <p style="margin:0 0 16px"><a href="${TRAINING_DOCUMENTS_UPLOAD_URL}" style="display:inline-block;background:#ea580c;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-weight:bold">Upload My Documents</a></p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
-  return { subject, html };
+  return { subject, html, requestedDocuments: docs };
 }
