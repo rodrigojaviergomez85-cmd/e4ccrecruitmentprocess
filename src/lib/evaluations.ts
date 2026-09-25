@@ -411,7 +411,7 @@ export function readFinalFilter(result: Record<string, unknown> | undefined): Ff
     state: "complete",
     details: {
       date,
-      time: tz ? `${clock} (${tz})` : clock,
+      time: tz ? `${clock}, ${tz}` : clock,
       interviewer: g("ff_interviewer"),
       link: mode === "video" ? link : null,
       location: mode === "onsite" ? [branch, address].filter(Boolean).join(" — ") : null,
