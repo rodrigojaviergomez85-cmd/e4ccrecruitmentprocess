@@ -455,40 +455,68 @@ function ReviewPage() {
               <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
             ))}
 
-          {form && result && (
+          {form && (
             <fieldset disabled={!editable} className="min-w-0 space-y-4">
               {locked && (
                 <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
-                  <Lock className="h-4 w-4" /> Submitted {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
+                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
                 </p>
               )}
+              {!current && (
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Interview not started — the file below is read-only until you start it.</p>
+              )}
 
-              <section className="rounded-2xl border border-border bg-card p-4">
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-                  {current ? (
-                    <p className="text-2xl font-bold">{result.total}<span className="text-sm text-muted-foreground">/100</span></p>
-                  ) : (
-                    <p className="text-sm font-semibold text-muted-foreground">Evaluation not started — the file below is read-only until you start it.</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">Recommendation: <strong className="text-foreground">{result.recommendation ?? "Complete all criteria to see the recommendation"}</strong></p>
-                  <p className="text-xs text-muted-foreground">Verification: <strong className="text-foreground">{verified} confirmed · {flagged} to review · {allVerifyKeys.length - verified - flagged} not reviewed</strong></p>
-                  <span className="ml-auto text-xs text-muted-foreground">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
-                </div>
-                {recruitmentFlags && (
-                  <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
-                    <p className="font-semibold">Red flags reported by Recruitment</p>
-                    <p className="mt-1 whitespace-pre-wrap">{recruitmentFlags}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {form.checks["red_flags"] ? "Checked by the Manager." : "Pending verification — confirm it in section 7 with evidence."}
-                    </p>
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Internal reminder: dig into results, achievements and concrete evidence, and verify the references.
-                  Nothing in this sheet is shared with the candidate.
-                </p>
+              <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+                <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
+                <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
+                <span>Verification: <strong className="text-foreground">{verified} confirmed · {flagged} to review</strong></span>
+                <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
               </section>
+              {recruitmentFlags && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                  <p className="font-semibold">Red flags reported by Recruitment · pending verification</p>
+                  <p className="mt-1 whitespace-pre-wrap">{recruitmentFlags}</p>
+                </div>
+              )}
 
+              <Stage id="reconfirmation">
+                <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
+                <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                  <Fact label="Class schedule" value={answer("candidate", "schedule")} />
+                  <Fact label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
+                  <Fact label="Training start (Recruitment)" value={shown(trainingDefaults[TRAINING_KEYS.startDate])} />
+                  <Fact label="Modality / branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} />
+                  <Fact label="Current job / routine" value={answer("profile", "routine_answer")} />
+                  <Fact label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
+                  {isOnline && (
+                    <Fact
+                      label="Internet"
+                      value={p?.internet_download_mbps != null ? `${p.internet_download_mbps}↓ / ${p.internet_upload_mbps ?? "—"}↑ Mbps · ${p.internet_test_passed ? "Passed" : p.internet_override ? "Override" : "Below minimum"}` : "Not evaluated"}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {RECONFIRM_CHECKS.filter(([k]) => k !== "equipment" || isOnline).map(([k, label]) => (
+                    <label key={k} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={Boolean(form.checks[k])} onCheckedChange={(v) => set({ checks: { ...form.checks, [k]: v === true } })} />
+                      {label}
+                    </label>
+                  ))}
+                  {!isOnline && <span className="text-xs text-muted-foreground">Equipment and internet: N/A (Onsite)</span>}
+                </div>
+                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                  <div>
+                    <Label className="text-xs">Training start date (confirm or correct)</Label>
+                    <Input value={tv(TRAINING_KEYS.startDate)} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Reconfirmation Comments</Label>
+                    <Textarea rows={2} value={note(STAGE_NOTE_KEYS.reconfirmation)} onChange={(e) => setNote(STAGE_NOTE_KEYS.reconfirmation, e.target.value)} />
+                  </div>
+                </div>
+                <details className="rounded-lg border border-border">
+                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Full Recruitment evaluation, CV, references and job history (Method A) — read only</summary>
+                  <div className="space-y-3 p-3">
               <Part id="perfil" n={1} title="Profile and information confirmation">
                 {item("perfil.modality", "Work modality", shown(p?.work_modality ?? S["candidate"]?.["lob"]))}
                 {item("perfil.branch", "Branch / location", shown(app.city))}
@@ -750,107 +778,157 @@ function ReviewPage() {
                 {item("values.anything_else", "Anything else the candidate shared", answer("values", "anything_else"))}
               </Part>
 
-              <Part id="decision" n={7} title="Questions and final decision">
-                {item("decision.questions", "Candidate questions", answer("values", "questions"))}
-                <div className="px-5 py-3">
-                  <div className="rounded-lg bg-secondary/50 p-3 text-sm">
-                    <p className="text-xs font-semibold text-muted-foreground">Recruitment final comments (read only)</p>
-                    <p className="whitespace-pre-wrap">{shown(interview?.comments)}</p>
                   </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label>Manager final comments</Label>
-                      <Textarea value={form.internalComments} onChange={(e) => set({ internalComments: e.target.value })} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Red flags (internal)</Label>
-                      <Textarea value={form.redFlags} onChange={(e) => set({ redFlags: e.target.value })} />
-                    </div>
-                  </div>
-                  <label className="mt-3 flex items-center gap-2 text-sm">
-                    <Checkbox checked={form.criticalRedFlag} onCheckedChange={(v) => set({ criticalRedFlag: v === true })} />
-                    Critical job-related red flag (mark only with concrete evidence)
-                  </label>
+                </details>
+              </Stage>
+
+              <Stage id="grammar">
+                <Guide>Evaluate Simple Present, Present Progressive, Simple Past and Past Progressive: use, structure and an example. Then ask the candidate to identify, correct and explain intermediate-level errors.</Guide>
+                <div>
+                  <Label className="text-xs">Comments (grammar, comprehension, fluency, pronunciation)</Label>
+                  <Textarea rows={4} value={note(STAGE_NOTE_KEYS.grammar)} onChange={(e) => setNote(STAGE_NOTE_KEYS.grammar, e.target.value)} />
                 </div>
-                <div className="px-5 py-3">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground">Double-check before deciding</p>
-                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {VERIFICATION_CHECKS.map(([k, label]) => (
-                      <label key={k} className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={Boolean(form.checks[k])}
-                          onCheckedChange={(v) => set({ checks: { ...form.checks, [k]: v === true } })}
-                        />
-                        {label}
-                      </label>
-                    ))}
+              </Stage>
+
+              <Stage id="demo">
+                <Guide>Assign a topic. Observe without interrupting or completing the candidate’s ideas. Look at accuracy, clarity, interaction, checking questions, correction, energy and time management.</Guide>
+                <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
+                  <div>
+                    <Label className="text-xs">Demo topic</Label>
+                    <Input value={form.demoTopic} onChange={(e) => set({ demoTopic: e.target.value })} placeholder="e.g. Simple Present" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Demo Comments</Label>
+                    <Textarea rows={3} value={note(STAGE_NOTE_KEYS.demo)} onChange={(e) => setNote(STAGE_NOTE_KEYS.demo, e.target.value)} />
+                  </div>
+                </div>
+              </Stage>
+
+              <Stage id="feedback">
+                <Guide>Identify 1–2 areas for improvement. Ask permission to provide open and honest feedback.</Guide>
+                <div>
+                  <Label className="text-xs">Feedback Given (and the action to apply in the retake)</Label>
+                  <Textarea rows={3} value={note(STAGE_NOTE_KEYS.feedback)} onChange={(e) => setNote(STAGE_NOTE_KEYS.feedback, e.target.value)} />
+                </div>
+              </Stage>
+
+              <Stage id="retake">
+                <Guide>Look for visible, specific improvement in the repeated demonstration. This is part of the interview — it does not change the candidate status or send emails.</Guide>
+                <div>
+                  <Label className="text-xs">Observed Improvement / Coachability Comments</Label>
+                  <Textarea rows={3} value={note(STAGE_NOTE_KEYS.retake)} onChange={(e) => setNote(STAGE_NOTE_KEYS.retake, e.target.value)} />
+                </div>
+              </Stage>
+
+              <Stage id="closing">
+                <div className="rounded-lg bg-secondary/50 p-3 text-sm">
+                  <p className="text-xs font-semibold text-muted-foreground">Recruitment final comments (read only)</p>
+                  <p className="whitespace-pre-wrap">{shown(interview?.comments)}</p>
+                  <p className="mt-2 text-xs font-semibold text-muted-foreground">Candidate questions</p>
+                  <p className="whitespace-pre-wrap">{answer("values", "questions")}</p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <Label className="text-xs">Final Internal Comments</Label>
+                    <Textarea rows={3} value={form.internalComments} onChange={(e) => set({ internalComments: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Red Flags — Internal Only</Label>
+                    <Textarea rows={3} value={form.redFlags} onChange={(e) => set({ redFlags: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-                  <div className="space-y-1.5">
-                    <Label>Final decision</Label>
+                  <div className="max-w-sm">
+                    <Label className="text-xs">Final Decision</Label>
                     <Select value={form.finalDecision} onValueChange={(v) => set({ finalDecision: v as ManagerDecision })}>
                       <SelectTrigger><SelectValue placeholder="Select the final decision" /></SelectTrigger>
                       <SelectContent>{MANAGER_DECISIONS.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">The recommendation never decides for you.</p>
                   </div>
-                  {form.finalDecision === "Retake" && (
-                    <>
-                      <div>
-                        <Label>Areas to improve (shared with the candidate)</Label>
-                        <div className="mt-1 flex flex-wrap gap-3">
-                          {AREAS.map((a) => (
-                            <label key={a} className="flex items-center gap-2 text-sm">
-                              <Checkbox
-                                checked={form.improvementAreas.includes(a)}
-                                onCheckedChange={(v) =>
-                                  set({
-                                    improvementAreas: v === true ? [...form.improvementAreas, a] : form.improvementAreas.filter((x) => x !== a),
-                                  })
-                                }
-                              />
-                              {a}
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Short feedback for the candidate (only English/Grammar/Pronunciation/Technical)</Label>
-                        <Textarea value={form.improvementNote} onChange={(e) => set({ improvementNote: e.target.value })} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Eligible to apply again on</Label>
-                        <Input type="date" value={form.eligibleAgainDate} onChange={(e) => set({ eligibleAgainDate: e.target.value })} />
-                      </div>
-                    </>
-                  )}
-                  {form.finalDecision === "Not Approved" && (
-                    <div className="space-y-1.5">
-                      <Label>Internal reason (never emailed)</Label>
-                      <Textarea value={form.decisionReason} onChange={(e) => set({ decisionReason: e.target.value })} />
-                    </div>
-                  )}
+
                   {form.finalDecision === "Approved for Training" && (
-                    <p className="text-xs text-muted-foreground">
-                      The welcome email stays pending until a cohort is assigned. The recommendation and the gates do not
-                      replace this decision.
-                    </p>
-                  )}
-                  {form.finalDecision === "No Show" && (
-                    <div className="space-y-1.5">
-                      <Label>Appointment the candidate missed</Label>
-                      <Input type="datetime-local" value={form.appointmentAt} onChange={(e) => set({ appointmentAt: e.target.value })} />
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <TField label="Training start date" value={tv(TRAINING_KEYS.startDate)} onChange={(v) => setT(TRAINING_KEYS.startDate, v)} type="date" />
+                      <TField label="Training schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 8:00 AM – 12:00 PM" />
+                      <TField label="Time zone" value={tv(TRAINING_KEYS.timezone)} onChange={(v) => setT(TRAINING_KEYS.timezone, v)} placeholder="America/El_Salvador" />
+                      <Fact label="Modality" value={shown(p?.work_modality ?? S["candidate"]?.["lob"])} />
+                      <TField label="Trainer name" value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
+                      <TField label="Trainer contact" value={tv(TRAINING_KEYS.trainerContact)} onChange={(v) => setT(TRAINING_KEYS.trainerContact, v)} placeholder="Email or WhatsApp" />
+                      {isOnline ? (
+                        <TField label="Zoom link" value={tv(TRAINING_KEYS.zoom)} onChange={(v) => setT(TRAINING_KEYS.zoom, v)} placeholder="https://zoom.us/j/…" />
+                      ) : (
+                        <>
+                          <TField label="Training branch" value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
+                          <TField label="Training address" value={tv(TRAINING_KEYS.address)} onChange={(v) => setT(TRAINING_KEYS.address, v)} />
+                        </>
+                      )}
+                      <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-4">
+                        {trainingMissing.length ? `Still missing: ${trainingMissing.join(", ")}.` : "Training details complete."} The welcome email with the country documentation is sent automatically when you confirm.
+                      </p>
                     </div>
                   )}
+
+                  {(form.finalDecision === "Retake" || form.finalDecision === "Not Approved") && (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {form.finalDecision === "Retake" ? (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Areas to improve (shared with the candidate)</Label>
+                          <div className="flex flex-wrap gap-3">
+                            {AREAS.map((a) => (
+                              <label key={a} className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                  checked={form.improvementAreas.includes(a)}
+                                  onCheckedChange={(v) => set({ improvementAreas: v === true ? [...form.improvementAreas, a] : form.improvementAreas.filter((x) => x !== a) })}
+                                />
+                                {a}
+                              </label>
+                            ))}
+                          </div>
+                          <Textarea rows={2} placeholder="Short, safe feedback for the candidate" value={form.improvementNote} onChange={(e) => set({ improvementNote: e.target.value })} />
+                        </div>
+                      ) : (
+                        <div>
+                          <Label className="text-xs">Internal reason (never emailed)</Label>
+                          <Textarea rows={3} value={form.decisionReason} onChange={(e) => set({ decisionReason: e.target.value })} />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label className="text-xs">{form.finalDecision === "Retake" ? "Eligible date to return" : "Can apply again from"}</Label>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Input className="w-20" type="number" min={1} placeholder="Qty" value={period.amount} onChange={(e) => setPeriod({ ...period, amount: e.target.value })} />
+                          <Select value={period.unit} onValueChange={(v) => setPeriod({ ...period, unit: v as typeof period.unit })}>
+                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="days">days</SelectItem>
+                              <SelectItem value="weeks">weeks</SelectItem>
+                              <SelectItem value="months">months</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="sm" disabled={!Number(period.amount)} onClick={() => set({ eligibleAgainDate: addPeriod(Number(period.amount), period.unit) })}>
+                            Calculate
+                          </Button>
+                          <span className="text-xs text-muted-foreground">or pick</span>
+                          <Input className="w-40" type="date" value={form.eligibleAgainDate} onChange={(e) => set({ eligibleAgainDate: e.target.value })} />
+                        </div>
+                        {form.eligibleAgainDate && <p className="text-xs">Date shown in the email: <strong>{form.eligibleAgainDate}</strong></p>}
+                      </div>
+                    </div>
+                  )}
+
+                  {form.finalDecision === "No Show" && (
+                    <div className="max-w-xs">
+                      <Label className="text-xs">Appointment the candidate missed</Label>
+                      <Input type="datetime-local" value={form.appointmentAt} onChange={(e) => set({ appointmentAt: e.target.value })} />
+                      <p className="mt-1 text-xs text-muted-foreground">The interview stages are not required for a No Show.</p>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-3">
-                    <Button type="button" onClick={() => setConfirm(true)}>Submit decision</Button>
-                    <span className="text-xs text-muted-foreground">
-                      {result.complete ? "All criteria captured." : "Complete every criterion before submitting."}
-                    </span>
+                    <Button type="button" variant="outline" onClick={() => void saveDraft()}>Save draft</Button>
+                    <Button type="button" disabled={submitting || !form.finalDecision} onClick={() => setConfirm(true)}>Finish interview</Button>
                   </div>
                 </div>
-              </Part>
+              </Stage>
             </fieldset>
           )}
 
