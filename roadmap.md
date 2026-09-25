@@ -4,4 +4,5 @@
 - [x] Add recruiter badges and internet override
 - [x] Verify desktop/mobile, permissions, tests, and build
 - [x] Fase 1: roles Recruitment/Manager/Admin, permisos por país (servidor + base de datos), Pending Second Filter, decision_stage, auditoría ampliada
-- [ ] Fase 2: cola y scorecard del Manager (espera revisión de Fase 1)
+- [x] Fase 2: cola y scorecard del Manager
+- [x] Simplificar entrevista de Recruitment, añadir Reading B2 y Red Flags persistente
