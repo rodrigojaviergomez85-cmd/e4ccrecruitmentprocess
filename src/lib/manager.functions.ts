@@ -509,6 +509,17 @@ async function applyDecision(
       response_message: r.detail,
       sent_by: actorId,
     });
+    // Record the exact list requested; documents are never marked as received here.
+    await writeAudit(db as never, {
+      actorId,
+      actorEmail: ctx.email,
+      action: "application.training_documents_requested",
+      entityType: "application",
+      entityId: d.applicationId,
+      applicationId: d.applicationId,
+      oldValue: null,
+      newValue: { country: d.countryCode, documents: requestedDocuments, received: false, email_status: r.status },
+    });
     result = r;
   } else if (d.decision === "Not Approved") {
     const { sendFollowUp } = await import("./candidate-admin.functions");
