@@ -403,9 +403,82 @@ export function buildManagerRetakeEmail(input: {
       <p style="margin:0 0 12px">Thank you for attending your final interview with our Country Manager.</p>
       <p style="margin:0 0 12px">We would like to give you another opportunity to complete this final step once you have worked on the following:</p>
       ${input.areas.trim() ? `<p style="margin:0 0 12px"><strong>${escapeHtml(input.areas.trim())}</strong></p>` : ""}
+      <p style="margin:0 0 6px"><strong>Preparation materials:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">
+        <li><a href="${RETAKE_LINKS.grammarTopicsGettingStarted}" style="color:#0f766e">Grammar Topics Document</a></li>
+        <li><a href="${RETAKE_LINKS.interviewPrepTips}" style="color:#0f766e">Interview preparation tips</a></li>
+      </ul>
       ${date ? `<p style="margin:0 0 12px">You can schedule your new final interview starting <strong>${escapeHtml(date)}</strong>.</p>` : ""}
       <p style="margin:0 0 16px"><a href="${url}" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:bold">Schedule my final interview</a></p>
       <p style="margin:0 0 12px">If the button does not work, copy this link: ${url}</p>
+      <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+  return { subject, html };
+}
+
+
+/**
+ * Documentation required for Training, per country code. Only fill with the
+ * official lists; an empty list keeps the email generic (never invented).
+ */
+export const TRAINING_DOCUMENTS_BY_COUNTRY: Record<string, string[]> = {};
+export const TRAINING_DOCUMENTS_UPLOAD_URL = "https://forms.gle/WCSE7TwHBTfTffFa6";
+
+/** Welcome to Training — sent once when the Manager approves the candidate. */
+export function buildTrainingWelcomeEmail(input: {
+  fullName: string;
+  countryCode: string | null;
+  isOnline: boolean;
+  startDate: string;
+  schedule: string;
+  timezone: string;
+  trainer: string;
+  trainerContact: string;
+  branch?: string;
+  address?: string;
+  zoom?: string;
+}) {
+  const e = escapeHtml;
+  const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(input.startDate)
+    ? new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", year: "numeric", month: "long", day: "numeric" }).format(new Date(`${input.startDate}T00:00:00Z`))
+    : input.startDate;
+  const docs = TRAINING_DOCUMENTS_BY_COUNTRY[input.countryCode ?? ""] ?? [];
+  const link = (label: string) => {
+    const hit = RETAKE_LINKS.grammarReinforcement.find(([l]) => l.toLowerCase().startsWith(label.toLowerCase()));
+    return hit ? `<a href="${hit[1]}" style="color:#0f766e">${e(label)}</a>` : e(label);
+  };
+  const subject = "Welcome to E4CC Training";
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${e(name)},</p>
+      <p style="margin:0 0 12px">Congratulations! You have been approved to join the E4CC Training. We are happy to welcome you.</p>
+      <p style="margin:0 0 6px"><strong>Training details</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">
+        <li><strong>Start date:</strong> ${e(date)}</li>
+        <li><strong>Schedule:</strong> ${e(input.schedule)} (${e(input.timezone)})</li>
+        <li><strong>Trainer:</strong> ${e(input.trainer)} — ${e(input.trainerContact)}</li>
+        ${input.isOnline
+          ? `<li><strong>Zoom:</strong> <a href="${e(input.zoom ?? "")}">${e(input.zoom ?? "")}</a></li>`
+          : `<li><strong>Branch:</strong> ${e(input.branch ?? "")}</li><li><strong>Address:</strong> ${e(input.address ?? "")}</li>`}
+      </ul>
+      <p style="margin:0 0 6px"><strong>Please bring / prepare</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">
+        <li>Be on time.</li>
+        <li>A pen and a notebook.</li>
+        ${input.isOnline ? "<li>A computer, good lighting and a quiet environment with little noise.</li>" : ""}
+      </ul>
+      <p style="margin:0 0 6px"><strong>Preparation materials already provided</strong></p>
+      <ul style="margin:0 0 12px;padding-left:20px">
+        <li>WH Questions</li>
+        <li>${link("Prepositions")}</li>
+        <li>${link("Present Perfect")}</li>
+        <li>${link("ED Endings").replace("ED Endings", "ED Sounds")}</li>
+      </ul>
+      <p style="margin:0 0 12px">This material will be evaluated on your first day of Training.</p>
+      <p style="margin:0 0 6px"><strong>Documentation</strong></p>
+      ${docs.length ? `<ul style="margin:0 0 12px;padding-left:20px">${docs.map((d) => `<li>${e(d)}</li>`).join("")}</ul>` : ""}
+      <p style="margin:0 0 12px">Please upload your documentation here: <a href="${TRAINING_DOCUMENTS_UPLOAD_URL}">${TRAINING_DOCUMENTS_UPLOAD_URL}</a></p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
   return { subject, html };
