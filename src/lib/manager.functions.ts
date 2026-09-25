@@ -476,7 +476,7 @@ async function applyDecision(
 
   let result: { ok: boolean; status: string; detail: string };
   if (d.decision === "Approved for Training") {
-    const { baseUrl: _b, sendEmail } = await import("./notify.server");
+    const { sendEmail } = await import("./notify.server");
     const { buildTrainingWelcomeEmail } = await import("./candidate-emails");
     const t = (k: string) => (d.training[k] ?? "").trim();
     const { subject, html } = buildTrainingWelcomeEmail({
