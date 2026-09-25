@@ -168,3 +168,67 @@ export function scoreManager(scores: Record<string, number>, criticalRedFlag: bo
 }
 
 export const MANAGER_MAX_TOTAL = MANAGER_SECTIONS.reduce((s, x) => s + x.max, 0);
+
+/**
+ * Manager Final Interview (current format). Six stages with guide times only —
+ * no scores, gates or automatic recommendations. The final decision is manual.
+ */
+export const MANAGER_STAGES = [
+  { id: "reconfirmation", n: 1, title: "Reconfirmation", time: "1–5 min" },
+  { id: "grammar", n: 2, title: "Grammar and English Knowledge", time: "3–7 min" },
+  { id: "demo", n: 3, title: "Teaching Demo Class", time: "5–7 min" },
+  { id: "feedback", n: 4, title: "Private Feedback", time: "2–3 min" },
+  { id: "retake", n: 5, title: "Demo Retake / Apply Feedback", time: "3–5 min" },
+  { id: "closing", n: 6, title: "Closing and Final Decision", time: "2 min" },
+] as const;
+export const MANAGER_TOTAL_TIME = "16–29 min";
+
+/** Reconfirmation checkboxes. `equipment` applies to Online candidates only. */
+export const RECONFIRM_CHECKS = [
+  ["schedule", "Class schedule"],
+  ["availability", "Availability"],
+  ["training_start", "Training start date"],
+  ["modality", "Modality / branch"],
+  ["current_job", "Current job and schedule compatibility"],
+  ["work_info", "Work information and references"],
+  ["red_flags", "Inconsistencies and pending red flags"],
+  ["equipment", "Equipment and internet reviewed"],
+] as const;
+
+/** Stage notes are stored inside `evidence` under these keys. */
+export const STAGE_NOTE_KEYS = {
+  reconfirmation: "stage:reconfirmation",
+  grammar: "stage:grammar",
+  demo: "stage:demo",
+  feedback: "stage:feedback",
+  retake: "stage:retake",
+} as const;
+
+/** Training details captured on Approved for Training (stored in `evidence`). */
+export const TRAINING_KEYS = {
+  startDate: "training:start_date",
+  schedule: "training:schedule",
+  timezone: "training:timezone",
+  trainer: "training:trainer",
+  trainerContact: "training:trainer_contact",
+  branch: "training:branch",
+  address: "training:address",
+  zoom: "training:zoom",
+} as const;
+
+export function missingTraining(evidence: Record<string, string>, isOnline: boolean): string[] {
+  const t = (k: string) => (evidence[k] ?? "").trim();
+  const out: string[] = [];
+  if (!t(TRAINING_KEYS.startDate)) out.push("Training start date");
+  if (!t(TRAINING_KEYS.schedule)) out.push("Training schedule");
+  if (!t(TRAINING_KEYS.timezone)) out.push("Time zone");
+  if (!t(TRAINING_KEYS.trainer)) out.push("Trainer name");
+  if (!t(TRAINING_KEYS.trainerContact)) out.push("Trainer contact");
+  if (isOnline) {
+    if (!t(TRAINING_KEYS.zoom)) out.push("Zoom link");
+  } else {
+    if (!t(TRAINING_KEYS.branch)) out.push("Training branch");
+    if (!t(TRAINING_KEYS.address)) out.push("Training address");
+  }
+  return out;
+}
