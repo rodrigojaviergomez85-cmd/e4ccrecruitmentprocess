@@ -351,6 +351,22 @@ function ReviewPage() {
     set({ verifications: { ...(form?.verifications ?? {}), [key]: state } });
   const setVNote = (key: string, text: string) =>
     set({ evidence: { ...(form?.evidence ?? {}), [`v:${key}`]: text } });
+  const note = (key: string) => form?.evidence[key] ?? "";
+  const setNote = (key: string, text: string) => set({ evidence: { ...(form?.evidence ?? {}), [key]: text } });
+  const tv = (key: string) => form?.evidence[key] ?? trainingDefaults[key] ?? "";
+  const setT = setNote;
+  const trainingMissing = missingTraining(withDefaults(form?.evidence ?? {}), isOnline);
+  async function saveDraft() {
+    if (!current || !editable) return;
+    try {
+      await save({ data: payload(false) });
+      dirty.current = false;
+      setSaving("saved");
+      toast.success("Draft saved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save");
+    }
+  }
 
   const item = (
     key: string,
@@ -951,21 +967,18 @@ function ReviewPage() {
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-40 xl:self-start">
-          {result && current && (
+          <div className="space-y-1.5 rounded-2xl border border-border bg-card p-4 text-sm">
+            <p className="font-semibold">Guide times</p>
+            {MANAGER_STAGES.map((st) => (
+              <a key={st.id} href={`#${st.id}`} className={cn("flex justify-between gap-2 text-xs", active === st.id ? "font-semibold text-primary" : "text-muted-foreground")}>
+                <span className="truncate">{st.n}. {st.title}</span>
+                <span className="shrink-0">{st.time}</span>
+              </a>
+            ))}
+            <p className="border-t border-border pt-1.5 text-xs">Total: <strong>{MANAGER_TOTAL_TIME}</strong> · no timer, guide only</p>
+          </div>
+          {current && (
             <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
-              <p className="text-3xl font-bold">{result.total}<span className="text-base text-muted-foreground">/100</span></p>
-              {MANAGER_SECTIONS.map((s) => {
-                const sec = result.sections.find((x) => x.key === s.key)!;
-                return (
-                  <div key={s.key} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="truncate">{s.title}</span>
-                    <span className={cn("shrink-0 font-semibold", sec.passed ? "text-success" : "text-destructive")}>
-                      {sec.points}/{s.max}{s.gate != null ? ` · gate ≥ ${s.gate}` : ""}
-                    </span>
-                  </div>
-                );
-              })}
-              <p className="rounded-lg bg-secondary p-2 font-semibold">{result.recommendation ?? "Complete all criteria to see the recommendation"}</p>
               <p>Final decision: <strong>{current.final_decision ?? "—"}</strong></p>
               <p className="text-xs text-muted-foreground">Manager: {managerName} · {fmt(current.decided_at ?? current.updated_at)}</p>
               {d.access.isAdmin && locked && (
@@ -985,17 +998,16 @@ function ReviewPage() {
           )}
           {lastEmail && (
             <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
-              <p className="font-semibold">Result email</p>
+              <p className="font-semibold">Notification</p>
               {managerEmails.map((e) => (
                 <p key={e.id} className="text-xs">
-                  {fmt(e.created_at)} · {e.kind} · <span className={e.status === "sent" ? "text-success" : e.status === "failed" ? "text-destructive" : ""}>{e.status}</span>
+                  {fmt(e.created_at)} · {e.kind} · {e.to_email} · <span className={e.status === "sent" ? "text-success" : e.status === "failed" ? "text-destructive" : ""}>{e.status}</span>
                   {e.http_status != null ? ` · HTTP ${e.http_status}` : ""}{e.response_message ? ` · ${e.response_message}` : ""}
                 </p>
               ))}
-              {locked && d.access.canDecide && current?.final_decision !== "Approved for Training" && (
+              {locked && d.access.canDecide && lastEmail.status === "failed" && !managerEmails.some((e) => e.status === "sent") && (
                 <Button
                   size="sm"
-                  variant={lastEmail.status === "failed" ? "default" : "outline"}
                   onClick={async () => {
                     const r = await retry({ data: { evaluationId: current!.id } });
                     if (r.ok) toast.success("Email sent");
@@ -1003,7 +1015,7 @@ function ReviewPage() {
                     await refresh();
                   }}
                 >
-                  {lastEmail.status === "failed" ? "Retry email" : "Resend email"}
+                  Retry failed email
                 </Button>
               )}
             </div>
@@ -1014,17 +1026,16 @@ function ReviewPage() {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Submit "{form?.finalDecision}"?</AlertDialogTitle>
+            <AlertDialogTitle>Finish interview — "{form?.finalDecision}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              The evaluation will be locked.{" "}
-              {form?.finalDecision === "Approved for Training"
-                ? "The Training welcome email stays pending until a cohort is assigned."
-                : "The candidate email will be sent now through the recruitment mailbox."}
+              The decision is saved, the status is updated and the interview is locked. One email is sent to the
+              candidate{form?.finalDecision === "Approved for Training" ? " (Welcome to Training)" : ""}
+              {form?.eligibleAgainDate && (form.finalDecision === "Retake" || form.finalDecision === "Not Approved") ? ` with the date ${form.eligibleAgainDate}` : ""}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void onSubmit()}>Confirm and submit</AlertDialogAction>
+            <AlertDialogAction disabled={submitting} onClick={() => void onSubmit()}>Confirm and finish</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1126,30 +1137,38 @@ function verificationClass(key: ManagerVerificationState) {
   }
 }
 
-function ScoreRow({
-  criterion,
-  score,
-  evidence,
-  onScore,
-  onEvidence,
-}: {
-  criterion: (typeof MANAGER_SECTIONS)[number]["criteria"][number];
-  score: string;
-  evidence: string;
-  onScore: (value: string) => void;
-  onEvidence: (value: string) => void;
-}) {
+function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {
+  const st = MANAGER_STAGES.find((x) => x.id === id)!;
   return (
-    <div className="grid gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_86px]">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{criterion.label}</p>
-        <p className="text-xs text-muted-foreground">{criterion.expected ? `Expected: ${criterion.expected}` : criterion.hint}</p>
-        <Input className="mt-1" placeholder="Evidence observed" value={evidence} onChange={(e) => onEvidence(e.target.value)} />
-      </div>
-      <div>
-        <Label className="text-xs">0–{criterion.max}</Label>
-        <Input type="number" min={0} max={criterion.max} value={score} onChange={(e) => onScore(e.target.value)} />
-      </div>
+    <section id={id} className="scroll-mt-40 rounded-xl border border-border bg-card">
+      <header className="flex items-center gap-3 border-b border-border px-4 py-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{st.n}</span>
+        <h2 className="text-sm font-semibold uppercase tracking-wide">{st.title}</h2>
+        <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{st.time}</span>
+      </header>
+      <div className="space-y-3 px-4 py-3">{children}</div>
+    </section>
+  );
+}
+
+function Guide({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-xs italic">{children}</p>;
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <p className="min-w-0 text-sm">
+      <span className="block text-[11px] font-semibold uppercase text-muted-foreground">{label}</span>
+      <span className="break-words">{value}</span>
+    </p>
+  );
+}
+
+function TField({ label, value, onChange, placeholder, type }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <Input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
