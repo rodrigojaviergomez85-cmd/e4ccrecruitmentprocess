@@ -158,13 +158,13 @@ export async function buildAgreementPdf(
     wrap(v, reg, 9, CW - labelW - 16).forEach((ln, j) =>
       page.drawText(ln, { x: M + labelW, y: ry - 12 - j * 12.5, size: 9, font: reg, color: INK }),
     );
-    ry -= rowH[i];
+    ry -= rowH[i] ?? 20;
   });
   y -= boxH + 14;
 
   for (const b of blocks.slice(1)) {
     if (b.t === "table" && b.rows) {
-      const cols = b.rows[0].length;
+      const cols = b.rows[0]?.length ?? 1;
       const cw = CW / cols;
       for (const [ri, r] of b.rows.entries()) {
         const font = ri === 0 ? bold : reg;

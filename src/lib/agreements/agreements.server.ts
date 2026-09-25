@@ -51,7 +51,7 @@ export async function prepareAgreement(opts: {
 
   let bytes: Uint8Array;
   try {
-    bytes = await buildAgreementPdf(opts.kind, opts.data, { test: opts.isTest, allowPendingHours: opts.isTest });
+    bytes = await buildAgreementPdf(opts.kind, opts.data, { test: !!opts.isTest, allowPendingHours: !!opts.isTest });
   } catch (e) {
     return fail(e instanceof Error ? e.message.slice(0, 300) : "PDF generation failed");
   }
