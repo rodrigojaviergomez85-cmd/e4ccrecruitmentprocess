@@ -13,4 +13,4 @@
 - [x] Prueba real a kennia.vasquez@e4ccglobal.com: correo normal limpio y PDF adjunto que abre correctamente
 - [x] Onsite: confirmado cuarenta (40) horas; envÃ­os Onsite reales desbloqueados
 
-- [ ] Revisar "Not Approved" de Kevin: la plataforma no lo envió
+- [x] "Not Approved" de Kevin Ascencio: la plataforma Sí lo envió (5:21 p.m., Make 200) pero no apareció en Outlook; reenviado 1 vez y registrado
