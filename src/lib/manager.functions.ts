@@ -3,13 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
-import {
-  COHORT_PENDING,
-  MANAGER_DECISIONS,
-  clampScores,
-  scoreManager,
-  type ManagerDecision,
-} from "./manager-scorecard";
+import { MANAGER_DECISIONS, TRAINING_KEYS, missingTraining, type ManagerDecision } from "./manager-scorecard";
 import { PENDING_SECOND_FILTER, staffTier } from "./roles";
 
 async function getAdmin() {
@@ -319,35 +313,43 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!current) throw new Error("Evaluation not found.");
     const app = await assertAccess(ctx, current.application_id);
-    if (current.submitted_at && current.status !== "Reopened")
-      throw new Error("This evaluation was submitted and is locked. Only Admin can reopen it.");
+    // A finalized decision is idempotent: repeated clicks or reloads never resend.
+    if (current.submitted_at && current.status !== "Reopened") {
+      if (data.submit) return { ok: true as const, missing: [] as string[], email: null, duplicate: true };
+      throw new Error("This evaluation was finished and is locked. Only Admin can reopen it.");
+    }
 
-    const scores = clampScores(data.scores);
-    const result = scoreManager(scores, data.criticalRedFlag);
     const decision = data.finalDecision as ManagerDecision | null;
+    const { data: prog } = await ctx.db
+      .from("recruitment_progress")
+      .select("work_modality")
+      .eq("application_id", app.id)
+      .maybeSingle();
+    const isOnline = (prog?.work_modality ?? "").toLowerCase() === "online";
 
     if (data.submit) {
       const missing: string[] = [];
       if (!decision) missing.push("Final decision");
-      if (decision && decision !== "No Show" && decision !== "Not Approved" && !result.complete)
-        missing.push("All scorecard criteria");
-      // Gates only drive the recommendation. The Manager keeps the final manual
-      // decision; overriding a failed gate just requires a written reason (audited).
-      if (decision === "Approved for Training" && !result.gatesPassed && !data.decisionReason?.trim())
-        missing.push("Reason for approving although a gate was not met");
+      if (decision === "Approved for Training") {
+        missing.push(...missingTraining(data.evidence, isOnline));
+        if (isOnline && !data.checks["equipment"]) missing.push("Equipment and internet reviewed");
+      }
       if (decision === "Retake") {
         if (!data.improvementAreas.length) missing.push("At least one area to improve");
-        if (!data.eligibleAgainDate) missing.push("Eligible date to apply again");
+        if (!data.eligibleAgainDate) missing.push("Eligible date to return");
       }
-      if (decision === "Not Approved" && !data.decisionReason?.trim()) missing.push("Internal reason");
+      if (decision === "Not Approved") {
+        if (!data.decisionReason?.trim()) missing.push("Internal reason");
+        if (!data.eligibleAgainDate) missing.push("Date the candidate can apply again");
+      }
       if (decision === "No Show" && !data.appointmentAt) missing.push("Appointment date");
-      if (missing.length) return { ok: false as const, missing };
+      if (missing.length) return { ok: false as const, missing, email: null, duplicate: false };
     }
 
     const nowIso = new Date().toISOString();
     const patch = {
       demo_topic: data.demoTopic,
-      scores: scores as never,
+      // Historic scores are kept untouched; the current format has no scoring.
       evidence: data.evidence as never,
       checks: data.checks as never,
       verifications: data.verifications as never,
@@ -357,9 +359,6 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       improvement_areas: data.improvementAreas.length
         ? retakeFeedback(data.improvementAreas, data.improvementNote)
         : data.improvementNote,
-      total_score: result.total,
-      gates: result.gates as never,
-      recommendation: result.recommendation,
       final_decision: decision,
       decision_reason: data.decisionReason,
       eligible_again_date: data.eligibleAgainDate || null,
@@ -376,8 +375,15 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
           }
         : {}),
     };
-    const { error } = await ctx.db.from("manager_evaluations").update(patch).eq("id", current.id);
+    // Conditional update: only one request can move an open evaluation to Submitted.
+    let upd = ctx.db.from("manager_evaluations").update(patch).eq("id", current.id);
+    upd = current.submitted_at ? upd.eq("status", "Reopened") : upd.is("submitted_at", null);
+    const { data: updated, error } = await upd.select("id");
     if (error) throw new Error(error.message);
+    if (!updated?.length) {
+      if (data.submit) return { ok: true as const, missing: [] as string[], email: null, duplicate: true };
+      throw new Error("This evaluation was finished and is locked.");
+    }
 
     const audit = (action: string, oldValue: unknown, newValue: unknown) =>
       writeAudit(ctx.db as never, {
@@ -390,13 +396,14 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
         oldValue,
         newValue,
       });
-    if ((current.total_score ?? null) !== result.total)
-      await audit("manager_evaluation.score_changed", { total: current.total_score }, { total: result.total });
-    if ((current.recommendation ?? null) !== result.recommendation)
+
+    const oldEvidence = (current.evidence as Record<string, string> | null) ?? {};
+    const newStart = (data.evidence[TRAINING_KEYS.startDate] ?? "").trim();
+    if (newStart && newStart !== (oldEvidence[TRAINING_KEYS.startDate] ?? "").trim())
       await audit(
-        "manager_evaluation.recommendation_changed",
-        { recommendation: current.recommendation },
-        { recommendation: result.recommendation },
+        "manager_evaluation.training_start_changed",
+        { training_start: oldEvidence[TRAINING_KEYS.startDate] ?? null },
+        { training_start: newStart },
       );
 
     let email: { ok: boolean; status: string; detail: string } | null = null;
@@ -404,24 +411,27 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       await audit(
         decision === "No Show" ? "manager_evaluation.no_show" : "manager_evaluation.final_decision",
         { final_decision: current.final_decision, status: current.status },
-        { final_decision: decision, decision_stage: "manager_final_filter", total: result.total },
+        { final_decision: decision, decision_stage: "manager_final_filter" },
       );
       email = await applyDecision(ctx, context.userId, {
         applicationId: app.id,
         applicantName: app.full_name,
         applicantEmail: app.email,
+        countryCode: app.country_code,
+        isOnline,
         previousStatus: app.status,
         evaluationId: current.id,
         decision,
         retakeFeedbackText: retakeFeedback(data.improvementAreas, data.improvementNote),
         eligibleAgainDate: data.eligibleAgainDate || null,
+        training: data.evidence,
       });
     }
-    return { ok: true as const, missing: [] as string[], total: result.total, recommendation: result.recommendation, email };
+    return { ok: true as const, missing: [] as string[], email, duplicate: false };
   });
 
 const DECISION_STATUS: Record<ManagerDecision, string> = {
-  "Approved for Training": COHORT_PENDING,
+  "Approved for Training": "Approved for Training",
   // Distinct from the first-interview "Retake – …" labels so the public Retake
   // flow never sends this candidate back to the first interview.
   Retake: "Manager Retake – Email Sent",
@@ -451,64 +461,63 @@ async function applyDecision(
     applicationId: string;
     applicantName: string;
     applicantEmail: string;
+    countryCode: string | null;
+    isOnline: boolean;
     previousStatus: string;
     evaluationId: string;
     decision: ManagerDecision;
     retakeFeedbackText: string;
     eligibleAgainDate: string | null;
-    force?: boolean;
+    training: Record<string, string>;
   },
 ) {
   const db = ctx.db;
   await setStatus(ctx, actorId, d.applicationId, d.previousStatus, DECISION_STATUS[d.decision]);
 
-  if (d.decision === "Approved for Training") {
-    // The full Training welcome email needs cohort, schedule, trainer and venue (Phase 3).
-    const { data: existing } = await db
-      .from("candidate_emails")
-      .select("id")
-      .eq("manager_evaluation_id", d.evaluationId)
-      .eq("kind", "training_welcome")
-      .limit(1)
-      .maybeSingle();
-    if (!existing)
-      await db.from("candidate_emails").insert({
-        application_id: d.applicationId,
-        manager_evaluation_id: d.evaluationId,
-        kind: "training_welcome",
-        to_email: d.applicantEmail,
-        subject: "Welcome to E4CC Training",
-        body: "",
-        status: "Pending Cohort Assignment",
-        sent_by: actorId,
-      });
-    return { ok: true, status: "pending_cohort", detail: "Welcome email waits for cohort assignment." };
-  }
-
   let result: { ok: boolean; status: string; detail: string };
-  if (d.decision === "Not Approved") {
-    const kind = "not_approved";
-    if (!d.force) {
-      const { data: already } = await db
-        .from("candidate_emails")
-        .select("id")
-        .eq("manager_evaluation_id", d.evaluationId)
-        .eq("kind", kind)
-        .eq("status", "sent")
-        .limit(1)
-        .maybeSingle();
-      if (already) return { ok: true, status: "duplicate", detail: "The result email was already sent." };
-    }
+  if (d.decision === "Approved for Training") {
+    const { baseUrl: _b, sendEmail } = await import("./notify.server");
+    const { buildTrainingWelcomeEmail } = await import("./candidate-emails");
+    const t = (k: string) => (d.training[k] ?? "").trim();
+    const { subject, html } = buildTrainingWelcomeEmail({
+      fullName: d.applicantName,
+      countryCode: d.countryCode,
+      isOnline: d.isOnline,
+      startDate: t(TRAINING_KEYS.startDate),
+      schedule: t(TRAINING_KEYS.schedule),
+      timezone: t(TRAINING_KEYS.timezone),
+      trainer: t(TRAINING_KEYS.trainer),
+      trainerContact: t(TRAINING_KEYS.trainerContact),
+      branch: t(TRAINING_KEYS.branch),
+      address: t(TRAINING_KEYS.address),
+      zoom: t(TRAINING_KEYS.zoom),
+    });
+    const r = await sendEmail({ to: d.applicantEmail, subject, html, candidateName: d.applicantName, result: "training_welcome" });
+    await db.from("candidate_emails").insert({
+      application_id: d.applicationId,
+      manager_evaluation_id: d.evaluationId,
+      kind: "training_welcome",
+      to_email: d.applicantEmail,
+      subject,
+      body: html,
+      status: r.status === "sent" ? "sent" : "failed",
+      error_message: r.ok ? null : r.detail,
+      http_status: r.httpStatus ?? null,
+      response_message: r.detail,
+      sent_by: actorId,
+    });
+    result = r;
+  } else if (d.decision === "Not Approved") {
     const { sendFollowUp } = await import("./candidate-admin.functions");
     try {
       result = await sendFollowUp(db, {
         applicationId: d.applicationId,
-        kind,
+        kind: "not_approved",
         // Never pass internal reasons, red flags, scores or comments.
         areas: "",
         reasons: [],
         actorId,
-        eligibleAgainDate: null,
+        eligibleAgainDate: d.eligibleAgainDate,
         managerEvaluationId: d.evaluationId,
         skipStatusUpdate: true,
         force: true,
@@ -594,29 +603,43 @@ async function sendTokenEmail(
   return result;
 }
 
+/** Retries only a failed notification; a sent (or uncertain) one is never duplicated. */
 export const retryManagerEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ evaluationId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const ctx = await managerCtx(context.userId);
-    if (!ctx.canDecide) throw new Error("Only a Manager or Admin can resend this email.");
+    if (!ctx.canDecide) throw new Error("Only a Manager or Admin can retry this email.");
     const { data: ev } = await ctx.db
       .from("manager_evaluations")
-      .select("id, application_id, final_decision, improvement_areas, eligible_again_date, submitted_at")
+      .select("id, application_id, final_decision, improvement_areas, eligible_again_date, submitted_at, evidence")
       .eq("id", data.evaluationId)
       .maybeSingle();
-    if (!ev?.submitted_at || !ev.final_decision) throw new Error("Submit the decision first.");
+    if (!ev?.submitted_at || !ev.final_decision) throw new Error("Finish the interview first.");
     const app = await assertAccess(ctx, ev.application_id);
+    const { data: emails } = await ctx.db
+      .from("candidate_emails")
+      .select("status, http_status, created_at")
+      .eq("manager_evaluation_id", ev.id)
+      .order("created_at", { ascending: false });
+    const last = emails?.[0];
+    if (emails?.some((e) => e.status === "sent"))
+      return { ok: false, status: "duplicate", detail: "This notification was already sent." };
+    if (last && last.status !== "failed")
+      return { ok: false, status: "uncertain", detail: "The last attempt has an uncertain result. Check the mailbox before retrying." };
+    const { data: prog } = await ctx.db.from("recruitment_progress").select("work_modality").eq("application_id", app.id).maybeSingle();
     return applyDecision(ctx, context.userId, {
       applicationId: app.id,
       applicantName: app.full_name,
       applicantEmail: app.email,
+      countryCode: app.country_code,
+      isOnline: (prog?.work_modality ?? "").toLowerCase() === "online",
       previousStatus: app.status,
       evaluationId: ev.id,
       decision: ev.final_decision as ManagerDecision,
       retakeFeedbackText: ev.improvement_areas ?? "",
       eligibleAgainDate: ev.eligible_again_date,
-      force: true,
+      training: (ev.evidence as Record<string, string> | null) ?? {},
     });
   });
 
