@@ -7,3 +7,8 @@
 - [x] Fase 2: cola y scorecard del Manager
 - [x] Simplificar entrevista de Recruitment, añadir Reading B2 y Red Flags persistente
 - [x] Rediseñar la ficha del segundo filtro del Manager (formato compacto, secciones numeradas, verificación lado a lado) — nombre completo sin ID
+- [x] Convenios Online/Onsite: PDF personalizado (nombre en todo el convenio), registro en expediente, un solo correo con adjunto
+- [x] Guía visual de Make (Router con filtros excluyentes, descarga de PDF, Webhook response)
+- [ ] Configurar Make con la guía (bloqueado: lo hace el usuario en Make)
+- [ ] Prueba real a kennia.vasquez@e4ccglobal.com: PDF llega adjunto y abre (bloqueado: Make)
+- [ ] Onsite: confirmar 40 o 50 horas (bloqueado: respuesta del usuario; envíos Onsite reales en espera)
