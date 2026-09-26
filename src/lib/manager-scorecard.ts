@@ -234,9 +234,7 @@ export function missingTraining(evidence: Record<string, string>, isOnline: bool
     if (!t(TRAINING_KEYS.zoom)) out.push("Zoom link");
   } else {
     if (!t(TRAINING_KEYS.schedule)) out.push("Training days and schedule");
-    if (!t(TRAINING_KEYS.timezone)) out.push("Time zone");
     if (!t(TRAINING_KEYS.branch)) out.push("Training branch");
-    if (!t(TRAINING_KEYS.address)) out.push("Training address");
     if (!t(AGREEMENT_KEYS.lob)) out.push("LOB / position type");
     if (t(AGREEMENT_KEYS.classSameBranch) !== "yes" && !t(AGREEMENT_KEYS.classBranch)) out.push("Assigned class branch");
     if (!t(AGREEMENT_KEYS.classSchedule)) out.push("Class days and schedule");

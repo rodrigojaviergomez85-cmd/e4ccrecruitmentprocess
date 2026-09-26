@@ -36,7 +36,6 @@ import {
   MANAGER_DECISIONS,
   MANAGER_STAGES,
   MANAGER_TOTAL_TIME,
-  MANAGER_VERIFICATION_STATES,
   RECONFIRM_CHECKS,
   STAGE_NOTE_KEYS,
   TRAINING_KEYS,
@@ -101,46 +100,6 @@ const EMPTY_FORM: Form = {
 
 const NAV: [string, string][] = MANAGER_STAGES.map((st) => [st.id, `${st.n} · ${st.title}`]);
 
-/** Every item the Manager is expected to verify. Job items are added per candidate. */
-const VERIFY_KEYS = [
-  "perfil.modality",
-  "perfil.branch",
-  "perfil.schedule",
-  "perfil.training_start",
-  "perfil.payment",
-  "perfil.availability",
-  "perfil.main_schedule",
-  "expect.teaching",
-  "expect.callcenter",
-  "expect.training",
-  "expect.class_schedule",
-  "expect.current_job",
-  "expect.modality",
-  "expect.equipment",
-  "expect.references",
-  "goals.career",
-  "goals.why_e4cc",
-  "goals.teaching_interest",
-  "goals.plans",
-  "goals.evidence",
-  "english.grammar_test",
-  "english.verbs",
-  "english.spoken",
-  "english.explanations",
-  "english.error_correction",
-  "english.writing",
-  "english.reading",
-  "english.demo",
-  "english.coachability",
-  "experience.studies",
-  "experience.gaps",
-  "experience.references",
-  "values.motivation",
-  "values.development",
-  "values.consistency",
-  "values.behaviour",
-];
-
 const EMPTY_ANSWERS = new Set(["-", "--", "---", "n/a", "na", "none", "null", "nil"]);
 
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : "—");
@@ -155,10 +114,21 @@ function shown(value: unknown): string {
   return text;
 }
 
-function jobStatus(start: string | null, end: string | null) {
-  const text = String(end ?? "").trim().toLowerCase();
-  if (!text || ["present", "current", "actual", "now", "today"].includes(text)) return "Current";
-  return "Finished";
+function jobDuration(start: string | null, end: string | null) {
+  const from = new Date(start ?? "");
+  const to = end ? new Date(end) : new Date();
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "Not recorded";
+  const months = Math.max(0, Math.round((to.getTime() - from.getTime()) / 2_629_746_000));
+  const years = Math.floor(months / 12);
+  const remaining = months % 12;
+  return [years ? `${years} yr${years === 1 ? "" : "s"}` : "", remaining ? `${remaining} mo` : ""].filter(Boolean).join(" ") || "< 1 mo";
+}
+
+function ordinal(slot: number) {
+  if (slot === 1) return "1st";
+  if (slot === 2) return "2nd";
+  if (slot === 3) return "3rd";
+  return `${slot}th`;
 }
 
 /** Adds today + period (days/weeks/months) and returns yyyy-mm-dd. */
@@ -237,7 +207,7 @@ function ReviewPage() {
     const iv = d.interviews.find((i) => i.final_result === "Approved for last step") ?? d.interviews[0];
     const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
     const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
-    return { [TRAINING_KEYS.startDate]: start, [TRAINING_KEYS.branch]: String(d.app.city ?? "") } as Record<string, string>;
+    return { [TRAINING_KEYS.startDate]: start } as Record<string, string>;
   }, [d]);
   const withDefaults = (ev: Record<string, string>) => {
     const out = { ...ev };
@@ -340,17 +310,9 @@ function ReviewPage() {
   const managerName = d.managers.find((m) => m.id === current?.manager_id)?.name ?? d.access.name;
   const managerEmails = d.emails.filter((e) => e.manager_evaluation_id && e.manager_evaluation_id === current?.id);
   const lastEmail = managerEmails[0];
-  const allVerifyKeys = [...VERIFY_KEYS, ...jobs.map((j) => `experience.job.${j.slot}`)];
-  const verified = allVerifyKeys.filter((k) => form?.verifications[k] === "confirmed").length;
-  const flagged = allVerifyKeys.filter(
-    (k) => form?.verifications[k] === "discrepancy" || form?.verifications[k] === "clarification",
-  ).length;
   const recruitmentFlags = String(interview?.red_flags ?? "").trim();
 
-  const vState = (key: string): ManagerVerificationState => form?.verifications[key] ?? "not_reviewed";
   const vNote = (key: string) => form?.evidence[`v:${key}`] ?? "";
-  const setVerify = (key: string, state: ManagerVerificationState) =>
-    set({ verifications: { ...(form?.verifications ?? {}), [key]: state } });
   const setVNote = (key: string, text: string) =>
     set({ evidence: { ...(form?.evidence ?? {}), [`v:${key}`]: text } });
   const note = (key: string) => form?.evidence[key] ?? "";
@@ -381,11 +343,6 @@ function ReviewPage() {
       label={label}
       recruitment={recruitment}
       hint={extra?.hint}
-      state={vState(key)}
-      onState={(s) => setVerify(key, s)}
-      note={vNote(key)}
-      onNote={(t) => setVNote(key, t)}
-      disabled={!editable}
     />
   );
 
@@ -449,10 +406,6 @@ function ReviewPage() {
                 {label}
               </a>
             ))}
-            <span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-muted-foreground sm:flex">
-              <span>{verified}/{allVerifyKeys.length} confirmed</span>
-              {flagged > 0 && <span className="font-semibold text-destructive">{flagged} to review</span>}
-            </span>
           </nav>
         </div>
       </header>
@@ -487,7 +440,7 @@ function ReviewPage() {
               <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
                 <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
                 <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
-                <span>Verification: <strong className="text-foreground">{verified} confirmed · {flagged} to review</strong></span>
+                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
                 <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
               </section>
               {recruitmentFlags && (
@@ -650,14 +603,7 @@ function ReviewPage() {
                         </div>
                       )}
                     </div>
-                    <Verify value={vState("english.verbs")} onChange={(s) => setVerify("english.verbs", s)} />
                   </div>
-                  <Input
-                    className="mt-2"
-                    placeholder="Manager note on the verbs"
-                    value={vNote("english.verbs")}
-                    onChange={(e) => setVNote("english.verbs", e.target.value)}
-                  />
                 </div>
                 {item("english.spoken", "Spoken English and pronunciation", `${answer("english", "meets_level")} · ${answer("english", "notes")}`)}
                 {item("english.explanations", "Grammar explanations given in the interview", answer("english", "tenses"))}
@@ -703,89 +649,43 @@ function ReviewPage() {
                     ? d.references.map((r) => `${r.company}: ${shown(r.verification_status)}`).join("\n")
                     : "No references recorded",
                 )}
-                {jobs.length === 0 && <p className="px-5 py-3 text-sm text-muted-foreground">No job history recorded.</p>}
-                {jobs.map((j) => {
-                  const key = `experience.job.${j.slot}`;
-                  const ref = d.references.find(
-                    (r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase(),
-                  );
-                  return (
-                    <details key={j.id} className="group px-5 py-3" open={jobs.length <= 2}>
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                        <span>{shown(j.company)}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span>{shown(j.position)}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-muted-foreground">{shown(j.start_date)} – {shown(j.end_date)}</span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                          {jobStatus(j.start_date, j.end_date)}
-                        </span>
-                        <span
-                          className={cn(
-                            "ml-auto rounded-full px-2 py-0.5 text-xs font-medium",
-                            vState(key) === "confirmed"
-                              ? "bg-success/15 text-success"
-                              : vState(key) === "discrepancy"
-                                ? "bg-destructive/10 text-destructive"
-                                : vState(key) === "clarification"
-                                  ? "bg-warning/20 text-foreground"
-                                  : "bg-secondary text-muted-foreground",
-                          )}
-                        >
-                          {MANAGER_VERIFICATION_STATES.find(([k]) => k === vState(key))?.[1]}
-                        </span>
-                      </summary>
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <ol className="space-y-2 text-sm">
-                          {[
-                            ["What were you hired to do?", j.hired_to_do],
-                            ["What was your biggest accomplishment?", j.accomplishment],
-                            ["What results or numbers demonstrate that accomplishment?", null],
-                            ["What was your lowest moment or biggest challenge?", j.biggest_mistake],
-                            ["Who was your supervisor?", j.supervisor_name],
-                            ["What score would your supervisor give you from 1 to 10?", j.supervisor_rating],
-                            ["Why would they give you that score?", j.rating_reason],
-                            ["Why did you leave?", j.reason_for_leaving],
-                            ["Were there gaps between jobs? What were you doing?", j.gap_explanation],
-                          ].map(([label, value], idx) => (
-                            <li key={idx}>
-                              <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                              <p className="whitespace-pre-wrap">{shown(value)}</p>
-                            </li>
+                {jobs.length === 0 ? (
+                  <p className="px-5 py-3 text-sm text-muted-foreground">No job history recorded.</p>
+                ) : (
+                  <div className="overflow-x-auto px-5 py-3">
+                    <table className="min-w-[1500px] border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="bg-secondary text-foreground">
+                          {["Experience", "Company", "Year", "Total years", "Position", "Hired to do", "Biggest accomplishment", "Lowest moment", "Boss / score", "Score reason", "Reason for leaving", "Gaps between jobs", "Reference"].map((label) => (
+                            <th key={label} className="border border-border px-2 py-2 font-semibold">{label}</th>
                           ))}
-                        </ol>
-                        <div className="space-y-3">
-                          <div className="rounded-lg border border-border p-3 text-sm">
-                            <p className="text-xs font-semibold uppercase text-muted-foreground">Reference</p>
-                            {ref ? (
-                              <p className="mt-1">
-                                {shown(ref.supervisor_name)} · {shown(ref.supervisor_phone)} ·{" "}
-                                {shown(ref.supervisor_email)} · verification: {shown(ref.verification_status)}
-                              </p>
-                            ) : (
-                              <p className="mt-1">No reference recorded for this job.</p>
-                            )}
-                            {ref && (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Differences detected: {shown(ref.verification_notes ?? ref.verification_status)}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold uppercase text-muted-foreground">Manager verification</p>
-                            <Verify className="mt-1" value={vState(key)} onChange={(s) => setVerify(key, s)} />
-                            <Textarea
-                              className="mt-2"
-                              placeholder="Corrections, evidence or observations for this job"
-                              value={vNote(key)}
-                              onChange={(e) => setVNote(key, e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                  );
-                })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {jobs.map((j) => {
+                          const ref = d.references.find((r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase());
+                          return (
+                            <tr key={j.id} className="align-top odd:bg-background even:bg-secondary/30">
+                              <td className="border border-border px-2 py-2 font-semibold">{ordinal(j.slot)} Job</td>
+                              <td className="border border-border px-2 py-2">{shown(j.company)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.start_date)} – {shown(j.end_date)}</td>
+                              <td className="border border-border px-2 py-2">{jobDuration(j.start_date, j.end_date)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.position)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.hired_to_do)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.accomplishment)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.biggest_mistake)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.supervisor_name)} · {shown(j.supervisor_rating)}/10</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.rating_reason)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.reason_for_leaving)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.gap_explanation)}</td>
+                              <td className="border border-border px-2 py-2">{ref ? `${shown(ref.supervisor_name)} · ${shown(ref.supervisor_phone)} · ${shown(ref.verification_status)}` : "Not recorded"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </Part>
 
               <Part id="valores" n={6} title="Values and motivation">
@@ -875,7 +775,6 @@ function ReviewPage() {
                       ) : (
                         <>
                           <TField label="Training days and schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 7:00 AM – 4:00 PM" />
-                          <TField label="Time zone" value={tv(TRAINING_KEYS.timezone)} onChange={(v) => setT(TRAINING_KEYS.timezone, v)} placeholder="America/El_Salvador" />
                         </>
                       )}
                       <Fact label="Modality" value={shown(p?.work_modality ?? S["candidate"]?.["lob"])} />
@@ -887,7 +786,6 @@ function ReviewPage() {
                         <>
                           <TField label="LOB / position type" value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} placeholder="Onsite Full-Time" />
                           <TField label="Training branch" value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
-                          <TField label="Training address" value={tv(TRAINING_KEYS.address)} onChange={(v) => setT(TRAINING_KEYS.address, v)} />
                           <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={tv(AGREEMENT_KEYS.classSameBranch) === "yes"} onCheckedChange={(v) => setT(AGREEMENT_KEYS.classSameBranch, v === true ? "yes" : "")} />
                             Class branch is the same as the training branch
@@ -1082,80 +980,18 @@ function Item({
   label,
   recruitment,
   hint,
-  state,
-  onState,
-  note,
-  onNote,
-  disabled,
 }: {
   label: string;
   recruitment: string;
   hint?: string | undefined;
-  state: ManagerVerificationState;
-  onState: (state: ManagerVerificationState) => void;
-  note: string;
-  onNote: (text: string) => void;
-  disabled?: boolean;
 }) {
   return (
-    <div className="grid gap-3 px-5 py-3 md:grid-cols-2">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm">{recruitment}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      <div className="min-w-0 space-y-2">
-        <Verify value={state} onChange={onState} />
-        <Input
-          placeholder="Manager note or correction"
-          value={note}
-          onChange={(e) => onNote(e.target.value)}
-          disabled={disabled}
-        />
-      </div>
+    <div className="px-5 py-3">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm">{recruitment}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
-}
-
-function Verify({
-  value,
-  onChange,
-  className,
-}: {
-  value: ManagerVerificationState;
-  onChange: (state: ManagerVerificationState) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-wrap gap-1", className)}>
-      {MANAGER_VERIFICATION_STATES.map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onChange(key)}
-          className={cn(
-            "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-            value === key ? verificationClass(key) : "border-border text-muted-foreground hover:bg-secondary",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function verificationClass(key: ManagerVerificationState) {
-  switch (key) {
-    case "confirmed":
-      return "border-success/50 bg-success/15 text-success";
-    case "clarification":
-      return "border-warning/60 bg-warning/20 text-foreground";
-    case "discrepancy":
-      return "border-destructive/50 bg-destructive/10 text-destructive";
-    default:
-      return "border-border bg-secondary text-muted-foreground";
-  }
 }
 
 function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {

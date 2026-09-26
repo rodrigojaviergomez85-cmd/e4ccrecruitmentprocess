@@ -488,11 +488,9 @@ async function applyDecision(
       isOnline: d.isOnline,
       startDate: t(TRAINING_KEYS.startDate),
       schedule: t(TRAINING_KEYS.schedule),
-      timezone: t(TRAINING_KEYS.timezone),
       trainer: t(TRAINING_KEYS.trainer),
       trainerContact: t(TRAINING_KEYS.trainerContact),
       branch: t(TRAINING_KEYS.branch),
-      address: t(TRAINING_KEYS.address),
       zoom: t(TRAINING_KEYS.zoom),
     });
     // One welcome email with the matching agreement PDF attached. If the PDF cannot be

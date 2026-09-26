@@ -14,3 +14,7 @@
 - [x] Onsite: confirmado cuarenta (40) horas; envíos Onsite reales desbloqueados
 
 - [x] "Not Approved" de Kevin Ascencio: la plataforma SI lo envio (5:21 p.m., Make 200) pero no aparecio en Outlook; reenviado 1 vez y registrado
+- [x] Convenio Onsite: dejar solo Training branch manual; quitar Training address y Time zone
+- [x] Limitar ambos videos de aplicacion a 1 minuto
+- [x] Compactar el record de Recruitment a una sola checklist y tabla de experiencia laboral
+- [x] Conservar completa la evaluacion propia del Manager (Grammar, Demo Class, Feedback, Retake y decision)

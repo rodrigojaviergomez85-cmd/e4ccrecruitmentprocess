@@ -478,7 +478,7 @@ export function buildTrainingWelcomeEmail(input: {
   isOnline: boolean;
   startDate: string;
   schedule: string;
-  timezone: string;
+  timezone?: string;
   trainer: string;
   trainerContact: string;
   branch?: string;
@@ -504,11 +504,11 @@ export function buildTrainingWelcomeEmail(input: {
       <p style="margin:0 0 6px"><strong>Training details</strong></p>
       <ul style="margin:0 0 12px;padding-left:20px">
         <li><strong>Start date:</strong> ${e(date)}</li>
-        <li><strong>Schedule:</strong> ${e(input.schedule)} (${e(input.timezone)})</li>
+        <li><strong>Schedule:</strong> ${e(input.schedule)}${input.timezone ? ` (${e(input.timezone)})` : ""}</li>
         <li><strong>Trainer:</strong> ${e(input.trainer)} — ${e(input.trainerContact)}</li>
         ${input.isOnline
           ? `<li><strong>Zoom:</strong> <a href="${e(input.zoom ?? "")}">${e(input.zoom ?? "")}</a></li>`
-          : `<li><strong>Branch:</strong> ${e(input.branch ?? "")}</li><li><strong>Address:</strong> ${e(input.address ?? "")}</li>`}
+          : `<li><strong>Branch:</strong> ${e(input.branch ?? "")}</li>`}
       </ul>
       <p style="margin:0 0 6px"><strong>Please bring / prepare</strong></p>
       <ul style="margin:0 0 12px;padding-left:20px">
