@@ -100,46 +100,6 @@ const EMPTY_FORM: Form = {
 
 const NAV: [string, string][] = MANAGER_STAGES.map((st) => [st.id, `${st.n} · ${st.title}`]);
 
-/** Every item the Manager is expected to verify. Job items are added per candidate. */
-const VERIFY_KEYS = [
-  "perfil.modality",
-  "perfil.branch",
-  "perfil.schedule",
-  "perfil.training_start",
-  "perfil.payment",
-  "perfil.availability",
-  "perfil.main_schedule",
-  "expect.teaching",
-  "expect.callcenter",
-  "expect.training",
-  "expect.class_schedule",
-  "expect.current_job",
-  "expect.modality",
-  "expect.equipment",
-  "expect.references",
-  "goals.career",
-  "goals.why_e4cc",
-  "goals.teaching_interest",
-  "goals.plans",
-  "goals.evidence",
-  "english.grammar_test",
-  "english.verbs",
-  "english.spoken",
-  "english.explanations",
-  "english.error_correction",
-  "english.writing",
-  "english.reading",
-  "english.demo",
-  "english.coachability",
-  "experience.studies",
-  "experience.gaps",
-  "experience.references",
-  "values.motivation",
-  "values.development",
-  "values.consistency",
-  "values.behaviour",
-];
-
 const EMPTY_ANSWERS = new Set(["-", "--", "---", "n/a", "na", "none", "null", "nil"]);
 
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : "—");
@@ -636,14 +596,7 @@ function ReviewPage() {
                         </div>
                       )}
                     </div>
-                    <Verify value={vState("english.verbs")} onChange={(s) => setVerify("english.verbs", s)} />
                   </div>
-                  <Input
-                    className="mt-2"
-                    placeholder="Manager note on the verbs"
-                    value={vNote("english.verbs")}
-                    onChange={(e) => setVNote("english.verbs", e.target.value)}
-                  />
                 </div>
                 {item("english.spoken", "Spoken English and pronunciation", `${answer("english", "meets_level")} · ${answer("english", "notes")}`)}
                 {item("english.explanations", "Grammar explanations given in the interview", answer("english", "tenses"))}
@@ -689,89 +642,43 @@ function ReviewPage() {
                     ? d.references.map((r) => `${r.company}: ${shown(r.verification_status)}`).join("\n")
                     : "No references recorded",
                 )}
-                {jobs.length === 0 && <p className="px-5 py-3 text-sm text-muted-foreground">No job history recorded.</p>}
-                {jobs.map((j) => {
-                  const key = `experience.job.${j.slot}`;
-                  const ref = d.references.find(
-                    (r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase(),
-                  );
-                  return (
-                    <details key={j.id} className="group px-5 py-3" open={jobs.length <= 2}>
-                      <summary className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
-                        <span>{shown(j.company)}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span>{shown(j.position)}</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-muted-foreground">{shown(j.start_date)} – {shown(j.end_date)}</span>
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-                          {jobStatus(j.start_date, j.end_date)}
-                        </span>
-                        <span
-                          className={cn(
-                            "ml-auto rounded-full px-2 py-0.5 text-xs font-medium",
-                            vState(key) === "confirmed"
-                              ? "bg-success/15 text-success"
-                              : vState(key) === "discrepancy"
-                                ? "bg-destructive/10 text-destructive"
-                                : vState(key) === "clarification"
-                                  ? "bg-warning/20 text-foreground"
-                                  : "bg-secondary text-muted-foreground",
-                          )}
-                        >
-                          {MANAGER_VERIFICATION_STATES.find(([k]) => k === vState(key))?.[1]}
-                        </span>
-                      </summary>
-                      <div className="mt-3 grid gap-3 md:grid-cols-2">
-                        <ol className="space-y-2 text-sm">
-                          {[
-                            ["What were you hired to do?", j.hired_to_do],
-                            ["What was your biggest accomplishment?", j.accomplishment],
-                            ["What results or numbers demonstrate that accomplishment?", null],
-                            ["What was your lowest moment or biggest challenge?", j.biggest_mistake],
-                            ["Who was your supervisor?", j.supervisor_name],
-                            ["What score would your supervisor give you from 1 to 10?", j.supervisor_rating],
-                            ["Why would they give you that score?", j.rating_reason],
-                            ["Why did you leave?", j.reason_for_leaving],
-                            ["Were there gaps between jobs? What were you doing?", j.gap_explanation],
-                          ].map(([label, value], idx) => (
-                            <li key={idx}>
-                              <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                              <p className="whitespace-pre-wrap">{shown(value)}</p>
-                            </li>
+                {jobs.length === 0 ? (
+                  <p className="px-5 py-3 text-sm text-muted-foreground">No job history recorded.</p>
+                ) : (
+                  <div className="overflow-x-auto px-5 py-3">
+                    <table className="min-w-[1500px] border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="bg-secondary text-foreground">
+                          {["Experience", "Company", "Year", "Total years", "Position", "Hired to do", "Biggest accomplishment", "Lowest moment", "Boss / score", "Score reason", "Reason for leaving", "Gaps between jobs", "Reference"].map((label) => (
+                            <th key={label} className="border border-border px-2 py-2 font-semibold">{label}</th>
                           ))}
-                        </ol>
-                        <div className="space-y-3">
-                          <div className="rounded-lg border border-border p-3 text-sm">
-                            <p className="text-xs font-semibold uppercase text-muted-foreground">Reference</p>
-                            {ref ? (
-                              <p className="mt-1">
-                                {shown(ref.supervisor_name)} · {shown(ref.supervisor_phone)} ·{" "}
-                                {shown(ref.supervisor_email)} · verification: {shown(ref.verification_status)}
-                              </p>
-                            ) : (
-                              <p className="mt-1">No reference recorded for this job.</p>
-                            )}
-                            {ref && (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                Differences detected: {shown(ref.verification_notes ?? ref.verification_status)}
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold uppercase text-muted-foreground">Manager verification</p>
-                            <Verify className="mt-1" value={vState(key)} onChange={(s) => setVerify(key, s)} />
-                            <Textarea
-                              className="mt-2"
-                              placeholder="Corrections, evidence or observations for this job"
-                              value={vNote(key)}
-                              onChange={(e) => setVNote(key, e.target.value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                  );
-                })}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {jobs.map((j) => {
+                          const ref = d.references.find((r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase());
+                          return (
+                            <tr key={j.id} className="align-top odd:bg-background even:bg-secondary/30">
+                              <td className="border border-border px-2 py-2 font-semibold">{ordinal(j.slot)} Job</td>
+                              <td className="border border-border px-2 py-2">{shown(j.company)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.start_date)} – {shown(j.end_date)}</td>
+                              <td className="border border-border px-2 py-2">{jobDuration(j.start_date, j.end_date)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.position)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.hired_to_do)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.accomplishment)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.biggest_mistake)}</td>
+                              <td className="border border-border px-2 py-2">{shown(j.supervisor_name)} · {shown(j.supervisor_rating)}/10</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.rating_reason)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.reason_for_leaving)}</td>
+                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.gap_explanation)}</td>
+                              <td className="border border-border px-2 py-2">{ref ? `${shown(ref.supervisor_name)} · ${shown(ref.supervisor_phone)} · ${shown(ref.verification_status)}` : "Not recorded"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </Part>
 
               <Part id="valores" n={6} title="Values and motivation">
@@ -861,7 +768,6 @@ function ReviewPage() {
                       ) : (
                         <>
                           <TField label="Training days and schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 7:00 AM – 4:00 PM" />
-                          <TField label="Time zone" value={tv(TRAINING_KEYS.timezone)} onChange={(v) => setT(TRAINING_KEYS.timezone, v)} placeholder="America/El_Salvador" />
                         </>
                       )}
                       <Fact label="Modality" value={shown(p?.work_modality ?? S["candidate"]?.["lob"])} />
@@ -873,7 +779,6 @@ function ReviewPage() {
                         <>
                           <TField label="LOB / position type" value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} placeholder="Onsite Full-Time" />
                           <TField label="Training branch" value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
-                          <TField label="Training address" value={tv(TRAINING_KEYS.address)} onChange={(v) => setT(TRAINING_KEYS.address, v)} />
                           <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={tv(AGREEMENT_KEYS.classSameBranch) === "yes"} onCheckedChange={(v) => setT(AGREEMENT_KEYS.classSameBranch, v === true ? "yes" : "")} />
                             Class branch is the same as the training branch
