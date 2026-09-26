@@ -29,6 +29,7 @@ export function VideoRecorder({
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const playbackRef = useRef<HTMLVideoElement | null>(null);
   const videoRecorderRef = useRef<MediaRecorder | null>(null);
+  const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const startedAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,6 +71,7 @@ export function VideoRecorder({
   const stopRecording = useCallback(() => {
     videoRecorderRef.current?.state === "recording" && videoRecorderRef.current.stop();
     if (timerRef.current) clearInterval(timerRef.current);
+    if (autoStopRef.current) clearTimeout(autoStopRef.current);
   }, []);
 
   const startRecording = useCallback(async () => {
@@ -87,7 +89,7 @@ export function VideoRecorder({
     videoRecorder.ondataavailable = (e) => e.data.size && videoChunks.push(e.data);
 
     videoRecorder.onstop = () => {
-      const durationSeconds = (Date.now() - startedAtRef.current) / 1000;
+      const durationSeconds = Math.min(MAX_RECORD_SECONDS, (Date.now() - startedAtRef.current) / 1000);
       const videoBlob = new Blob(videoChunks, { type: videoType.mimeType ?? "video/mp4" });
       setRecording({
         videoBlob,
@@ -107,9 +109,9 @@ export function VideoRecorder({
 
     timerRef.current = setInterval(() => {
       const secs = (Date.now() - startedAtRef.current) / 1000;
-      setElapsed(secs);
-      if (secs >= MAX_RECORD_SECONDS) stopRecording();
+      setElapsed(Math.min(MAX_RECORD_SECONDS, secs));
     }, 250);
+    autoStopRef.current = setTimeout(stopRecording, MAX_RECORD_SECONDS * 1000);
   }, [request, stopRecording, streamRef]);
 
   const recordAgain = () => {

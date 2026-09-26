@@ -121,7 +121,7 @@ export const saveVideo = createServerFn({ method: "POST" })
         slot: z.number().int().min(1).max(2),
         videoPath: z.string().min(3),
         audioPath: z.string().min(3).optional(),
-        duration: z.number().min(0).max(600),
+        duration: z.number().min(0).max(60),
       })
       .parse(d),
   )
