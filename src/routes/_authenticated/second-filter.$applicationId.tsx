@@ -36,7 +36,6 @@ import {
   MANAGER_DECISIONS,
   MANAGER_STAGES,
   MANAGER_TOTAL_TIME,
-  MANAGER_VERIFICATION_STATES,
   RECONFIRM_CHECKS,
   STAGE_NOTE_KEYS,
   TRAINING_KEYS,
@@ -155,10 +154,14 @@ function shown(value: unknown): string {
   return text;
 }
 
-function jobStatus(start: string | null, end: string | null) {
-  const text = String(end ?? "").trim().toLowerCase();
-  if (!text || ["present", "current", "actual", "now", "today"].includes(text)) return "Current";
-  return "Finished";
+function jobDuration(start: string | null, end: string | null) {
+  const from = new Date(start ?? "");
+  const to = end ? new Date(end) : new Date();
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return "Not recorded";
+  const months = Math.max(0, Math.round((to.getTime() - from.getTime()) / 2_629_746_000));
+  const years = Math.floor(months / 12);
+  const remaining = months % 12;
+  return [years ? `${years} yr${years === 1 ? "" : "s"}` : "", remaining ? `${remaining} mo` : ""].filter(Boolean).join(" ") || "< 1 mo";
 }
 
 /** Adds today + period (days/weeks/months) and returns yyyy-mm-dd. */
@@ -237,7 +240,7 @@ function ReviewPage() {
     const iv = d.interviews.find((i) => i.final_result === "Approved for last step") ?? d.interviews[0];
     const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
     const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
-    return { [TRAINING_KEYS.startDate]: start, [TRAINING_KEYS.branch]: String(d.app.city ?? "") } as Record<string, string>;
+    return { [TRAINING_KEYS.startDate]: start } as Record<string, string>;
   }, [d]);
   const withDefaults = (ev: Record<string, string>) => {
     const out = { ...ev };
@@ -340,17 +343,9 @@ function ReviewPage() {
   const managerName = d.managers.find((m) => m.id === current?.manager_id)?.name ?? d.access.name;
   const managerEmails = d.emails.filter((e) => e.manager_evaluation_id && e.manager_evaluation_id === current?.id);
   const lastEmail = managerEmails[0];
-  const allVerifyKeys = [...VERIFY_KEYS, ...jobs.map((j) => `experience.job.${j.slot}`)];
-  const verified = allVerifyKeys.filter((k) => form?.verifications[k] === "confirmed").length;
-  const flagged = allVerifyKeys.filter(
-    (k) => form?.verifications[k] === "discrepancy" || form?.verifications[k] === "clarification",
-  ).length;
   const recruitmentFlags = String(interview?.red_flags ?? "").trim();
 
-  const vState = (key: string): ManagerVerificationState => form?.verifications[key] ?? "not_reviewed";
   const vNote = (key: string) => form?.evidence[`v:${key}`] ?? "";
-  const setVerify = (key: string, state: ManagerVerificationState) =>
-    set({ verifications: { ...(form?.verifications ?? {}), [key]: state } });
   const setVNote = (key: string, text: string) =>
     set({ evidence: { ...(form?.evidence ?? {}), [`v:${key}`]: text } });
   const note = (key: string) => form?.evidence[key] ?? "";
@@ -381,11 +376,6 @@ function ReviewPage() {
       label={label}
       recruitment={recruitment}
       hint={extra?.hint}
-      state={vState(key)}
-      onState={(s) => setVerify(key, s)}
-      note={vNote(key)}
-      onNote={(t) => setVNote(key, t)}
-      disabled={!editable}
     />
   );
 
@@ -449,10 +439,6 @@ function ReviewPage() {
                 {label}
               </a>
             ))}
-            <span className="ml-auto hidden shrink-0 items-center gap-2 text-xs text-muted-foreground sm:flex">
-              <span>{verified}/{allVerifyKeys.length} confirmed</span>
-              {flagged > 0 && <span className="font-semibold text-destructive">{flagged} to review</span>}
-            </span>
           </nav>
         </div>
       </header>
@@ -487,7 +473,7 @@ function ReviewPage() {
               <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
                 <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
                 <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
-                <span>Verification: <strong className="text-foreground">{verified} confirmed · {flagged} to review</strong></span>
+                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
                 <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
               </section>
               {recruitmentFlags && (
