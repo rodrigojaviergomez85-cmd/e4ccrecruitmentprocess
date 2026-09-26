@@ -124,6 +124,13 @@ function jobDuration(start: string | null, end: string | null) {
   return [years ? `${years} yr${years === 1 ? "" : "s"}` : "", remaining ? `${remaining} mo` : ""].filter(Boolean).join(" ") || "< 1 mo";
 }
 
+function ordinal(slot: number) {
+  if (slot === 1) return "1st";
+  if (slot === 2) return "2nd";
+  if (slot === 3) return "3rd";
+  return `${slot}th`;
+}
+
 /** Adds today + period (days/weeks/months) and returns yyyy-mm-dd. */
 function addPeriod(amount: number, unit: "days" | "weeks" | "months") {
   const dt = new Date();
@@ -973,80 +980,18 @@ function Item({
   label,
   recruitment,
   hint,
-  state,
-  onState,
-  note,
-  onNote,
-  disabled,
 }: {
   label: string;
   recruitment: string;
   hint?: string | undefined;
-  state: ManagerVerificationState;
-  onState: (state: ManagerVerificationState) => void;
-  note: string;
-  onNote: (text: string) => void;
-  disabled?: boolean;
 }) {
   return (
-    <div className="grid gap-3 px-5 py-3 md:grid-cols-2">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-        <p className="mt-1 whitespace-pre-wrap text-sm">{recruitment}</p>
-        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      <div className="min-w-0 space-y-2">
-        <Verify value={state} onChange={onState} />
-        <Input
-          placeholder="Manager note or correction"
-          value={note}
-          onChange={(e) => onNote(e.target.value)}
-          disabled={disabled}
-        />
-      </div>
+    <div className="px-5 py-3">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-sm">{recruitment}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
-}
-
-function Verify({
-  value,
-  onChange,
-  className,
-}: {
-  value: ManagerVerificationState;
-  onChange: (state: ManagerVerificationState) => void;
-  className?: string;
-}) {
-  return (
-    <div className={cn("flex flex-wrap gap-1", className)}>
-      {MANAGER_VERIFICATION_STATES.map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => onChange(key)}
-          className={cn(
-            "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
-            value === key ? verificationClass(key) : "border-border text-muted-foreground hover:bg-secondary",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function verificationClass(key: ManagerVerificationState) {
-  switch (key) {
-    case "confirmed":
-      return "border-success/50 bg-success/15 text-success";
-    case "clarification":
-      return "border-warning/60 bg-warning/20 text-foreground";
-    case "discrepancy":
-      return "border-destructive/50 bg-destructive/10 text-destructive";
-    default:
-      return "border-border bg-secondary text-muted-foreground";
-  }
 }
 
 function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {
