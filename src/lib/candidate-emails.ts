@@ -9,7 +9,7 @@ export function buildPreparationEmail(input: {
   fullName: string;
   interviewDate: string;
   interviewTime: string;
-  timezone?: string;
+  timezone: string;
   modality: "online" | "onsite";
 }) {
   const firstName = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
@@ -478,7 +478,7 @@ export function buildTrainingWelcomeEmail(input: {
   isOnline: boolean;
   startDate: string;
   schedule: string;
-  timezone: string;
+  timezone?: string;
   trainer: string;
   trainerContact: string;
   branch?: string;
