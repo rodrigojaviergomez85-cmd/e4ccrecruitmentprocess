@@ -17,7 +17,7 @@
 - Compactar el récord completo de Recruitment para evitar repetir la confirmación individual de cada dato.
 - Mostrar una sola checklist general de reconfirmación.
 - Conservar la información del perfil, evaluación de inglés, estudios, referencias y comentarios como lectura, sin controles repetidos en cada fila.
-- Mantener los controles necesarios para la entrevista y decisión final del Manager.
+- Mantener completa y sin recortes la evaluación propia del Manager: **Grammar and English Knowledge, Demo Class, Private Feedback, Demo Retake / Apply Feedback, Closing y Final Decision**.
 
 ## 4. Experiencia laboral
 - Sustituir los trabajos desplegables por una tabla compacta y ordenada, similar a las imágenes proporcionadas.
