@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   MAX_ATTEMPTS,
   MAX_RECORD_SECONDS,
-  MIN_RECORD_SECONDS,
   PREP_SECONDS,
 } from "@/lib/recruitment";
 import { formatTime, pickVideoType, type Recording } from "./media";
@@ -121,8 +120,6 @@ export function VideoRecorder({
     setPhase("ready");
   };
 
-  const tooShort = recording ? recording.durationSeconds < MIN_RECORD_SECONDS : false;
-
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -175,9 +172,8 @@ export function VideoRecorder({
         {phase === "recording" && (
           <div className="space-y-2 bg-card p-4">
             <Progress value={(elapsed / MAX_RECORD_SECONDS) * 100} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Recommended minimum {formatTime(MIN_RECORD_SECONDS)}</span>
-              <span>Maximum {formatTime(MAX_RECORD_SECONDS)}</span>
+            <div className="flex justify-end text-xs text-muted-foreground">
+              <span>Maximum {formatTime(MAX_RECORD_SECONDS)} — stop when your answer is complete</span>
             </div>
           </div>
         )}
@@ -220,12 +216,6 @@ export function VideoRecorder({
 
       {phase === "review" && recording && (
         <div className="space-y-3">
-          {tooShort && (
-            <p className="rounded-2xl bg-accent p-3 text-sm text-accent-foreground">
-              Your answer was {formatTime(recording.durationSeconds)}. We recommend at least 1
-              minute — you can record again if you&apos;d like.
-            </p>
-          )}
           <p className="text-center text-sm text-muted-foreground">
             <Play className="mr-1 inline h-4 w-4" />
             Watch your recording above. Attempt {attempts} of {MAX_ATTEMPTS}.

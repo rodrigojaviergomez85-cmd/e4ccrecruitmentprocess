@@ -75,7 +75,6 @@ export function cefrInternalLabel(cefr: string | null | undefined) {
 
 
 export const PREP_SECONDS = 30;
-export const MIN_RECORD_SECONDS = 60;
 export const MAX_RECORD_SECONDS = 60;
 export const MAX_ATTEMPTS = 2;
 
