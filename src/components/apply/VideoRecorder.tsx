@@ -120,8 +120,6 @@ export function VideoRecorder({
     setPhase("ready");
   };
 
-  const tooShort = recording ? recording.durationSeconds < MIN_RECORD_SECONDS : false;
-
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
@@ -174,9 +172,8 @@ export function VideoRecorder({
         {phase === "recording" && (
           <div className="space-y-2 bg-card p-4">
             <Progress value={(elapsed / MAX_RECORD_SECONDS) * 100} className="h-2" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Recommended minimum {formatTime(MIN_RECORD_SECONDS)}</span>
-              <span>Maximum {formatTime(MAX_RECORD_SECONDS)}</span>
+            <div className="flex justify-end text-xs text-muted-foreground">
+              <span>Maximum {formatTime(MAX_RECORD_SECONDS)} — stop when your answer is complete</span>
             </div>
           </div>
         )}
