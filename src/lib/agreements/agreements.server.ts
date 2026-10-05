@@ -19,6 +19,8 @@ export async function prepareAgreement(opts: {
   applicationId: string;
   managerEvaluationId: string | null;
   kind: AgreementKind;
+  /** Manager-confirmed modality; the send is blocked when it is missing or differs. */
+  expectedKind?: AgreementKind | null;
   data: AgreementData;
   actorId: string | null;
   isTest?: boolean;
@@ -44,6 +46,13 @@ export async function prepareAgreement(opts: {
     return { ok: false, agreementId: row?.id ?? null, reason };
   };
 
+  if (!opts.isTest) {
+    if (!opts.expectedKind) return fail("Position modality not confirmed by the Manager (Online / Onsite)");
+    if (opts.expectedKind !== opts.kind)
+      return fail(`Modality mismatch: confirmed ${opts.expectedKind} but template ${opts.kind}`);
+  }
+  if (opts.kind === "online" && (opts.data.trainingBranch || opts.data.classBranch || opts.data.lob))
+    return fail("Online agreement must not contain branch or onsite fields");
   const missing = missingAgreementFields(opts.kind, opts.data);
   if (missing.length) return fail(`Missing agreement data: ${missing.join(", ")}`);
   if (opts.kind === "onsite" && ONSITE_TRAINING_HOURS === null && !opts.isTest)
@@ -77,6 +86,10 @@ export async function prepareAgreement(opts: {
     .select("id")
     .single();
   if (error) return { ok: false, agreementId: null, reason: `Could not record agreement: ${error.message}` };
+  // Final consistency check: candidate, modality, template and attached file must match.
+  const expectedName = opts.kind === "online" ? "_Online_" : "_Onsite_";
+  if (!name.includes(expectedName) || !path.startsWith(`${opts.applicationId}/`))
+    return { ok: false, agreementId: row.id, reason: "Attachment does not match candidate/modality" };
   return { ok: true, agreementId: row.id, url: signed.data.signedUrl, name, path };
 }
 

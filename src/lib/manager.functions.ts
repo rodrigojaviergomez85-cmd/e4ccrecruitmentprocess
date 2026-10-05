@@ -325,12 +325,15 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       .select("work_modality")
       .eq("application_id", app.id)
       .maybeSingle();
-    const isOnline = (prog?.work_modality ?? "").toLowerCase() === "online";
+    const { confirmedModality } = await import("./manager-scorecard");
+    const modality = confirmedModality(data.evidence);
+    const isOnline = modality ? modality === "online" : (prog?.work_modality ?? "").toLowerCase() === "online";
 
     if (data.submit) {
       const missing: string[] = [];
       if (!decision) missing.push("Final decision");
       if (decision === "Approved for Training") {
+        if (!modality) missing.push("Position modality (Online / Onsite) confirmed by the Manager");
         missing.push(...missingTraining(data.evidence, isOnline));
         if (isOnline && !data.checks["equipment"]) missing.push("Equipment and internet reviewed");
         const { trainingDocsFor } = await import("./candidate-emails");
@@ -497,12 +500,15 @@ async function applyDecision(
     // produced, the decision stays saved and the email waits as "pending agreement".
     const ag = await import("./agreements/agreements.server");
     const { AGREEMENT_KEYS } = await import("./manager-scorecard");
-    const kind = d.isOnline ? "online" : "onsite";
+    const { confirmedModality } = await import("./manager-scorecard");
+    const confirmed = confirmedModality(d.training);
+    const kind = confirmed ?? (d.isOnline ? "online" : "onsite");
     const sameBranch = t(AGREEMENT_KEYS.classSameBranch) === "yes";
     const prepared = await ag.prepareAgreement({
       applicationId: d.applicationId,
       managerEvaluationId: d.evaluationId,
       kind,
+      expectedKind: confirmed,
       actorId,
       data: {
         fullName: d.applicantName,
@@ -690,13 +696,17 @@ export const retryManagerEmail = createServerFn({ method: "POST" })
       return { ok: false, status: "duplicate", detail: "This notification was already sent." };
     if (last && last.status !== "failed")
       return { ok: false, status: "uncertain", detail: "The last attempt has an uncertain result. Check the mailbox before retrying." };
-    const { data: prog } = await ctx.db.from("recruitment_progress").select("work_modality").eq("application_id", app.id).maybeSingle();
+    const evd = (ev.evidence as Record<string, string> | null) ?? {};
+    const { confirmedModality: cm } = await import("./manager-scorecard");
+    const mod = cm(evd);
+    if (ev.final_decision === "Approved for Training" && !mod)
+      return { ok: false, status: "failed", detail: "Confirm the position modality (Online / Onsite) before sending the agreement." };
     return applyDecision(ctx, context.userId, {
       applicationId: app.id,
       applicantName: app.full_name,
       applicantEmail: app.email,
       countryCode: app.country_code,
-      isOnline: (prog?.work_modality ?? "").toLowerCase() === "online",
+      isOnline: mod === "online",
       previousStatus: app.status,
       evaluationId: ev.id,
       decision: ev.final_decision as ManagerDecision,

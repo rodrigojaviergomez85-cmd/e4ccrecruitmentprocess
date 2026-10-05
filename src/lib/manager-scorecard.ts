@@ -222,7 +222,19 @@ export const AGREEMENT_KEYS = {
   classSameBranch: "agreement:class_same_branch",
   classBranch: "agreement:class_branch",
   classSchedule: "agreement:class_schedule",
+  /** Position modality confirmed by the Manager; selects the agreement template. */
+  modality: "agreement:modality",
 } as const;
+
+export type PositionModality = "online" | "onsite";
+export function normalizeModality(v: unknown): PositionModality | null {
+  const s = String(v ?? "").trim().toLowerCase();
+  return s === "online" || s === "onsite" ? s : null;
+}
+/** Manager-confirmed modality only. Never inferred from branch text; never defaults to Onsite. */
+export function confirmedModality(evidence: Record<string, string> | null | undefined): PositionModality | null {
+  return normalizeModality(evidence?.[AGREEMENT_KEYS.modality]);
+}
 
 export function missingTraining(evidence: Record<string, string>, isOnline: boolean): string[] {
   const t = (k: string) => (evidence[k] ?? "").trim();
