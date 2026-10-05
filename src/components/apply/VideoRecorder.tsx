@@ -6,7 +6,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   MAX_ATTEMPTS,
   MAX_RECORD_SECONDS,
-  MIN_RECORD_SECONDS,
   PREP_SECONDS,
 } from "@/lib/recruitment";
 import { formatTime, pickVideoType, type Recording } from "./media";
