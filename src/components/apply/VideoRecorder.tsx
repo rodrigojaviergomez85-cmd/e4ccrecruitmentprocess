@@ -216,12 +216,6 @@ export function VideoRecorder({
 
       {phase === "review" && recording && (
         <div className="space-y-3">
-          {tooShort && (
-            <p className="rounded-2xl bg-accent p-3 text-sm text-accent-foreground">
-              Your answer was {formatTime(recording.durationSeconds)}. We recommend at least 1
-              minute — you can record again if you&apos;d like.
-            </p>
-          )}
           <p className="text-center text-sm text-muted-foreground">
             <Play className="mr-1 inline h-4 w-4" />
             Watch your recording above. Attempt {attempts} of {MAX_ATTEMPTS}.
