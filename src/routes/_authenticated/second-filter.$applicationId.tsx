@@ -41,6 +41,8 @@ import {
   TRAINING_KEYS,
   AGREEMENT_KEYS,
   missingTraining,
+  confirmedModality,
+  normalizeModality,
   type ManagerDecision,
   type ManagerVerificationState,
 } from "@/lib/manager-scorecard";
@@ -207,6 +209,7 @@ function ReviewPage() {
     const iv = d.interviews.find((i) => i.final_result === "Approved for last step") ?? d.interviews[0];
     const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
     const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
+    // Suggested modality from the Recruitment file; the Manager must confirm it in the closing step.
     return { [TRAINING_KEYS.startDate]: start } as Record<string, string>;
   }, [d]);
   const withDefaults = (ev: Record<string, string>) => {
@@ -298,7 +301,9 @@ function ReviewPage() {
 
   const app = d.app;
   const p = d.progress;
-  const isOnline = (p?.work_modality ?? "").toLowerCase() === "online";
+  const confirmedMod = confirmedModality(form?.evidence);
+  const suggestedMod = normalizeModality(p?.work_modality) ?? normalizeModality((d.interviews[0]?.sections as Record<string, Record<string, unknown>> | null)?.["candidate"]?.["lob"]);
+  const isOnline = (confirmedMod ?? suggestedMod) === "online";
   const interview = d.interviews.find((i) => i.final_result === "Approved for last step") ?? d.interviews[0];
   const S = (interview?.sections ?? {}) as Record<string, Record<string, unknown>>;
   const answer = (section: string, key: string) => shown(S[section]?.[key]);
@@ -319,7 +324,10 @@ function ReviewPage() {
   const setNote = (key: string, text: string) => set({ evidence: { ...(form?.evidence ?? {}), [key]: text } });
   const tv = (key: string) => form?.evidence[key] ?? trainingDefaults[key] ?? "";
   const setT = setNote;
-  const trainingMissing = missingTraining(withDefaults(form?.evidence ?? {}), isOnline);
+  const trainingMissing = [
+    ...(confirmedMod ? [] : ["Position modality (Online / Onsite)"]),
+    ...missingTraining(withDefaults(form?.evidence ?? {}), isOnline),
+  ];
   async function saveDraft() {
     if (!current || !editable) return;
     try {
@@ -777,7 +785,16 @@ function ReviewPage() {
                           <TField label="Training days and schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 7:00 AM – 4:00 PM" />
                         </>
                       )}
-                      <Fact label="Modality" value={shown(p?.work_modality ?? S["candidate"]?.["lob"])} />
+                      <div className="space-y-1">
+                        <Label className="text-xs">Position modality (confirm)</Label>
+                        <Select value={confirmedMod ?? ""} onValueChange={(v) => setT(AGREEMENT_KEYS.modality, v)}>
+                          <SelectTrigger><SelectValue placeholder={suggestedMod ? `Confirm (Recruitment: ${suggestedMod})` : "Select Online / Onsite"} /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="online">Online</SelectItem>
+                            <SelectItem value="onsite">Onsite</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <TField label="Trainer name" value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
                       <TField label="Trainer contact" value={tv(TRAINING_KEYS.trainerContact)} onChange={(v) => setT(TRAINING_KEYS.trainerContact, v)} placeholder="Email or WhatsApp" />
                       {isOnline ? (
