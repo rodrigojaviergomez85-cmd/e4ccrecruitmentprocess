@@ -6,7 +6,7 @@ import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
 import { staffTier } from "./roles";
 import { trainingDocsFor } from "./candidate-emails";
-import { TRAINING_STATUSES, REFERENCE_CALL_VALUES } from "./training";
+import { TRAINING_STATUSES, REFERENCE_CALL_VALUES, trainingPermissions } from "./training";
 
 async function ctxFor(userId: string) {
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
@@ -23,8 +23,7 @@ async function ctxFor(userId: string) {
     tier,
     email: profile?.email ?? null,
     allowedCountries: tier.isAdmin ? null : (countries ?? []).map((c) => c.country_code),
-    canEditReferences: tier.isAdmin || tier.isRecruitment,
-    canEditTraining: tier.canSignIn,
+    ...trainingPermissions((roles ?? []).map((r) => r.role as string)),
   };
 }
 
@@ -55,6 +54,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         email: a.email,
         phone: a.phone,
         country: a.country,
+        countryCode: a.country_code,
         lob: (t[AGREEMENT_KEYS.lob] || "").trim() || "Sin LOB",
         modality,
         branch: (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
@@ -75,7 +75,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
       };
     });
     rows.sort((x, y) => (x.waveStart ?? "9999").localeCompare(y.waveStart ?? "9999"));
-    return { rows, canEditReferences: ctx.canEditReferences };
+    return { rows, canEditReferences: ctx.canEditReferences, canEditDocuments: ctx.canEditDocuments, canEditTraining: ctx.canEditTraining, trainingOnly: ctx.trainingOnly };
   });
 
 export const updateTrainingRow = createServerFn({ method: "POST" })
@@ -104,6 +104,13 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       throw new Error("This candidate is outside your countries.");
     const touchesRefs = data.referenceCall !== undefined || data.referenceDetails !== undefined;
     if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
+    if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
+    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments].some((v) => v !== undefined);
+    if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
+    if (data.documents) {
+      const allowed = trainingDocsFor(app.country_code)?.items ?? [];
+      if (Object.keys(data.documents).some((key) => !allowed.includes(key))) throw new Error("Unknown document for this candidate.");
+    }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
     const patch: Record<string, unknown> = {
       application_id: app.id,
