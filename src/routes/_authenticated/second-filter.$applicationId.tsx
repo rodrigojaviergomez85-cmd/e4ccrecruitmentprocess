@@ -162,6 +162,7 @@ function ReviewPage() {
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [confirm, setConfirm] = useState(false);
   const [reviewed, setReviewed] = useState(false);
+  const [showFull, setShowFull] = useState(false);
   // Any change to the form after reviewing requires a new review.
   useEffect(() => { setReviewed(false); }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
   const [active, setActive] = useState<string>("reconfirmation");
@@ -365,13 +366,13 @@ function ReviewPage() {
 
   return (
     <main className="min-h-screen bg-secondary/30">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto max-w-[1500px] px-5 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
                 <BrandMark className="h-6 shrink-0" />
-                <h1 className="truncate text-lg font-bold">{app.full_name}</h1>
+                <h1 className="truncate text-2xl font-bold">{app.full_name}</h1>
                 <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                   {app.status}
                 </span>
@@ -381,21 +382,22 @@ function ReviewPage() {
                   </span>
                 )}
               </div>
-              <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
-                <span>{app.country} · {shown(p?.work_modality)} · {shown(app.city)}</span>
-                <span>{app.email}</span>
-                <span>{app.phone_e164 ?? app.phone}</span>
-                <span>Grammar Test: <strong className="text-foreground">{grammarScore}</strong></span>
-                <span>English level (AI): <strong className="text-foreground">{(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"}</strong></span>
-                <span>Recruitment: <strong className="text-foreground">{recruiterName}</strong></span>
-                <span>Manager: <strong className="text-foreground">{managerName}</strong></span>
-                <span>First interview: {fmt(interview?.submitted_at)}</span>
-                <span>Recruitment result: <strong className="text-foreground">{resultLabel(interview?.final_result) || "Not recorded"}</strong></span>
+              <dl className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-2">
+                <Fact label="Country" value={shown(app.country)} />
+                <Fact label="Modality" value={shown(p?.work_modality)} />
+                <Fact label="Branch / city" value={shown(app.city)} />
+                <Fact label="Email" value={shown(app.email)} />
+                <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
+                <Fact label="Recruiter" value={recruiterName} />
+                <Fact label="Manager" value={shown(managerName)} />
+                <Fact label="Grammar Test" value={grammarScore} />
+                <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
+                <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
+                <Fact label="First interview" value={fmt(interview?.submitted_at)} />
                 {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
-                  <span>Final filter: <strong className="text-foreground">{ff.details.date} · {ff.details.time} · {ff.details.interviewer}</strong>{ff.details.link ? <> · <a className="underline" href={ff.details.link} target="_blank" rel="noreferrer">Join</a></> : ff.details.location ? ` · ${ff.details.location}` : ""}</span>
+                  <Fact label="Final interview" value={`${ff.details.date} · ${ff.details.time} · ${ff.details.interviewer}${ff.details.location ? ` · ${ff.details.location}` : ""}`} />
                 ) : null; })()}
-                <span>Approved by Recruitment: {fmt(app.recruitment_approved_at)}</span>
-              </p>
+              </dl>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {d.resumeUrl ? (
@@ -410,13 +412,16 @@ function ReviewPage() {
               </Button>
             </div>
           </div>
-          <nav className="mt-2 flex gap-1 overflow-x-auto pb-1">
+        </div>
+      </header>
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+          <nav className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-5 py-2">
             {NAV.map(([id, label]) => (
               <a
                 key={id}
                 href={`#${id}`}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
                   active === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
                 )}
               >
@@ -424,10 +429,9 @@ function ReviewPage() {
               </a>
             ))}
           </nav>
-        </div>
-      </header>
+      </div>
 
-      <div className="mx-auto grid max-w-[1500px] gap-5 px-5 py-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="mx-auto grid max-w-[1200px] gap-5 px-5 py-5">
         <div className="min-w-0 space-y-4">
           {app.withdrawn_at && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
@@ -443,69 +447,36 @@ function ReviewPage() {
               <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
             ))}
 
-          {form && (
-            <fieldset disabled={!editable} className="min-w-0 space-y-4">
-              {locked && (
-                <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
-                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
-                </p>
-              )}
-              {!current && (
-                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Interview not started — the file below is read-only until you start it.</p>
-              )}
-
-              <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-                <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
-                <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
-                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
-                <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
-              </section>
-              {recruitmentFlags && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
-                  <p className="font-semibold">Red flags reported by Recruitment · pending verification</p>
-                  <p className="mt-1 whitespace-pre-wrap">{recruitmentFlags}</p>
+              <section id="recruitment-file" className="scroll-mt-16 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-xl font-bold">Recruitment interview and candidate file</h2>
+                  {d.resumeUrl ? (
+                    <Button asChild variant="outline"><a href={d.resumeUrl} target="_blank" rel="noreferrer">Open CV <ExternalLink className="ml-2 h-4 w-4" /></a></Button>
+                  ) : <span className="text-sm text-muted-foreground">CV not uploaded</span>}
                 </div>
-              )}
-
-              <Stage id="reconfirmation">
-                <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
-                <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                  <Fact label="Class schedule" value={answer("candidate", "schedule")} />
-                  <Fact label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
-                  <Fact label="Training start (Recruitment)" value={shown(trainingDefaults[TRAINING_KEYS.startDate])} />
-                  <Fact label="Modality / branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} />
-                  <Fact label="Current job / routine" value={answer("profile", "routine_answer")} />
-                  <Fact label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
-                  {isOnline && (
-                    <Fact
-                      label="Internet"
-                      value={p?.internet_download_mbps != null ? `${p.internet_download_mbps}↓ / ${p.internet_upload_mbps ?? "—"}↑ Mbps · ${p.internet_test_passed ? "Passed" : p.internet_override ? "Override" : "Below minimum"}` : "Not evaluated"}
-                    />
-                  )}
+                <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
+                  <QA label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
+                  <QA label="Class schedule requested" value={answer("candidate", "schedule")} />
+                  <QA label="Training start (Recruitment)" value={answer("profile", "training_start")} />
+                  <QA label="Teaching experience" value={`${answer("profile", "teaching_experience")} · ${shown(app.teaching_experience)}`} />
+                  <QA label="Call center experience" value={`${answer("profile", "callcenter_experience")} · ${shown(app.callcenter_experience_level)}`} />
+                  <QA label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
+                  <QA label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
+                  <QA label="Pending verification" value={[
+                    ...d.references.filter((r) => !/verified/i.test(String(r.verification_status ?? ""))).map((r) => `Reference: ${shown(r.company)}`),
+                    ...jobs.filter((j) => String(j.gap_explanation ?? "").trim()).map((j) => `Gap: ${shown(j.company)}`),
+                  ].join("\n") || "Nothing pending"} />
+                </dl>
+                <div className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4">
+                  <p className="flex items-center gap-2 text-base font-semibold text-destructive"><AlertTriangle className="h-5 w-5 shrink-0" /> Red flags from Recruitment — internal, never sent to the candidate</p>
+                  <p className="mt-1 whitespace-pre-wrap text-base">{recruitmentFlags || "None reported"}</p>
                 </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-2">
-                  {RECONFIRM_CHECKS.filter(([k]) => k !== "equipment" || isOnline).map(([k, label]) => (
-                    <label key={k} className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={Boolean(form.checks[k])} onCheckedChange={(v) => set({ checks: { ...form.checks, [k]: v === true } })} />
-                      {label}
-                    </label>
-                  ))}
-                  {!isOnline && <span className="text-xs text-muted-foreground">Equipment and internet: N/A (Onsite)</span>}
-                </div>
-                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-                  <div>
-                    <Label className="text-xs">Training start date (confirm or correct)</Label>
-                    <Input value={tv(TRAINING_KEYS.startDate)} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Reconfirmation Comments</Label>
-                    <Textarea rows={2} value={note(STAGE_NOTE_KEYS.reconfirmation)} onChange={(e) => setNote(STAGE_NOTE_KEYS.reconfirmation, e.target.value)} />
-                  </div>
-                </div>
-                <details className="rounded-lg border border-border">
-                  <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Full Recruitment evaluation, CV, references and job history (Method A) — read only</summary>
-                  <div className="space-y-3 p-3">
-              <Part id="perfil" n={1} title="Profile and information confirmation">
+                <Button type="button" size="lg" variant={showFull ? "outline" : "default"} className="w-full sm:w-auto" onClick={() => setShowFull((v) => !v)}>
+                  {showFull ? "Hide full Recruitment interview" : "View full Recruitment interview"}
+                </Button>
+                {showFull && (
+                  <fieldset disabled className="min-w-0 space-y-4">
+              <Part id="perfil" n={1} title="Profile, modality and availability">
                 {item("perfil.modality", "Work modality", shown(p?.work_modality ?? S["candidate"]?.["lob"]))}
                 {item("perfil.branch", "Branch / location", shown(app.city))}
                 {item("perfil.schedule", "Class schedule requested", answer("candidate", "schedule"))}
@@ -576,13 +547,13 @@ function ReviewPage() {
                 )}
               </Part>
 
-              <Part id="metas" n={3} title="Goals and aspirations">
+              <Part id="metas" n={3} title="Goals and motivation">
                 {item("goals.career", "Professional goals", answer("values", "goals"))}
                 {item("goals.why_e4cc", "Why they applied to E4CC", answer("values", "why_e4cc"))}
                 {item("goals.teaching_interest", "Interest in teaching", answer("values", "learning"))}
                 {item("goals.plans", "How the role fits their plans", answer("values", "looking"))}
                 <div className="px-5 py-3">
-                  <Label className="text-xs">Manager — go deeper and record the evidence heard</Label>
+                  <Label className="text-sm font-semibold">Manager — go deeper and record the evidence heard</Label>
                   <Textarea
                     className="mt-1"
                     placeholder="Concrete answers, examples and numbers the candidate gave."
@@ -592,7 +563,7 @@ function ReviewPage() {
                 </div>
               </Part>
 
-              <Part id="ingles" n={4} title="English level and roleplay">
+              <Part id="ingles" n={4} title="English, grammar, verbs and demo">
                 {item(
                   "english.grammar_test",
                   "Grammar Test",
@@ -638,7 +609,7 @@ function ReviewPage() {
                 {item("english.demo", "Teaching demo (Recruitment)", answer("english", "roleplay_notes"))}
               </Part>
 
-              <Part id="experiencia" n={5} title="Studies and job experience · Method A">
+              <Part id="experiencia" n={5} title="Studies and job history · Method A">
                 {item(
                   "experience.studies",
                   "Studies and certifications",
@@ -667,73 +638,147 @@ function ReviewPage() {
                     : "No references recorded",
                 )}
                 {jobs.length === 0 ? (
-                  <p className="px-5 py-3 text-sm text-muted-foreground">No job history recorded.</p>
+                  <p className="px-5 py-3 text-base text-muted-foreground">No job history recorded.</p>
                 ) : (
-                  <div className="overflow-x-auto px-5 py-3">
-                    <table className="min-w-[1500px] border-collapse text-left text-xs">
-                      <thead>
-                        <tr className="bg-secondary text-foreground">
-                          {["Experience", "Company", "Year", "Total years", "Position", "Hired to do", "Biggest accomplishment", "Lowest moment", "Boss / score", "Score reason", "Reason for leaving", "Gaps between jobs", "Reference"].map((label) => (
-                            <th key={label} className="border border-border px-2 py-2 font-semibold">{label}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {jobs.map((j) => {
-                          const ref = d.references.find((r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase());
-                          return (
-                            <tr key={j.id} className="align-top odd:bg-background even:bg-secondary/30">
-                              <td className="border border-border px-2 py-2 font-semibold">{ordinal(j.slot)} Job</td>
-                              <td className="border border-border px-2 py-2">{shown(j.company)}</td>
-                              <td className="border border-border px-2 py-2">{shown(j.start_date)} – {shown(j.end_date)}</td>
-                              <td className="border border-border px-2 py-2">{jobDuration(j.start_date, j.end_date)}</td>
-                              <td className="border border-border px-2 py-2">{shown(j.position)}</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.hired_to_do)}</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.accomplishment)}</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.biggest_mistake)}</td>
-                              <td className="border border-border px-2 py-2">{shown(j.supervisor_name)} · {shown(j.supervisor_rating)}/10</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.rating_reason)}</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.reason_for_leaving)}</td>
-                              <td className="border border-border px-2 py-2 whitespace-pre-wrap">{shown(j.gap_explanation)}</td>
-                              <td className="border border-border px-2 py-2">{ref ? `${shown(ref.supervisor_name)} · ${shown(ref.supervisor_phone)} · ${shown(ref.verification_status)}` : "Not recorded"}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="space-y-4 px-5 py-4">
+                    {jobs.map((j) => {
+                      const ref = d.references.find((r) => (r.company ?? "").trim().toLowerCase() === (j.company ?? "").trim().toLowerCase());
+                      return (
+                        <article key={j.id} className="rounded-xl border border-border bg-background p-4">
+                          <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-sm font-semibold text-primary">{ordinal(j.slot)} Job</span>
+                            <h3 className="text-lg font-semibold">{shown(j.company)}</h3>
+                            <span className="text-base text-muted-foreground">{shown(j.position)}</span>
+                          </header>
+                          <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2">
+                            <QA label="Dates" value={`${shown(j.start_date)} – ${shown(j.end_date)} · ${jobDuration(j.start_date, j.end_date)}`} />
+                            <QA label="Supervisor and declared score" value={`${shown(j.supervisor_name)} · ${shown(j.supervisor_rating)}/10`} />
+                            <QA label="Responsibilities (hired to do)" value={shown(j.hired_to_do)} />
+                            <QA label="Accomplishments and results" value={shown(j.accomplishment)} />
+                            <QA label="Difficulties / lowest moment" value={shown(j.biggest_mistake)} />
+                            <QA label="Score reason" value={shown(j.rating_reason)} />
+                            <QA label="Reason for leaving" value={shown(j.reason_for_leaving)} />
+                            <QA label="Periods without employment" value={shown(j.gap_explanation)} />
+                            <QA label="Reference" value={ref ? `${shown(ref.supervisor_name)} · ${shown(ref.supervisor_phone)} · ${shown(ref.verification_status)}` : "Not recorded"} />
+                          </dl>
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </Part>
 
-              <Part id="valores" n={6} title="Values and motivation">
+              <Part id="valores" n={6} title="Values and candidate questions">
                 {item("values.motivation", "What they are looking for", answer("values", "looking"))}
                 {item("values.development", "Learning and development", answer("values", "learning"))}
                 {item("values.consistency", "Commitment and consistency", `${answer("candidate", "referred")} referred · source ${answer("candidate", "referral_source")}`)}
                 {item("values.behaviour", "Behaviour and interests shared", answer("values", "energy"))}
                 {item("values.anything_else", "Anything else the candidate shared", answer("values", "anything_else"))}
+                {item("values.questions", "Candidate questions", answer("values", "questions"))}
               </Part>
 
+              <Part id="referencias" n={7} title="References">
+                {d.references.length === 0 ? (
+                  <p className="px-5 py-3 text-base text-muted-foreground">No references recorded.</p>
+                ) : (
+                  <div className="grid gap-3 px-5 py-4 md:grid-cols-2">
+                    {d.references.map((r, i) => (
+                      <div key={i} className="rounded-xl border border-border bg-background p-4">
+                        <p className="text-base font-semibold">{shown(r.company)} · {shown(r.position)}</p>
+                        <dl className="mt-2 space-y-2">
+                          <QA label="Supervisor" value={`${shown(r.supervisor_name)} · ${shown(r.supervisor_phone)}`} />
+                          <QA label="Reason for leaving" value={shown(r.reason_for_leaving)} />
+                          <QA label="Verification" value={shown(r.verification_status)} />
+                        </dl>
+                      </div>
+                    ))}
                   </div>
-                </details>
+                )}
+              </Part>
+
+              <Part id="resultado" n={8} title="Result, comments and internal red flags">
+                {item("result.final", "Recruitment result", resultLabel(interview?.final_result) || "Not recorded")}
+                {item("result.comments", "Recruitment final comments", shown(interview?.comments))}
+                <div className="bg-destructive/5 px-5 py-3">
+                  <p className="text-sm font-semibold uppercase text-destructive">Red flags — internal only, never sent to the candidate</p>
+                  <p className="mt-1 whitespace-pre-wrap text-base">{recruitmentFlags || "Not recorded"}</p>
+                </div>
+              </Part>
+                  </fieldset>
+                )}
+              </section>
+
+          {form && (
+            <fieldset disabled={!editable} className="min-w-0 space-y-4">
+              {locked && (
+                <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
+                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
+                </p>
+              )}
+              {!current && (
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Interview not started — the file below is read-only until you start it.</p>
+              )}
+
+              <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+                <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
+                <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
+                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
+                <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
+              </section>
+              <Stage id="reconfirmation">
+                <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
+                <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                  <Fact label="Class schedule" value={answer("candidate", "schedule")} />
+                  <Fact label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
+                  <Fact label="Training start (Recruitment)" value={shown(trainingDefaults[TRAINING_KEYS.startDate])} />
+                  <Fact label="Modality / branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} />
+                  <Fact label="Current job / routine" value={answer("profile", "routine_answer")} />
+                  <Fact label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
+                  {isOnline && (
+                    <Fact
+                      label="Internet"
+                      value={p?.internet_download_mbps != null ? `${p.internet_download_mbps}↓ / ${p.internet_upload_mbps ?? "—"}↑ Mbps · ${p.internet_test_passed ? "Passed" : p.internet_override ? "Override" : "Below minimum"}` : "Not evaluated"}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2">
+                  {RECONFIRM_CHECKS.filter(([k]) => k !== "equipment" || isOnline).map(([k, label]) => (
+                    <label key={k} className="flex items-center gap-2 text-sm">
+                      <Checkbox checked={Boolean(form.checks[k])} onCheckedChange={(v) => set({ checks: { ...form.checks, [k]: v === true } })} />
+                      {label}
+                    </label>
+                  ))}
+                  {!isOnline && <span className="text-xs text-muted-foreground">Equipment and internet: N/A (Onsite)</span>}
+                </div>
+                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                  <div>
+                    <Label className="text-sm font-semibold">Training start date (confirm or correct)</Label>
+                    <Input value={tv(TRAINING_KEYS.startDate)} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Reconfirmation Comments</Label>
+                    <Textarea rows={2} value={note(STAGE_NOTE_KEYS.reconfirmation)} onChange={(e) => setNote(STAGE_NOTE_KEYS.reconfirmation, e.target.value)} />
+                  </div>
+                </div>
               </Stage>
 
               <Stage id="grammar">
                 <Guide>Evaluate Simple Present, Present Progressive, Simple Past and Past Progressive: use, structure and an example. Then ask the candidate to identify, correct and explain intermediate-level errors.</Guide>
                 <div>
-                  <Label className="text-xs">Comments (grammar, comprehension, fluency, pronunciation)</Label>
+                  <Label className="text-sm font-semibold">Comments (grammar, comprehension, fluency, pronunciation)</Label>
                   <Textarea rows={4} value={note(STAGE_NOTE_KEYS.grammar)} onChange={(e) => setNote(STAGE_NOTE_KEYS.grammar, e.target.value)} />
                 </div>
               </Stage>
 
               <Stage id="demo">
                 <Guide>Assign a topic. Observe without interrupting or completing the candidate’s ideas. Look at accuracy, clarity, interaction, checking questions, correction, energy and time management.</Guide>
-                <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
-                  <div>
-                    <Label className="text-xs">Demo topic</Label>
+                <div className="space-y-3">
+                  <div className="max-w-md">
+                    <Label className="text-sm font-semibold">Demo Topic</Label>
                     <Input value={form.demoTopic} onChange={(e) => set({ demoTopic: e.target.value })} placeholder="e.g. Simple Present" />
                   </div>
                   <div>
-                    <Label className="text-xs">Demo Comments</Label>
+                    <Label className="text-sm font-semibold">Teaching Demo Comments</Label>
                     <Textarea rows={3} value={note(STAGE_NOTE_KEYS.demo)} onChange={(e) => setNote(STAGE_NOTE_KEYS.demo, e.target.value)} />
                   </div>
                 </div>
@@ -742,7 +787,7 @@ function ReviewPage() {
               <Stage id="feedback">
                 <Guide>Identify 1–2 areas for improvement. Ask permission to provide open and honest feedback.</Guide>
                 <div>
-                  <Label className="text-xs">Feedback Given (and the action to apply in the retake)</Label>
+                  <Label className="text-sm font-semibold">Feedback Given (and the action to apply in the retake)</Label>
                   <Textarea rows={3} value={note(STAGE_NOTE_KEYS.feedback)} onChange={(e) => setNote(STAGE_NOTE_KEYS.feedback, e.target.value)} />
                 </div>
               </Stage>
@@ -750,7 +795,7 @@ function ReviewPage() {
               <Stage id="retake">
                 <Guide>Look for visible, specific improvement in the repeated demonstration. This is part of the interview — it does not change the candidate status or send emails.</Guide>
                 <div>
-                  <Label className="text-xs">Observed Improvement / Coachability Comments</Label>
+                  <Label className="text-sm font-semibold">Observed Improvement / Coachability Comments</Label>
                   <Textarea rows={3} value={note(STAGE_NOTE_KEYS.retake)} onChange={(e) => setNote(STAGE_NOTE_KEYS.retake, e.target.value)} />
                 </div>
               </Stage>
@@ -764,17 +809,17 @@ function ReviewPage() {
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <Label className="text-xs">Final Internal Comments</Label>
+                    <Label className="text-sm font-semibold">Final Internal Comments</Label>
                     <Textarea rows={3} value={form.internalComments} onChange={(e) => set({ internalComments: e.target.value })} />
                   </div>
                   <div>
-                    <Label className="text-xs">Red Flags — Internal Only</Label>
+                    <Label className="text-sm font-semibold">Red Flags — Internal Only</Label>
                     <Textarea rows={3} value={form.redFlags} onChange={(e) => set({ redFlags: e.target.value })} />
                   </div>
                 </div>
                 <div className="space-y-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
                   <div className="max-w-sm">
-                    <Label className="text-xs">Final Decision</Label>
+                    <Label className="text-sm font-semibold">Final Decision</Label>
                     <Select value={form.finalDecision} onValueChange={(v) => set({ finalDecision: v as ManagerDecision })}>
                       <SelectTrigger><SelectValue placeholder="Select the final decision" /></SelectTrigger>
                       <SelectContent>{MANAGER_DECISIONS.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent>
@@ -806,7 +851,7 @@ function ReviewPage() {
                         </>
                       )}
                       <div className="space-y-1">
-                        <Label className="text-xs">Position modality (confirm)</Label>
+                        <Label className="text-sm font-semibold">Position modality (confirm)</Label>
                         <Select value={confirmedMod ?? ""} onValueChange={(v) => setT(AGREEMENT_KEYS.modality, v)}>
                           <SelectTrigger><SelectValue placeholder={suggestedMod ? `Confirm (Recruitment: ${suggestedMod})` : "Select Online / Onsite"} /></SelectTrigger>
                           <SelectContent>
@@ -846,7 +891,7 @@ function ReviewPage() {
                     <div className="grid gap-3 md:grid-cols-2">
                       {form.finalDecision === "Retake" ? (
                         <div className="space-y-2">
-                          <Label className="text-xs">Areas to improve (shared with the candidate)</Label>
+                          <Label className="text-sm font-semibold">Areas to improve (shared with the candidate)</Label>
                           <div className="flex flex-wrap gap-3">
                             {AREAS.map((a) => (
                               <label key={a} className="flex items-center gap-2 text-sm">
@@ -862,12 +907,12 @@ function ReviewPage() {
                         </div>
                       ) : (
                         <div>
-                          <Label className="text-xs">Internal reason (never emailed)</Label>
+                          <Label className="text-sm font-semibold">Internal reason (never emailed)</Label>
                           <Textarea rows={3} value={form.decisionReason} onChange={(e) => set({ decisionReason: e.target.value })} />
                         </div>
                       )}
                       <div className="space-y-2">
-                        <Label className="text-xs">{form.finalDecision === "Retake" ? "Eligible date to return" : "Can apply again from"}</Label>
+                        <Label className="text-sm font-semibold">{form.finalDecision === "Retake" ? "Eligible date to return" : "Can apply again from"}</Label>
                         <div className="flex flex-wrap items-center gap-2">
                           <Input className="w-20" type="number" min={1} placeholder="Qty" value={period.amount} onChange={(e) => setPeriod({ ...period, amount: e.target.value })} />
                           <Select value={period.unit} onValueChange={(v) => setPeriod({ ...period, unit: v as typeof period.unit })}>
@@ -891,7 +936,7 @@ function ReviewPage() {
 
                   {form.finalDecision === "No Show" && (
                     <div className="max-w-xs">
-                      <Label className="text-xs">Appointment the candidate missed</Label>
+                      <Label className="text-sm font-semibold">Appointment the candidate missed</Label>
                       <Input type="datetime-local" value={form.appointmentAt} onChange={(e) => set({ appointmentAt: e.target.value })} />
                       <p className="mt-1 text-xs text-muted-foreground">The interview stages are not required for a No Show.</p>
                     </div>
@@ -906,35 +951,7 @@ function ReviewPage() {
             </fieldset>
           )}
 
-          <details className="rounded-2xl border border-border bg-card p-4">
-            <summary className="cursor-pointer text-sm font-semibold">Application, retake and decision history</summary>
-            <ul className="mt-3 space-y-1 text-sm">
-              {d.interviews.map((i) => (
-                <li key={i.id}>Recruitment attempt {i.attempt_number}: {resultLabel(i.final_result) || i.status} · {fmt(i.submitted_at)}</li>
-              ))}
-              {d.managerEvaluations.map((m) => (
-                <li key={m.id}>Manager attempt {m.attempt_number}: {m.final_decision ?? m.status} · {m.total_score ?? "—"}/100 · {fmt(m.decided_at)}</li>
-              ))}
-            </ul>
-            <ul className="mt-3 max-h-64 space-y-1 overflow-auto text-xs text-muted-foreground">
-              {d.history.map((h) => (
-                <li key={h.id}>{fmt(h.created_at)} · {h.action} · {h.actor_email ?? "system"}{h.actor_role ? ` (${h.actor_role})` : ""}</li>
-              ))}
-            </ul>
-          </details>
-        </div>
-
-        <aside className="space-y-4 xl:sticky xl:top-40 xl:self-start">
-          <div className="space-y-1.5 rounded-2xl border border-border bg-card p-4 text-sm">
-            <p className="font-semibold">Guide times</p>
-            {MANAGER_STAGES.map((st) => (
-              <a key={st.id} href={`#${st.id}`} className={cn("flex justify-between gap-2 text-xs", active === st.id ? "font-semibold text-primary" : "text-muted-foreground")}>
-                <span className="truncate">{st.n}. {st.title}</span>
-                <span className="shrink-0">{st.time}</span>
-              </a>
-            ))}
-            <p className="border-t border-border pt-1.5 text-xs">Total: <strong>{MANAGER_TOTAL_TIME}</strong> · no timer, guide only</p>
-          </div>
+          <div className="grid gap-4 md:grid-cols-2">
           {current && (
             <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
               <p>Final decision: <strong>{current.final_decision ?? "—"}</strong></p>
@@ -978,7 +995,25 @@ function ReviewPage() {
               )}
             </div>
           )}
-        </aside>
+          </div>
+          <details className="rounded-2xl border border-border bg-card p-4">
+            <summary className="cursor-pointer text-base font-semibold">Application, retake and decision history</summary>
+            <ul className="mt-3 space-y-1 text-sm">
+              {d.interviews.map((i) => (
+                <li key={i.id}>Recruitment attempt {i.attempt_number}: {resultLabel(i.final_result) || i.status} · {fmt(i.submitted_at)}</li>
+              ))}
+              {d.managerEvaluations.map((m) => (
+                <li key={m.id}>Manager attempt {m.attempt_number}: {m.final_decision ?? m.status} · {m.total_score ?? "—"}/100 · {fmt(m.decided_at)}</li>
+              ))}
+            </ul>
+            <ul className="mt-3 max-h-64 space-y-1 overflow-auto text-xs text-muted-foreground">
+              {d.history.map((h) => (
+                <li key={h.id}>{fmt(h.created_at)} · {h.action} · {h.actor_email ?? "system"}{h.actor_role ? ` (${h.actor_role})` : ""}</li>
+              ))}
+            </ul>
+          </details>
+        </div>
+
       </div>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
@@ -1034,12 +1069,12 @@ function ReviewPage() {
 
 function Part({ id, n, title, children }: { id: string; n: number; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-40 rounded-2xl border border-border bg-card">
+    <section id={id} className="scroll-mt-16 rounded-2xl border border-border bg-card">
       <header className="flex items-center gap-3 border-b border-border px-5 py-3">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
           {n}
         </span>
-        <h2 className="text-sm font-semibold uppercase tracking-wide">{title}</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
       </header>
       <div className="divide-y divide-border">{children}</div>
     </section>
@@ -1057,9 +1092,9 @@ function Item({
 }) {
   return (
     <div className="px-5 py-3">
-      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-sm">{recruitment}</p>
-      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      <p className="text-sm font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 whitespace-pre-wrap text-base leading-relaxed">{recruitment}</p>
+      {hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -1067,34 +1102,43 @@ function Item({
 function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {
   const st = MANAGER_STAGES.find((x) => x.id === id)!;
   return (
-    <section id={id} className="scroll-mt-40 rounded-xl border border-border bg-card">
+    <section id={id} className="scroll-mt-16 rounded-xl border border-border bg-card">
       <header className="flex items-center gap-3 border-b border-border px-4 py-2">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{st.n}</span>
-        <h2 className="text-sm font-semibold uppercase tracking-wide">{st.title}</h2>
-        <span className="ml-auto rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{st.time}</span>
+        <h2 className="text-lg font-semibold">{st.title}</h2>
+        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-muted-foreground">{st.time}</span>
       </header>
-      <div className="space-y-3 px-4 py-3">{children}</div>
+      <div className="space-y-4 px-5 py-4 text-base">{children}</div>
     </section>
   );
 }
 
+function QA({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-sm font-semibold text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 whitespace-pre-wrap break-words text-base leading-relaxed">{value}</dd>
+    </div>
+  );
+}
+
 function Guide({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-md border-l-2 border-primary bg-primary/5 px-3 py-1.5 text-xs italic">{children}</p>;
+  return <p className="rounded-md border-l-4 border-primary bg-primary/5 px-3 py-2 text-sm">{children}</p>;
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <p className="min-w-0 text-sm">
-      <span className="block text-[11px] font-semibold uppercase text-muted-foreground">{label}</span>
-      <span className="break-words">{value}</span>
-    </p>
+    <div className="min-w-0">
+      <span className="block text-sm font-semibold text-muted-foreground">{label}</span>
+      <span className="break-words text-base">{value}</span>
+    </div>
   );
 }
 
 function TField({ label, value, onChange, placeholder, type }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
     <div>
-      <Label className="text-xs">{label}</Label>
+      <Label className="text-sm font-semibold">{label}</Label>
       <Input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
@@ -1107,7 +1151,7 @@ function ScheduleField({ label, tz, raw, legacy, onChange }: { label: string; tz
     onChange({ ...v, [k]: { start: "", end: "", ...v[k], [part]: val } });
   return (
     <div className="space-y-2 rounded-lg border border-border p-3">
-      <Label className="text-xs">{label} <span className="text-muted-foreground">· {tz}</span></Label>
+      <Label className="text-sm font-semibold">{label} <span className="text-muted-foreground">· {tz}</span></Label>
       {!raw && legacy.trim() && (
         <p className="rounded bg-destructive/10 p-2 text-xs text-destructive">Previous value (not converted): “{legacy}”. Please review and select the days and times again.</p>
       )}
