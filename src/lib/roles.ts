@@ -3,13 +3,14 @@
  * Recruitment; "viewer" is retired and grants no access. Applicants never have
  * staff accounts — they use their secure candidate link / Retake code.
  */
-export const STAFF_ROLES = ["recruitment", "manager", "admin"] as const;
+export const STAFF_ROLES = ["recruitment", "manager", "admin", "trainer"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
   recruitment: "Recruitment",
   manager: "Manager",
+  trainer: "Trainer",
   evaluator: "Recruitment",
   recruiter: "Recruitment",
   viewer: "Retired (viewer)",
@@ -21,14 +22,17 @@ export function staffTier(roles: readonly string[]) {
   const isRecruitment =
     roles.includes("recruitment") || roles.includes("evaluator") || roles.includes("recruiter");
   const isManager = roles.includes("manager");
-  const primary: StaffRole | null = isAdmin
+  const isTrainer = roles.includes("trainer");
+  const full: StaffRole | null = isAdmin
     ? "admin"
     : isManager
       ? "manager"
       : isRecruitment
         ? "recruitment"
         : null;
-  return { isAdmin, isRecruitment, isManager, isStaff: primary !== null, primary };
+  const primary: StaffRole | null = full ?? (isTrainer ? "trainer" : null);
+  // isStaff = full staff access; trainer-only accounts can sign in but only see the Training Tracker.
+  return { isAdmin, isRecruitment, isManager, isTrainer, isStaff: full !== null, canSignIn: primary !== null, primary };
 }
 
 /** Normalises a stored role list to the single final role shown in the UI. */

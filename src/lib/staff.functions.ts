@@ -60,7 +60,7 @@ export const getStaffContext = createServerFn({ method: "GET" })
     ]);
     const roleList = (roles ?? []).map((r) => r.role as string);
     const tier = staffTier(roleList);
-    const active = profile ? profile.active : tier.isStaff;
+    const active = profile ? profile.active : tier.canSignIn;
     if (profile) {
       await db
         .from("staff_profiles")
@@ -68,7 +68,8 @@ export const getStaffContext = createServerFn({ method: "GET" })
         .eq("user_id", context.userId);
     }
     return {
-      isStaff: tier.isStaff && active,
+      isStaff: tier.canSignIn && active,
+      isTrainerOnly: !tier.isStaff && tier.isTrainer,
       active,
       roles: roleList,
       role: tier.primary,

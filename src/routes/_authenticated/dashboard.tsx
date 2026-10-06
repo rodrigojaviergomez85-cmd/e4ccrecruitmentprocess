@@ -128,6 +128,9 @@ function Dashboard() {
                 </Link>
               </Button>
             )}
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/training">Training Tracker</Link>
+            </Button>
             {isAdmin && (
               <Button asChild variant="ghost" size="sm">
                 <Link to="/settings">

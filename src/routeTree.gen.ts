@@ -23,6 +23,7 @@ import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authentic
 import { Route as AuthenticatedScorecardRouteImport } from './routes/_authenticated/scorecard'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
+import { Route as AuthenticatedTrainingRouteImport } from './routes/_authenticated/training'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as RespondTokenRouteImport } from './routes/respond.$token'
@@ -104,6 +105,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedStaffRoute = AuthenticatedStaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedTrainingRoute = AuthenticatedTrainingRouteImport.update({
+  id: '/training',
+  path: '/training',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/training': typeof AuthenticatedTrainingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
+  '/training': typeof AuthenticatedTrainingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
@@ -251,6 +259,7 @@ export interface FileRoutesById {
   '/_authenticated/scorecard': typeof AuthenticatedScorecardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
+  '/_authenticated/training': typeof AuthenticatedTrainingRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
@@ -281,6 +290,7 @@ export interface FileRouteTypes {
     | '/scorecard'
     | '/settings'
     | '/staff'
+    | '/training'
     | '/auth/callback'
     | '/process/$id'
     | '/respond/$token'
@@ -309,6 +319,7 @@ export interface FileRouteTypes {
     | '/scorecard'
     | '/settings'
     | '/staff'
+    | '/training'
     | '/auth/callback'
     | '/process/$id'
     | '/respond/$token'
@@ -338,6 +349,7 @@ export interface FileRouteTypes {
     | '/_authenticated/scorecard'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
+    | '/_authenticated/training'
     | '/auth/callback'
     | '/process/$id'
     | '/respond/$token'
@@ -471,6 +483,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStaffRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/training': {
+      id: '/_authenticated/training'
+      path: '/training'
+      fullPath: '/training'
+      preLoaderRoute: typeof AuthenticatedTrainingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/auth/callback': {
       id: '/auth/callback'
       path: '/callback'
@@ -571,6 +590,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedScorecardRoute: typeof AuthenticatedScorecardRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
+  AuthenticatedTrainingRoute: typeof AuthenticatedTrainingRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -585,6 +605,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedScorecardRoute: AuthenticatedScorecardRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
+  AuthenticatedTrainingRoute: AuthenticatedTrainingRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesNewRoute: AuthenticatedCandidatesNewRoute,
   AuthenticatedEvaluationsApplicationIdRoute:

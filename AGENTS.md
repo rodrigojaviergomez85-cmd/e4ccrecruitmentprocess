@@ -12,3 +12,4 @@
 - Emails with attachments go to Make with `route: "with_attachment"` + `attachment_url` (7-day signed URL, private `agreements` bucket); why: Make downloads and attaches the file, and mutually exclusive router filters prevent double sends.
 - Candidate application videos have a hard one-minute limit in both the recorder and save validation; why: both required answers must remain concise.
 - Manager stages enforce edit locking with their own disabled fieldsets; the read-only Recruitment disclosure stays outside that lock inside Reconfirmation so staff can consult completed interviews without enabling edits.
+- Trainer-only accounts sign in but are limited to the Training Tracker: `staffTier().isStaff` excludes them and `private.is_active_staff` ignores the trainer role; why: trainers must not inherit broad staff/RLS read access.
