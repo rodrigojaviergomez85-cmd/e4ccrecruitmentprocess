@@ -214,9 +214,10 @@ export const saveRecruitmentProgress = createServerFn({ method: "POST" })
       });
     }
 
-    await db
+    const { error: upsertError } = await db
       .from("recruitment_progress")
       .upsert({ application_id: applicationId, ...patch }, { onConflict: "application_id" });
+    if (upsertError) throw new Error("We could not save your progress. Please try again.");
 
     const state = await loadState(db, applicationId);
     await syncStatus(

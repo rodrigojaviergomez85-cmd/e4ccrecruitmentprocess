@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { createResumeUploadTarget, getRecruitmentProcess, markSchedulingOpened, recordCalendlyBooking, resendPreparationEmail, saveRecruitmentProgress, saveResume, saveWorkReference } from "@/lib/process.functions";
+import { measureSpeed } from "@/lib/speed-test-client";
 
 const CALENDLY_URL = "https://calendly.com/teachingjobs4callcenters/schedule";
 const ZOOM_URL = "https://zoom.us/j/97824770369";
