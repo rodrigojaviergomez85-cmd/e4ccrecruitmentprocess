@@ -259,6 +259,6 @@ export const updateRequisition = createServerFn({ method: "POST" })
       if (!existing?.agreed_schedule && spot.agreed_schedule) roster["agreed_schedule"] = spot.agreed_schedule;
       await ctx.db.from("training_roster").upsert(roster as never, { onConflict: "application_id" });
     }
-    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: `requisition.${data.action}`, entityType: "training_requisition", entityId: spot.id, applicationId: data.applicationId ?? spot.filled_application_id ?? undefined, newValue: data });
+    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: `requisition.${data.action}`, entityType: "training_requisition", entityId: spot.id, applicationId: data.applicationId ?? spot.filled_application_id ?? null, newValue: data });
     return { ok: true };
   });
