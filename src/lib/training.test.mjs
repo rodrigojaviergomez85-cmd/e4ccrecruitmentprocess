@@ -1,7 +1,8 @@
-/// <reference types="bun" />
-import { describe, test, expect } from "bun:test";
-import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent } from "./training";
-import { staffTier } from "./roles";
+import { describe, test } from "node:test";
+import assert from "node:assert/strict";
+const expect = (actual) => ({ toBe: (expected) => assert.equal(actual, expected), toEqual: (expected) => assert.deepEqual(actual, expected) });
+import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent } from "./training.ts";
+import { staffTier } from "./roles.ts";
 
 describe("Training Tracker rules", () => {
   test("Generalistas verify documents without recruitment or training edits", () => {
