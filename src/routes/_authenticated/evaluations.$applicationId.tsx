@@ -1624,7 +1624,7 @@ function EvaluationForm() {
                     <Field label="Final filter date"><Input type="date" value={str("result", "ff_date")} onChange={(e) => set("result", "ff_date", e.target.value)} /></Field>
                     <Field label="Time" hint={(() => {
                       const [h, m] = str("result", "ff_time").split(":").map(Number);
-                      if (!Number.isFinite(h)) return undefined;
+                      if (!Number.isFinite(h)) return "";
                       const label = `${((h! + 11) % 12) + 1}:${String(m ?? 0).padStart(2, "0")} ${h! < 12 ? "AM" : "PM"}`;
                       return h! < 7 || h! >= 21 ? `Email will say ${label} — check AM/PM.` : `Email will say ${label}.`;
                     })()}><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
