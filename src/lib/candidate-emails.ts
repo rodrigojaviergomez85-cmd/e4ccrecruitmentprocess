@@ -232,11 +232,38 @@ function buildRetakeEmail(input: { fullName: string; areas: string; scheduleUrl:
  * The wording of both templates is fixed; only the candidate name and the area
  * of opportunity change from one interview to the next.
  */
-function ffPlace(ff: FinalFilterDetails) {
-  if (ff.link)
-    return `<li><strong>Join Interview:</strong> <a href="${escapeHtml(ff.link)}">${escapeHtml(ff.link)}</a></li>`;
-  if (ff.location) return `<li><strong>Location:</strong> ${escapeHtml(ff.location)}</li>`;
-  return "";
+/**
+ * Single source for the final interview details + instructions, shared by the
+ * approval email and the later confirmation so they never contradict each other.
+ * Uses the interview's own format (not the position's modality).
+ */
+export function finalInterviewBlock(ff: FinalFilterDetails): string {
+  const e = escapeHtml;
+  const onsite = ff.mode === "onsite" || (!ff.link && Boolean(ff.location));
+  const li = (k: string, v: string) => `<li><strong>${k}:</strong> ${v}</li>`;
+  const rows = [
+    li("Interview format", onsite ? "In person" : "Video call"),
+    li("Date", e(ff.date)),
+    li("Time", e(ff.time)),
+    li("Interviewer", e(ff.interviewer)),
+  ];
+  if (onsite) {
+    const branch = ff.branch ?? (ff.address ? null : ff.location);
+    if (branch) rows.push(li("Branch", e(branch)));
+    if (ff.address) rows.push(li("Address", e(ff.address)));
+    if (ff.mapLink) rows.push(li("Location", `<a href="${e(ff.mapLink)}">${e(ff.mapLink)}</a>`));
+  } else if (ff.link) {
+    rows.push(li("Join Interview", `<a href="${e(ff.link)}">${e(ff.link)}</a>`));
+  }
+  const closing = onsite
+    ? "Please arrive on time at the E4CC branch indicated above and ask for your interviewer. If you need help finding the branch or are unable to attend, please contact our Recruitment Team as soon as possible."
+    : "Please join the interview on time using the link above, from a quiet place with a stable internet connection, a working camera and microphone. Keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.";
+  return `
+      <p style="margin:0 0 8px"><strong>Your final interview details:</strong></p>
+      <ul style="margin:0 0 12px;padding-left:18px">
+        ${rows.join("\n        ")}
+      </ul>
+      <p style="margin:0 0 12px">${closing}</p>`;
 }
 
 export function buildFollowUpEmail(input: {
@@ -263,14 +290,7 @@ export function buildFollowUpEmail(input: {
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
       <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
       <p style="margin:0 0 12px">Your final interview with our <strong>Country Manager</strong> has been scheduled.</p>
-      <p style="margin:0 0 8px"><strong>Your final interview details:</strong></p>
-      <ul style="margin:0 0 12px;padding-left:18px">
-        <li><strong>Date:</strong> ${escapeHtml(ff.date)}</li>
-        <li><strong>Time:</strong> ${escapeHtml(ff.time)}</li>
-        <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
-        ${ffPlace(ff)}
-      </ul>
-      <p style="margin:0 0 12px">Please join the interview on time and keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.</p>
+      ${finalInterviewBlock(ff)}
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
     </div>`;
     return { subject, html, scheduleUrl: null };
@@ -290,18 +310,10 @@ export function buildFollowUpEmail(input: {
         You have advanced to the <strong>last filter of our selection process</strong>, a final
         interview with our <strong>Country Manager</strong>.
       </p>
-      ${ff ? `
-      <p style="margin:0 0 8px"><strong>Your final interview details:</strong></p>
-      <ul style="margin:0 0 12px;padding-left:18px">
-        <li><strong>Date:</strong> ${escapeHtml(ff.date)}</li>
-        <li><strong>Time:</strong> ${escapeHtml(ff.time)}</li>
-        <li><strong>Interviewer:</strong> ${escapeHtml(ff.interviewer)}</li>
-        ${ffPlace(ff)}
-      </ul>
-      <p style="margin:0 0 12px">Please join the interview on time and keep your phone nearby, as we may contact you via WhatsApp. If you experience any difficulties connecting, please let us know as soon as possible.</p>` : `
+      ${ff ? finalInterviewBlock(ff) : `
       <p style="margin:0 0 12px">
-        Please keep your phone nearby, as we may contact you via WhatsApp to coordinate this final
-        step. If you experience any difficulties connecting, please let us know as soon as possible.
+        Our Recruitment Team will contact you soon with the date, time and details of this final
+        interview. Please keep your phone nearby, as we may contact you via WhatsApp.
       </p>`}
       <p style="margin:0 0 12px">Thank you for your time and effort throughout the process.</p>
       <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>

@@ -356,12 +356,29 @@ export function defaultFfTimezone(countryCode?: string | null): string {
   return TZ_BY_COUNTRY[countryCode ?? ""] ?? FF_TIMEZONES[0];
 }
 
+const IANA_BY_COUNTRY: Record<string, string> = {
+  SV: "America/El_Salvador",
+  GT: "America/Guatemala",
+  HN: "America/Tegucigalpa",
+  NI: "America/Managua",
+  MX: "America/Mexico_City",
+  CO: "America/Bogota",
+};
+
+export function ffIanaZone(countryCode?: string | null): string {
+  return IANA_BY_COUNTRY[countryCode ?? ""] ?? "America/El_Salvador";
+}
+
 export type FinalFilterDetails = {
   date: string;
   time: string;
   interviewer: string;
+  mode?: "video" | "onsite";
   link: string | null;
   location: string | null;
+  branch?: string | null;
+  address?: string | null;
+  mapLink?: string | null;
 };
 
 type FfResult =
@@ -383,6 +400,7 @@ export function readFinalFilter(result: Record<string, unknown> | undefined): Ff
   const link = g("ff_link") || (mode === "video" && /^https?:\/\//i.test(legacyPlace) ? legacyPlace : "");
   const branch = g("ff_branch");
   const address = g("ff_address") || (mode === "onsite" && !g("ff_branch") ? legacyPlace : "");
+  const mapLink = /^https?:\/\//i.test(g("ff_map_link")) ? g("ff_map_link") : "";
   const missing: string[] = [];
   if (!g("ff_date")) missing.push("date");
   if (!g("ff_time")) missing.push("time");
@@ -402,19 +420,25 @@ export function readFinalFilter(result: Record<string, unknown> | undefined): Ff
           day: "numeric",
         })
       : g("ff_date");
+  // Stored value is the exact "HH:MM" (24h) the recruiter picked; no zone conversion.
   const [hh, mm] = g("ff_time").split(":").map(Number);
   const clock = Number.isFinite(hh)
     ? `${((hh! + 11) % 12) + 1}:${String(mm ?? 0).padStart(2, "0")} ${hh! < 12 ? "AM" : "PM"}`
     : g("ff_time");
   const tz = g("ff_timezone");
+  const onsite = mode === "onsite";
   return {
     state: "complete",
     details: {
       date,
       time: tz ? `${clock}, ${tz}` : clock,
       interviewer: g("ff_interviewer"),
-      link: mode === "video" ? link : null,
-      location: mode === "onsite" ? [branch, address].filter(Boolean).join(" — ") : null,
+      mode: onsite ? "onsite" : "video",
+      link: onsite ? null : link,
+      location: onsite ? [branch, address].filter(Boolean).join(" — ") : null,
+      branch: onsite ? branch || null : null,
+      address: onsite ? address || null : null,
+      mapLink: onsite ? mapLink || null : null,
     },
   };
 }
