@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -11,221 +11,138 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
-import { TRAINING_STATUSES, approvalBlocked, documentsPercent } from "@/lib/training";
+import { TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
 
 export const Route = createFileRoute("/_authenticated/training")({
-  head: () => ({
-    meta: [
-      { title: "Training Tracker — E4CC" },
-      { name: "description", content: "Candidates approved for Training, by LOB: documents, reference calls and training status." },
-      { property: "og:title", content: "Training Tracker — E4CC" },
-      { property: "og:description", content: "E4CC training waves by LOB for trainers and recruitment." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
-  }),
+  head: () => ({ meta: [
+    { title: "Training Tracker — E4CC" },
+    { name: "description", content: "E4CC training roster by Online and country, documentation verified by Generalistas and reference calls by Recruitment." },
+    { property: "og:title", content: "Training Tracker — E4CC" },
+    { property: "og:description", content: "Training waves, candidate documentation and reference calls for E4CC." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: TrainingPage,
 });
 
-type Row = Awaited<ReturnType<typeof listTrainingRoster>>["rows"][number];
-const ALL = "all";
-const daysUntil = (d: string | null) =>
-  d ? Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000) : null;
+type Data = Awaited<ReturnType<typeof listTrainingRoster>>;
+type Row = Data["rows"][number];
+type Permissions = Omit<Data, "rows">;
+const daysUntil = (d: string | null) => d ? Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000) : null;
+const documentLabel = (d: string) => {
+  if (d.includes("both sides")) return d.split(",")[0] + " · ambos lados";
+  if (d.includes("diploma")) return "Título académico";
+  if (d.startsWith("Agreement:")) return "Convenio firmado";
+  const match = d.match(/\(([^)]+)\)/);
+  return match?.[1] ?? d;
+};
 
 function TrainingPage() {
   const list = useServerFn(listTrainingRoster);
   const { data, isLoading, error } = useQuery({ queryKey: ["training-roster"], queryFn: () => list() });
-  const [lob, setLob] = useState(ALL);
-  const [status, setStatus] = useState(ALL);
+  const [lob, setLob] = useState("all");
+  const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
-
-  const lobs = useMemo(() => [...new Set((data?.rows ?? []).map((r) => r.lob))].sort(), [data]);
-  const filtered = (data?.rows ?? []).filter(
-    (r) =>
-      (lob === ALL || r.lob === lob) &&
-      (status === ALL || r.status === status) &&
-      (!search || r.fullName.toLowerCase().includes(search.toLowerCase())),
-  );
-  const groups = useMemo(() => {
-    const m = new Map<string, Row[]>();
-    for (const r of filtered) m.set(r.lob, [...(m.get(r.lob) ?? []), r]);
-    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [filtered]);
-
+  const rows = data?.rows ?? [];
+  const filtered = rows.filter((r) => (lob === "all" || trainingGroup(r.modality, r.countryCode) === lob) && (status === "all" || r.status === status) && `${r.fullName} ${r.email} ${r.branch}`.toLowerCase().includes(search.toLowerCase()));
+  const groupNames = [...TRAINING_GROUPS, ...(rows.some((r) => trainingGroup(r.modality, r.countryCode) === "OTROS") ? ["OTROS"] : [])];
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-4">
-          <BrandMark />
-          <h1 className="text-xl font-semibold">Training Tracker</h1>
-          <Button asChild variant="ghost" size="sm" className="ml-auto">
-            <Link to="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Dashboard</Link>
-          </Button>
+        <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
+          <BrandMark /><h1 className="text-xl font-semibold">Training Tracker</h1>
+          {!data?.trainingOnly && <Button asChild variant="ghost" size="sm" className="ml-auto"><Link to="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Dashboard</Link></Button>}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
-        <div className="flex flex-wrap gap-3">
-          <Input placeholder="Search name" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
-          <Select value={lob} onValueChange={setLob}>
-            <SelectTrigger className="w-56"><SelectValue placeholder="LOB" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All LOBs</SelectItem>
-              {lobs.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-64"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All statuses</SelectItem>
-              {TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <main className="space-y-5 px-4 py-5 sm:px-6">
+        <Tabs value={lob} onValueChange={setLob}>
+          <div className="overflow-x-auto">
+            <TabsList className="h-auto justify-start rounded-none border-b bg-transparent p-0">
+              {["all", ...groupNames].map((g) => <TabsTrigger key={g} value={g} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                {g === "all" ? "TODOS" : g}<span className="text-xs text-muted-foreground">{rows.filter((r) => g === "all" || trainingGroup(r.modality, r.countryCode) === g).length}</span>
+              </TabsTrigger>)}
+            </TabsList>
+          </div>
+        </Tabs>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
+          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+          <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
         </div>
         {isLoading && <Skeleton className="h-40 w-full" />}
         {error && <p className="text-destructive">{(error as Error).message}</p>}
-        {data && !groups.length && <p className="text-muted-foreground">No candidates approved for Training yet.</p>}
-        {groups.map(([name, rows]) => (
-          <section key={name} className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              {name} <span className="text-sm font-normal text-muted-foreground">· {rows.length}</span>
-            </h2>
-            {rows.map((r) => (
-              <RosterCard key={r.id} row={r} canEditReferences={data!.canEditReferences} />
-            ))}
-          </section>
-        ))}
+        {data && !filtered.length && <p className="py-8 text-muted-foreground">No hay candidatos en esta lista.</p>}
+        {data && groupNames.map((group) => {
+          const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group);
+          if (!groupRows.length) return null;
+          const docs = [...new Set(groupRows.flatMap((r) => r.documentList))];
+          return <section key={group} className="space-y-2">
+            <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span></div>
+            <div className="max-h-[65vh] overflow-auto border border-border">
+              <table className="w-full border-separate border-spacing-0 text-sm">
+                <thead className="sticky top-0 z-20 bg-muted text-foreground">
+                  <tr>{["Candidato", "Estado", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 14 && i < 14 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 14 && i < 14 + docs.length ? docs[i - 14] : undefined}>{h}</th>)}</tr>
+                </thead>
+                <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}</tbody>
+              </table>
+            </div>
+          </section>;
+        })}
       </main>
     </div>
   );
 }
 
-function RosterCard({ row, canEditReferences }: { row: Row; canEditReferences: boolean }) {
+function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; permissions: Permissions }) {
   const update = useServerFn(updateTrainingRow);
   const qc = useQueryClient();
   const [f, setF] = useState(row);
+  const [baseline, setBaseline] = useState(row);
   const [saving, setSaving] = useState(false);
-  const blocked = approvalBlocked(row.referenceCall);
+  const dirty = JSON.stringify(f) !== JSON.stringify(baseline);
   const pct = documentsPercent(f.documentList, f.documents);
-  const missing = daysUntil(f.waveStart);
-
+  const blocked = approvalBlocked(f.referenceCall);
   async function save() {
     setSaving(true);
     try {
-      await update({
-        data: {
-          applicationId: row.id,
-          waveStart: f.waveStart,
-          requestDate: f.requestDate,
-          hiringDate: f.hiringDate,
-          status: f.status as (typeof TRAINING_STATUSES)[number],
-          agreedSchedule: f.agreedSchedule,
-          comments: f.comments,
-          documents: f.documents,
-          ...(canEditReferences
-            ? { referenceCall: f.referenceCall as "pending" | "done" | "not_recommended", referenceDetails: f.referenceDetails }
-            : {}),
-        },
-      });
-      toast.success("Saved");
+      const changed = <K extends keyof Row>(key: K) => f[key] !== baseline[key] ? f[key] : undefined;
+      await update({ data: {
+        applicationId: row.id,
+        ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments") } : {}),
+        ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: f.documents } : {}),
+        ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails") } : {}),
+      } });
+      setBaseline(f);
+      toast.success("Guardado");
       await qc.invalidateQueries({ queryKey: ["training-roster"] });
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
-
-  return (
-    <div className={`rounded-lg border-2 bg-card p-4 ${blocked ? "border-destructive" : "border-border"}`}>
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-semibold">{row.fullName}</p>
-          <p className="text-sm text-muted-foreground">
-            {row.branch} · {row.country} · {row.phone} · {row.email}
-            {row.trainer && ` · Trainer: ${row.trainer}`}
-          </p>
-        </div>
-        {blocked ? (
-          <span className="flex items-center gap-1 rounded bg-destructive px-3 py-1 text-sm font-semibold text-destructive-foreground">
-            <AlertTriangle className="h-4 w-4" /> Approval pending — reference call
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 rounded bg-primary px-3 py-1 text-sm font-semibold text-primary-foreground">
-            <CheckCircle2 className="h-4 w-4" /> Approved — references called
-          </span>
-        )}
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <L label="Wave start"><Input type="date" value={f.waveStart ?? ""} onChange={(e) => setF({ ...f, waveStart: e.target.value })} /></L>
-        <L label="Missing days"><p className="py-2 font-semibold">{missing === null ? "—" : missing}</p></L>
-        <L label="Request date"><Input type="date" value={f.requestDate ?? ""} onChange={(e) => setF({ ...f, requestDate: e.target.value })} /></L>
-        <L label="Hiring date"><Input type="date" value={f.hiringDate ?? ""} onChange={(e) => setF({ ...f, hiringDate: e.target.value })} /></L>
-        <L label="Status">
-          <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-          </Select>
-        </L>
-      </div>
-
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <L label="Agreed schedule"><Input value={f.agreedSchedule} onChange={(e) => setF({ ...f, agreedSchedule: e.target.value })} /></L>
-        <L label="Comments"><Input value={f.comments} onChange={(e) => setF({ ...f, comments: e.target.value })} /></L>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <div>
-          <p className="mb-2 text-sm font-semibold">Documents received ({pct}%)</p>
-          {f.documentList.length ? (
-            f.documentList.map((d) => (
-              <label key={d} className="flex items-center gap-2 py-1 text-sm">
-                <Checkbox
-                  checked={!!f.documents[d]}
-                  onCheckedChange={(v) => setF({ ...f, documents: { ...f.documents, [d]: v === true } })}
-                />
-                {d}
-              </label>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No document list for this country.</p>
-          )}
-        </div>
-        <div className={`rounded-md p-3 ${blocked ? "bg-destructive/10" : "bg-muted"}`}>
-          <p className="mb-2 text-sm font-semibold">
-            Reference call (Recruitment) · {row.referencesVerified}/{row.referencesOnFile} references verified
-          </p>
-          <Select value={f.referenceCall} onValueChange={(v) => setF({ ...f, referenceCall: v })} disabled={!canEditReferences}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="done">Done — recommended</SelectItem>
-              <SelectItem value="not_recommended">Done — not recommended</SelectItem>
-            </SelectContent>
-          </Select>
-          <Textarea
-            className="mt-2"
-            placeholder="Reference details (who, company, rating, comments)"
-            value={f.referenceDetails}
-            disabled={!canEditReferences}
-            onChange={(e) => setF({ ...f, referenceDetails: e.target.value })}
-          />
-        </div>
-      </div>
-      <div className="mt-4 flex justify-end">
-        <Button onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
-      </div>
-    </div>
-  );
-}
-
-function L({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="mb-1 text-sm font-semibold text-muted-foreground">{label}</p>
-      {children}
-    </div>
-  );
+  const cell = "border-b border-r border-border px-3 py-3 align-top";
+  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
+  const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
+  return <tr className="bg-card">
+    <td className={`${cell} sticky left-0 z-10 bg-card`}><p className="max-w-56 font-semibold">{row.fullName}</p><p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
+    <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
+    <td className={cell}>{row.branch || "—"}</td>
+    <td className={cell}>{f.waveStart ? `${f.waveStart.slice(0, 4)} / ${f.waveStart.slice(5, 7)}` : "—"}</td>
+    <td className={cell}>{dateInput("waveStart", "Inicio de wave")}</td>
+    <td className={cell}>{daysUntil(f.waveStart) ?? "—"}</td>
+    <td className={cell}>{dateInput("requestDate", "Request date")}</td>
+    <td className={cell}>{dateInput("hiringDate", "Día de contratación")}</td>
+    <td className={cell}>{textInput("agreedSchedule", "Horario", p.canEditTraining)}</td>
+    <td className={cell}>{row.trainer || "—"}</td>
+    <td className={cell}>{textInput("comments", "Comments", p.canEditTraining)}</td>
+    <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
+    <td className={cell}>{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
+    <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
+    {docs.map((d) => {
+      const required = f.documentList.includes(d);
+      const received = f.documents[d] === true;
+      return <td key={d} className={`${cell} text-center ${required && !received ? "bg-destructive/10" : "bg-card text-foreground"}`}>{required ? <Checkbox aria-label={`${d} — ${row.fullName}`} title={`${d}: ${received ? "Entregado" : "Pendiente"}`} checked={received} disabled={!p.canEditDocuments} onCheckedChange={(v) => setF({ ...f, documents: { ...f.documents, [d]: v === true } })} className="border-foreground/50 data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background disabled:opacity-100" /> : <span className="text-muted-foreground">—</span>}</td>;
+    })}
+    <td className={`${cell} whitespace-nowrap`}>{row.phone}</td><td className={cell}><span className="whitespace-nowrap">{row.email}</span></td>
+    <td className={cell}><Button variant={dirty ? "default" : "ghost"} size="icon" aria-label={`Guardar — ${row.fullName}`} title="Guardar" onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}</Button></td>
+  </tr>;
 }
