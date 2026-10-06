@@ -366,7 +366,7 @@ function ReviewPage() {
 
   return (
     <main className="min-h-screen bg-secondary/30">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto max-w-[1500px] px-5 py-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -412,13 +412,16 @@ function ReviewPage() {
               </Button>
             </div>
           </div>
-          <nav className="mt-2 flex gap-1 overflow-x-auto pb-1">
+        </div>
+      </header>
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+          <nav className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-5 py-2">
             {NAV.map(([id, label]) => (
               <a
                 key={id}
                 href={`#${id}`}
                 className={cn(
-                  "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
                   active === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
                 )}
               >
@@ -426,8 +429,7 @@ function ReviewPage() {
               </a>
             ))}
           </nav>
-        </div>
-      </header>
+      </div>
 
       <div className="mx-auto grid max-w-[1200px] gap-5 px-5 py-5">
         <div className="min-w-0 space-y-4">
@@ -445,7 +447,7 @@ function ReviewPage() {
               <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
             ))}
 
-              <section id="recruitment-file" className="scroll-mt-40 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5">
+              <section id="recruitment-file" className="scroll-mt-16 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-xl font-bold">Recruitment interview and candidate file</h2>
                   {d.resumeUrl ? (
@@ -1067,7 +1069,7 @@ function ReviewPage() {
 
 function Part({ id, n, title, children }: { id: string; n: number; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-40 rounded-2xl border border-border bg-card">
+    <section id={id} className="scroll-mt-16 rounded-2xl border border-border bg-card">
       <header className="flex items-center gap-3 border-b border-border px-5 py-3">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
           {n}
@@ -1100,7 +1102,7 @@ function Item({
 function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {
   const st = MANAGER_STAGES.find((x) => x.id === id)!;
   return (
-    <section id={id} className="scroll-mt-40 rounded-xl border border-border bg-card">
+    <section id={id} className="scroll-mt-16 rounded-xl border border-border bg-card">
       <header className="flex items-center gap-3 border-b border-border px-4 py-2">
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{st.n}</span>
         <h2 className="text-lg font-semibold">{st.title}</h2>
