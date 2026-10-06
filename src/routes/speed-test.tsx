@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, Wifi } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
+import { measureSpeed } from "@/lib/speed-test-client";
 
 export const Route = createFileRoute("/speed-test")({
   head: () => ({
