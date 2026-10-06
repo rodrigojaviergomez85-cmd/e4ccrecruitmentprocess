@@ -1,0 +1,138 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { writeAudit } from "./audit.server";
+import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
+import { staffTier } from "./roles";
+import { trainingDocsFor } from "./candidate-emails";
+import { TRAINING_STATUSES, REFERENCE_CALL_VALUES } from "./training";
+
+async function ctxFor(userId: string) {
+  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+  const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", userId),
+    db.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
+    db.from("staff_countries").select("country_code").eq("user_id", userId),
+  ]);
+  const tier = staffTier((roles ?? []).map((r) => r.role as string));
+  if (!tier.canSignIn) throw new Error("You do not have access.");
+  if (profile && profile.active === false) throw new Error("Your account is deactivated.");
+  return {
+    db,
+    tier,
+    email: profile?.email ?? null,
+    allowedCountries: tier.isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+    canEditReferences: tier.isAdmin || tier.isRecruitment,
+    canEditTraining: tier.canSignIn,
+  };
+}
+
+export const listTrainingRoster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await ctxFor(context.userId);
+    let q = ctx.db
+      .from("applications")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), training_roster(*)")
+      .eq("status", "Approved for Training")
+      .is("archived_at", null);
+    if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).map((a) => {
+      const ev = [...(a.manager_evaluations ?? [])]
+        .filter((e) => e.final_decision === "Approved for Training")
+        .sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
+      const t = (ev?.evidence as Record<string, string> | null) ?? {};
+      const r = (Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null;
+      const modality = normalizeModality(t[AGREEMENT_KEYS.modality]);
+      const docs = trainingDocsFor(a.country_code)?.items ?? [];
+      const refs = a.work_references ?? [];
+      return {
+        id: a.id,
+        fullName: a.full_name,
+        email: a.email,
+        phone: a.phone,
+        country: a.country,
+        lob: (t[AGREEMENT_KEYS.lob] || "").trim() || "Sin LOB",
+        modality,
+        branch: (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
+        trainer: (t[TRAINING_KEYS.trainer] || "").trim(),
+        approvedAt: ev?.decided_at ?? null,
+        waveStart: r?.wave_start ?? (t[TRAINING_KEYS.startDate] || null),
+        requestDate: r?.request_date ?? null,
+        hiringDate: r?.hiring_date ?? null,
+        status: r?.status ?? "RECLUTADO",
+        agreedSchedule: r?.agreed_schedule || t[TRAINING_KEYS.schedule] || "",
+        comments: r?.comments ?? "",
+        documentList: docs,
+        documents: (r?.documents as Record<string, boolean> | null) ?? {},
+        referenceCall: r?.reference_call ?? "pending",
+        referenceDetails: r?.reference_details ?? "",
+        referencesOnFile: refs.length,
+        referencesVerified: refs.filter((x) => x.verification_status === "Verified").length,
+      };
+    });
+    rows.sort((x, y) => (x.waveStart ?? "9999").localeCompare(y.waveStart ?? "9999"));
+    return { rows, canEditReferences: ctx.canEditReferences };
+  });
+
+export const updateTrainingRow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        applicationId: z.string().uuid(),
+        waveStart: z.string().max(20).nullable().optional(),
+        requestDate: z.string().max(20).nullable().optional(),
+        hiringDate: z.string().max(20).nullable().optional(),
+        status: z.enum(TRAINING_STATUSES).optional(),
+        agreedSchedule: z.string().max(300).optional(),
+        comments: z.string().max(4000).optional(),
+        documents: z.record(z.string().max(200), z.boolean()).optional(),
+        referenceCall: z.enum(REFERENCE_CALL_VALUES).optional(),
+        referenceDetails: z.string().max(4000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId);
+    const { data: app } = await ctx.db.from("applications").select("id, country_code, status").eq("id", data.applicationId).maybeSingle();
+    if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? ""))
+      throw new Error("This candidate is outside your countries.");
+    const touchesRefs = data.referenceCall !== undefined || data.referenceDetails !== undefined;
+    if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
+    const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
+    const patch: Record<string, unknown> = {
+      application_id: app.id,
+      updated_by: context.userId,
+      wave_start: nd(data.waveStart),
+      request_date: nd(data.requestDate),
+      hiring_date: nd(data.hiringDate),
+      status: data.status,
+      agreed_schedule: data.agreedSchedule,
+      comments: data.comments,
+      documents: data.documents,
+      reference_call: data.referenceCall,
+      reference_details: data.referenceDetails,
+    };
+    if (data.referenceCall !== undefined) {
+      patch.reference_called_by = context.userId;
+      patch.reference_called_at = new Date().toISOString();
+    }
+    for (const k of Object.keys(patch)) if (patch[k] === undefined) delete patch[k];
+    const { error } = await ctx.db.from("training_roster").upsert(patch as never, { onConflict: "application_id" });
+    if (error) throw new Error(error.message);
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId,
+      actorEmail: ctx.email,
+      action: "training.updated",
+      entityType: "application",
+      entityId: app.id,
+      applicationId: app.id,
+      newValue: patch,
+    });
+    return { ok: true };
+  });
