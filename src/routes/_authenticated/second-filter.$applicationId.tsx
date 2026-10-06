@@ -1126,10 +1126,10 @@ function Guide({ children }: { children: React.ReactNode }) {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <p className="min-w-0 text-sm">
+    <div className="min-w-0">
       <span className="block text-sm font-semibold text-muted-foreground">{label}</span>
       <span className="break-words text-base">{value}</span>
-    </p>
+    </div>
   );
 }
 
