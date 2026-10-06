@@ -1,3 +1,4 @@
+/// <reference types="bun" />
 import { describe, test, expect } from "bun:test";
 import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent } from "./training";
 import { staffTier } from "./roles";

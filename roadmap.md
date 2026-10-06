@@ -23,5 +23,5 @@
 - [x] Rediseño de lectura Recruitment/Manager (encabezado, expediente completo, tarjetas de empleos, etapas con tiempos)
 - [x] Verificar permisos: sin sesión / aplicante no acceden a evaluaciones internas (pantalla, servidor, base de datos)
 - [x] Eliminar resumen duplicado; entrevista completa dentro de Reconfirmation, datos y casillas juntos; verificado visualmente sin modificar expedientes
-- [ ] Training Tracker en lista por ONLINE / EL SALVADOR / NICARAGUA / GUATEMALA, documentos en columnas con pendientes rojo suave
-- [ ] Definir y aplicar acceso de Generalistas para verificar documentos
+- [x] Training Tracker en lista por ONLINE / EL SALVADOR / NICARAGUA / GUATEMALA, documentos en columnas con pendientes rojo suave
+- [x] Nuevo rol Generalista para verificar documentos; permisos separados de Recruitment y Trainer, con pruebas
