@@ -214,7 +214,7 @@ export const createRequisition = createServerFn({ method: "POST" })
     };
     const { error } = await ctx.db.from("training_requisitions").insert(Array.from({ length: data.quantity }, () => row));
     if (error) throw new Error(error.message);
-    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: "requisition.created", entityType: "training_requisition", entityId: null as never, newValue: { ...row, quantity: data.quantity } });
+    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: "requisition.created", entityType: "training_requisition", entityId: null, newValue: { ...row, quantity: data.quantity } });
     return { ok: true };
   });
 

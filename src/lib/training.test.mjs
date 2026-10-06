@@ -1,12 +1,12 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 const expect = (actual) => ({ toBe: (expected) => assert.equal(actual, expected), toEqual: (expected) => assert.deepEqual(actual, expected) });
-import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent } from "./training.ts";
+import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent, requisitionSummary } from "./training.ts";
 import { staffTier } from "./roles.ts";
 
 describe("Training Tracker rules", () => {
   test("Generalistas verify documents without recruitment or training edits", () => {
-    expect(trainingPermissions(["generalista"])).toEqual({ canEditDocuments: true, canEditReferences: false, canEditTraining: false, trainingOnly: true });
+    expect(trainingPermissions(["generalista"])).toEqual({ canEditDocuments: true, canEditReferences: false, canEditTraining: false, canManageRequisitions: false, trainingOnly: true });
     expect(staffTier(["generalista"]).isStaff).toBe(false);
   });
   test("Recruitment owns reference calls, not document verification", () => {
@@ -14,7 +14,7 @@ describe("Training Tracker rules", () => {
     expect(trainingPermissions(["recruitment"]).canEditDocuments).toBe(false);
   });
   test("Trainers cannot verify references or documents", () => {
-    expect(trainingPermissions(["trainer"])).toEqual({ canEditDocuments: false, canEditReferences: false, canEditTraining: true, trainingOnly: true });
+    expect(trainingPermissions(["trainer"])).toEqual({ canEditDocuments: false, canEditReferences: false, canEditTraining: true, canManageRequisitions: false, trainingOnly: true });
   });
   test("Online has priority over country; onsite groups use countries", () => {
     expect(trainingGroup("online", "GT")).toBe("ONLINE");
@@ -30,5 +30,14 @@ describe("Training Tracker rules", () => {
   test("Only required received documents count toward completeness", () => {
     expect(documentsPercent(["DUI", "Diploma"], { DUI: true, Diploma: false, Other: true })).toBe(50);
     expect(documentsPercent(["DUI", "Diploma"], { DUI: true, Diploma: true })).toBe(100);
+  });
+});
+describe("requisitions", () => {
+  test("only full staff manage requisitions", () => {
+    expect(trainingPermissions(["recruitment"]).canManageRequisitions).toBe(true);
+    expect(trainingPermissions(["generalista"]).canManageRequisitions).toBe(false);
+  });
+  test("spots stay open until filled", () => {
+    expect(requisitionSummary([{ filledApplicationId: "a" }, { filledApplicationId: null }, { filledApplicationId: null }])).toEqual({ total: 3, filled: 1, open: 2 });
   });
 });
