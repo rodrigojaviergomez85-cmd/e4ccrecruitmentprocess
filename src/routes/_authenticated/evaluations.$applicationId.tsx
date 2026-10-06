@@ -120,9 +120,9 @@ const YES_NO = ["Yes", "No"];
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+      <Label className="text-sm font-semibold">{label}</Label>
       {children}
-      {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
@@ -555,9 +555,9 @@ function EvaluationForm() {
 
         <fieldset
           disabled={locked}
-          className="space-y-4 rounded-2xl border border-border bg-card p-5 disabled:opacity-90"
+          className="space-y-5 rounded-2xl border border-border bg-card p-6 text-base disabled:opacity-100 [&_textarea]:min-h-28 [&_textarea]:text-base [&_input]:text-base [&_textarea:disabled]:opacity-100 [&_input:disabled]:opacity-100"
         >
-          <h2 className="text-base font-semibold">{current.label}</h2>
+          <h2 className="text-xl font-bold">{current.label}</h2>
 
           {current.key === "candidate" && (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -876,7 +876,7 @@ function EvaluationForm() {
           {current.key === "english" && (
             <div className="space-y-5">
               <div className="space-y-3 rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold">Grammar Test</h3>
+                <h3 className="text-lg font-semibold">Grammar Test</h3>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Completed">
                     <Select
@@ -904,7 +904,7 @@ function EvaluationForm() {
                 Read to the candidate: “{ENGLISH_INTRO}”
               </p>
                <div className="space-y-3 rounded-xl border border-border p-4">
-                 <h3 className="text-sm font-semibold">B2 past-tense reading</h3>
+                 <h3 className="text-lg font-semibold">B2 past-tense reading</h3>
                  <p className="text-sm leading-6 text-foreground">{B2_PAST_READING}</p>
                  <Field
                    label="Reading observations"
@@ -918,7 +918,7 @@ function EvaluationForm() {
                  </Field>
                </div>
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Irregular verbs (5 to 10)</h3>
+                <h3 className="text-lg font-semibold">Irregular verbs (5 to 10)</h3>
                 <p className="text-xs text-muted-foreground">
                   Evaluated: {stats.evaluated} · Correct: {stats.correct} · Incorrect:{" "}
                   {stats.incorrect} · Accuracy: {stats.accuracy}%
@@ -990,7 +990,7 @@ function EvaluationForm() {
               </div>
 
               <div className="space-y-3 rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold">Class roleplay</h3>
+                <h3 className="text-lg font-semibold">Class roleplay</h3>
                 <Field
                   label="Observations"
                   hint="Topic assigned, teaching clarity, confidence, grammar accuracy and coach profile."
@@ -1092,7 +1092,7 @@ function EvaluationForm() {
               {jobs.map((job, i) => (
                 <div key={job.slot} className="space-y-3 rounded-xl border border-border p-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Position {i + 1}</h3>
+                    <h3 className="text-lg font-semibold">Position {i + 1}</h3>
                     {jobs.length > 1 && (
                       <Button
                         type="button"
@@ -1351,7 +1351,7 @@ function EvaluationForm() {
 
               {finalResult === "Not approved" && (
                 <div className="space-y-3">
-                  <Label className="text-xs">Reasons</Label>
+                  <Label className="text-sm font-semibold">Reasons</Label>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {NOT_APPROVED_REASONS.map((reason) => (
                       <label key={reason} className="flex items-center gap-2 text-sm">
@@ -1395,7 +1395,7 @@ function EvaluationForm() {
         </fieldset>
         {current.key === "result" && (
       <div className="rounded-xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold">Candidate result email</h3>
+        <h3 className="text-lg font-semibold">Candidate result email</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           The result email goes out automatically when you confirm and finish the interview,
           with the final filter details you entered. If the appointment is added after the approval
@@ -1672,7 +1672,7 @@ function EvaluationForm() {
             )}
             {finalResult === "Not approved" && (
               <div className="space-y-3">
-                <Label className="text-xs">Reasons</Label>
+                <Label className="text-sm font-semibold">Reasons</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {NOT_APPROVED_REASONS.map((reason) => (
                     <label key={reason} className="flex items-center gap-2 text-sm">
