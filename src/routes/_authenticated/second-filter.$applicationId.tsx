@@ -163,7 +163,6 @@ function ReviewPage() {
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [confirm, setConfirm] = useState(false);
   const [reviewed, setReviewed] = useState(false);
-  const [showFull, setShowFull] = useState(false);
   // Any change to the form after reviewing requires a new review.
   useEffect(() => { setReviewed(false); }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
   const [active, setActive] = useState<string>("reconfirmation");
@@ -982,11 +981,17 @@ function VerifyRow({ label, value, checked, onChange, children }: { label: strin
         {value !== undefined && <span className="whitespace-pre-wrap break-words text-base">{value}</span>}
         {children}
       </div>
-      <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm font-medium hover:bg-secondary">
-        <Checkbox aria-label={`Verify ${label}`} className="h-5 w-5 rounded-sm" checked={checked} onCheckedChange={(v) => onChange(v === true)} />
-        Verified
-      </label>
+      <VerifyBox label={label} checked={checked} onChange={onChange} />
     </div>
+  );
+}
+
+function VerifyBox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm font-medium hover:bg-secondary">
+      <Checkbox aria-label={`Verify ${label}`} className="h-5 w-5 rounded-sm" checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+      Verified
+    </label>
   );
 }
 
