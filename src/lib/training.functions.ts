@@ -6,7 +6,7 @@ import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
 import { staffTier } from "./roles";
 import { trainingDocsFor } from "./candidate-emails";
-import { TRAINING_STATUSES, REFERENCE_CALL_VALUES, trainingPermissions } from "./training";
+import { TRAINING_STATUSES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
 
 async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
@@ -147,5 +147,118 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       applicationId: app.id,
       newValue: patch,
     });
+    return { ok: true };
+  });
+
+const GROUP_COUNTRY: Record<string, string> = { "EL SALVADOR": "SV", NICARAGUA: "NI", GUATEMALA: "GT" };
+const groupAllowed = (group: string, allowed: string[] | null) =>
+  !allowed || group === "ONLINE" || allowed.includes(GROUP_COUNTRY[group] ?? "__none__");
+
+export const listRequisitions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    const { data, error } = await ctx.db
+      .from("training_requisitions")
+      .select("*, applications:filled_application_id(full_name)")
+      .order("wave_start", { ascending: true, nullsFirst: false })
+      .order("created_at");
+    if (error) throw new Error(error.message);
+    const spots = (data ?? [])
+      .filter((r) => groupAllowed(r.lob_group, ctx.allowedCountries))
+      .map((r) => ({
+        id: r.id,
+        group: r.lob_group,
+        branch: r.branch,
+        waveStart: r.wave_start,
+        requestDate: r.request_date,
+        spotType: r.spot_type,
+        agreedSchedule: r.agreed_schedule,
+        comments: r.comments,
+        filledApplicationId: r.filled_application_id,
+        filledName: (r.applications as { full_name: string } | null)?.full_name ?? null,
+        filledAt: r.filled_at,
+      }));
+    return { spots, canManage: ctx.canManageRequisitions };
+  });
+
+export const createRequisition = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        group: z.enum(["ONLINE", "EL SALVADOR", "NICARAGUA", "GUATEMALA"]),
+        branch: z.string().max(200),
+        waveStart: z.string().max(20).nullable(),
+        requestDate: z.string().max(20).nullable(),
+        spotType: z.enum(SPOT_TYPES),
+        agreedSchedule: z.string().max(300),
+        comments: z.string().max(4000),
+        quantity: z.number().int().min(1).max(50),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (!ctx.canManageRequisitions) throw new Error("You cannot add requisitions.");
+    if (!groupAllowed(data.group, ctx.allowedCountries)) throw new Error("This LOB is outside your countries.");
+    const row = {
+      lob_group: data.group,
+      branch: data.branch.trim(),
+      wave_start: data.waveStart || null,
+      request_date: data.requestDate || null,
+      spot_type: data.spotType,
+      agreed_schedule: data.agreedSchedule.trim(),
+      comments: data.comments.trim(),
+      created_by: context.userId,
+    };
+    const { error } = await ctx.db.from("training_requisitions").insert(Array.from({ length: data.quantity }, () => row));
+    if (error) throw new Error(error.message);
+    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: "requisition.created", entityType: "training_requisition", entityId: null as never, newValue: { ...row, quantity: data.quantity } });
+    return { ok: true };
+  });
+
+export const updateRequisition = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        action: z.enum(["fill", "release", "delete"]),
+        applicationId: z.string().uuid().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (!ctx.canManageRequisitions) throw new Error("You cannot change requisitions.");
+    const { data: spot } = await ctx.db.from("training_requisitions").select("*").eq("id", data.id).maybeSingle();
+    if (!spot || !groupAllowed(spot.lob_group, ctx.allowedCountries)) throw new Error("Requisition not found.");
+    if (data.action === "delete") {
+      if (spot.filled_application_id) throw new Error("Release the candidate before deleting this spot.");
+      const { error } = await ctx.db.from("training_requisitions").delete().eq("id", spot.id);
+      if (error) throw new Error(error.message);
+    } else if (data.action === "release") {
+      const { error } = await ctx.db.from("training_requisitions").update({ filled_application_id: null, filled_at: null, filled_by: null }).eq("id", spot.id);
+      if (error) throw new Error(error.message);
+    } else {
+      if (!data.applicationId) throw new Error("Choose a candidate.");
+      const { data: app } = await ctx.db.from("applications").select("id, country_code, status").eq("id", data.applicationId).maybeSingle();
+      if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
+      if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) throw new Error("This candidate is outside your countries.");
+      const { data: taken } = await ctx.db.from("training_requisitions").select("id").eq("filled_application_id", app.id).maybeSingle();
+      if (taken) throw new Error("This candidate already fills another spot.");
+      const now = new Date().toISOString();
+      const { error } = await ctx.db.from("training_requisitions").update({ filled_application_id: app.id, filled_at: now, filled_by: context.userId }).eq("id", spot.id).is("filled_application_id", null);
+      if (error) throw new Error(error.message);
+      const { data: existing } = await ctx.db.from("training_roster").select("*").eq("application_id", app.id).maybeSingle();
+      const roster: Record<string, unknown> = { application_id: app.id, updated_by: context.userId };
+      if (!existing?.wave_start && spot.wave_start) roster["wave_start"] = spot.wave_start;
+      if (!existing?.request_date && spot.request_date) roster["request_date"] = spot.request_date;
+      if (!existing?.hiring_date) roster["hiring_date"] = now.slice(0, 10);
+      if (!existing?.agreed_schedule && spot.agreed_schedule) roster["agreed_schedule"] = spot.agreed_schedule;
+      await ctx.db.from("training_roster").upsert(roster as never, { onConflict: "application_id" });
+    }
+    await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: `requisition.${data.action}`, entityType: "training_requisition", entityId: spot.id, applicationId: data.applicationId ?? spot.filled_application_id ?? undefined, newValue: data });
     return { ok: true };
   });
