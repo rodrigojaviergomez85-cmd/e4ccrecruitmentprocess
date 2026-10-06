@@ -18,3 +18,5 @@
 - [x] Limitar ambos videos de aplicacion a 1 minuto
 - [x] Compactar el record de Recruitment a una sola checklist y tabla de experiencia laboral
 - [x] Conservar completa la evaluacion propia del Manager (Grammar, Demo Class, Feedback, Retake y decision)
+- [x] Horarios de Training/Clases con listas desplegables (7 AM–10 PM, 5 min), resumen previo
+- [x] Aviso rojo de revisión y casilla obligatoria antes de Confirm and finish
