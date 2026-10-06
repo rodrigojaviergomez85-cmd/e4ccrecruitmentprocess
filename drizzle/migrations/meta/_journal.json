@@ -127,6 +127,13 @@
       "when": 1791306808292,
       "tag": "0017_restrict_training_only_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791308054668,
+      "tag": "0018_training_requisitions",
+      "breakpoints": true
     }
   ]
 }

@@ -1449,6 +1449,65 @@ export type Database = {
         }
         Relationships: []
       }
+      training_requisitions: {
+        Row: {
+          agreed_schedule: string
+          branch: string
+          comments: string
+          created_at: string
+          created_by: string | null
+          filled_application_id: string | null
+          filled_at: string | null
+          filled_by: string | null
+          id: string
+          lob_group: string
+          request_date: string | null
+          spot_type: string
+          updated_at: string
+          wave_start: string | null
+        }
+        Insert: {
+          agreed_schedule?: string
+          branch?: string
+          comments?: string
+          created_at?: string
+          created_by?: string | null
+          filled_application_id?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          lob_group: string
+          request_date?: string | null
+          spot_type?: string
+          updated_at?: string
+          wave_start?: string | null
+        }
+        Update: {
+          agreed_schedule?: string
+          branch?: string
+          comments?: string
+          created_at?: string
+          created_by?: string | null
+          filled_application_id?: string | null
+          filled_at?: string | null
+          filled_by?: string | null
+          id?: string
+          lob_group?: string
+          request_date?: string | null
+          spot_type?: string
+          updated_at?: string
+          wave_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_requisitions_filled_application_id_fkey"
+            columns: ["filled_application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_roster: {
         Row: {
           agreed_schedule: string
