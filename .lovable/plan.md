@@ -43,6 +43,13 @@ Acceso al CV y archivos en esta sección. Las verificaciones y notas del Manager
 - Preparar una entrevista de prueba marcada "TEST — DO NOT PROCESS" con varios empleos y comentarios largos; capturar Recruitment (formulario y finalizada) y Manager (resumen, entrevista completa, cierre) a 1280 px y en una pantalla de portátil (~1366 × 768) al 100 %.
 - Revisar: texto legible, respuestas completas, botones visibles, ningún campo cortado. Después, borrar los datos de prueba.
 
+## 7. Permisos y privacidad (sin cambios de acceso)
+- El rediseño es solo visual: no se amplían permisos ni se publica ningún expediente.
+- Recruitment, Manager y Admin ven las evaluaciones según su rol y países asignados, igual que hoy.
+- Un aplicante o un visitante sin sesión no puede ver entrevistas internas, comentarios, red flags, análisis del CV ni el panel, aunque tenga el enlace directo; solo conserva su propio flujo y documentos.
+- Se verificará en tres niveles: pantalla (redirección al iniciar sesión / acceso denegado), servidor (cada consulta exige sesión de personal activo, rol y país) y base de datos (reglas de acceso que bloquean a no-personal). Si alguna comprobación falla, se corrige en el mismo trabajo.
+- Prueba: abrir la URL de una evaluación sin sesión y con una cuenta sin rol de personal, y llamar directamente a las funciones de datos; las tres deben negar el acceso.
+
 ## Detalles técnicos
 - Nuevo componente compartido `src/components/recruitment/RecruitmentRecordView.tsx` (lectura por secciones, `JobCard`, `ReferenceCard`, `QA` con `whitespace-pre-wrap` y fallback "No registrado"), alimentado por los mismos `sections`, `evaluation_jobs`, `evaluation_verbs` y referencias que ya cargan ambas pantallas; no hay cambios en el servidor ni en la base de datos.
 - Nuevo `CandidateHeader` compartido con cuadrícula `grid-cols-[repeat(auto-fit,minmax(180px,1fr))]` y `min-w-0`.
