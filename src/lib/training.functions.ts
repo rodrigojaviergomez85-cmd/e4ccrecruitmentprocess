@@ -6,32 +6,37 @@ import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
 import { staffTier } from "./roles";
 import { trainingDocsFor } from "./candidate-emails";
-import { TRAINING_STATUSES, REFERENCE_CALL_VALUES } from "./training";
+import { TRAINING_STATUSES, REFERENCE_CALL_VALUES, trainingPermissions } from "./training";
 
-async function ctxFor(userId: string) {
-  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
-    db.from("user_roles").select("role").eq("user_id", userId),
-    db.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
-    db.from("staff_countries").select("country_code").eq("user_id", userId),
+    userDb.from("user_roles").select("role").eq("user_id", userId),
+    userDb.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
+    userDb.from("staff_countries").select("country_code").eq("user_id", userId),
   ]);
   const tier = staffTier((roles ?? []).map((r) => r.role as string));
   if (!tier.canSignIn) throw new Error("You do not have access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
+  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+  const [{ data: fullProfile, error: profileError }, { data: fullCountries, error: countryError }] = await Promise.all([
+    db.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
+    db.from("staff_countries").select("country_code").eq("user_id", userId),
+  ]);
+  if (profileError || countryError) throw new Error("Could not verify your access.");
+  if (fullProfile?.active === false) throw new Error("Your account is deactivated.");
   return {
     db,
     tier,
-    email: profile?.email ?? null,
-    allowedCountries: tier.isAdmin ? null : (countries ?? []).map((c) => c.country_code),
-    canEditReferences: tier.isAdmin || tier.isRecruitment,
-    canEditTraining: tier.canSignIn,
+    email: fullProfile?.email ?? null,
+    allowedCountries: tier.isAdmin ? null : (fullCountries ?? countries ?? []).map((c) => c.country_code),
+    ...trainingPermissions((roles ?? []).map((r) => r.role as string)),
   };
 }
 
 export const listTrainingRoster = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const ctx = await ctxFor(context.userId);
+    const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
       .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), training_roster(*)")
@@ -55,6 +60,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         email: a.email,
         phone: a.phone,
         country: a.country,
+        countryCode: a.country_code,
         lob: (t[AGREEMENT_KEYS.lob] || "").trim() || "Sin LOB",
         modality,
         branch: (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
@@ -75,7 +81,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
       };
     });
     rows.sort((x, y) => (x.waveStart ?? "9999").localeCompare(y.waveStart ?? "9999"));
-    return { rows, canEditReferences: ctx.canEditReferences };
+    return { rows, canEditReferences: ctx.canEditReferences, canEditDocuments: ctx.canEditDocuments, canEditTraining: ctx.canEditTraining, trainingOnly: ctx.trainingOnly };
   });
 
 export const updateTrainingRow = createServerFn({ method: "POST" })
@@ -97,13 +103,20 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const ctx = await ctxFor(context.userId);
+    const ctx = await ctxFor(context.userId, context.supabase);
     const { data: app } = await ctx.db.from("applications").select("id, country_code, status").eq("id", data.applicationId).maybeSingle();
     if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
     if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? ""))
       throw new Error("This candidate is outside your countries.");
     const touchesRefs = data.referenceCall !== undefined || data.referenceDetails !== undefined;
     if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
+    if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
+    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments].some((v) => v !== undefined);
+    if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
+    if (data.documents) {
+      const allowed = trainingDocsFor(app.country_code)?.items ?? [];
+      if (Object.keys(data.documents).some((key) => !allowed.includes(key))) throw new Error("Unknown document for this candidate.");
+    }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
     const patch: Record<string, unknown> = {
       application_id: app.id,

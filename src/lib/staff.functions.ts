@@ -69,7 +69,7 @@ export const getStaffContext = createServerFn({ method: "GET" })
     }
     return {
       isStaff: tier.canSignIn && active,
-      isTrainerOnly: !tier.isStaff && tier.isTrainer,
+      isTrainerOnly: !tier.isStaff && (tier.isTrainer || tier.isGeneralista),
       active,
       roles: roleList,
       role: tier.primary,

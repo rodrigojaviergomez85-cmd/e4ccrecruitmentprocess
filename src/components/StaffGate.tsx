@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
@@ -17,6 +17,7 @@ import { getStaffContext } from "@/lib/staff.functions";
  */
 export function StaffGate({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const pathname = useLocation({ select: (location) => location.pathname });
   const fetchContext = useServerFn(getStaffContext);
   const { data, isPending, isError, refetch, isFetching } = useQuery({
     queryKey: ["staff-context"],
@@ -40,10 +41,10 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
       void navigate({ to: "/change-password", replace: true });
       return;
     }
-    if (data.isTrainerOnly && !window.location.pathname.startsWith("/training")) {
+    if (data.isTrainerOnly && pathname !== "/training") {
       void navigate({ to: "/training", replace: true });
     }
-  }, [data, isError, isPending, navigate]);
+  }, [data, isError, isPending, navigate, pathname]);
 
   if (isError) {
     return (
@@ -58,7 +59,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isPending || !data?.isStaff || data.mustChangePassword) {
+  if (isPending || !data?.isStaff || data.mustChangePassword || (data.isTrainerOnly && pathname !== "/training")) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

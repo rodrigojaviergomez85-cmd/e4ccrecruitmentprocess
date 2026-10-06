@@ -1,3 +1,21 @@
+import { staffTier } from "./roles";
+
+export const TRAINING_GROUPS = ["ONLINE", "EL SALVADOR", "NICARAGUA", "GUATEMALA"] as const;
+export function trainingGroup(modality: string | null, countryCode: string | null) {
+  if (modality === "online") return "ONLINE";
+  return ({ SV: "EL SALVADOR", NI: "NICARAGUA", GT: "GUATEMALA" } as Record<string, string>)[countryCode ?? ""] ?? "OTROS";
+}
+
+export function trainingPermissions(roles: readonly string[]) {
+  const t = staffTier(roles);
+  return {
+    canEditDocuments: t.isAdmin || t.isGeneralista,
+    canEditReferences: t.isAdmin || t.isRecruitment,
+    canEditTraining: t.isStaff || t.isTrainer,
+    trainingOnly: t.canSignIn && !t.isStaff,
+  };
+}
+
 export const TRAINING_STATUSES = [
   "RECLUTADO",
   "IN TRAINING",
