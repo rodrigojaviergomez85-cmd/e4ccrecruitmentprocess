@@ -382,22 +382,24 @@ function ReviewPage() {
                   </span>
                 )}
               </div>
-              <dl className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-x-5 gap-y-2">
-                <Fact label="Country" value={shown(app.country)} />
-                <Fact label="Modality" value={shown(p?.work_modality)} />
-                <Fact label="Branch / city" value={shown(app.city)} />
-                <Fact label="Email" value={shown(app.email)} />
-                <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
-                <Fact label="Recruiter" value={recruiterName} />
-                <Fact label="Manager" value={shown(managerName)} />
-                <Fact label="Grammar Test" value={grammarScore} />
-                <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
-                <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
-                <Fact label="First interview" value={fmt(interview?.submitted_at)} />
-                {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
-                  <Fact label="Final interview" value={`${ff.details.date} · ${ff.details.time} · ${ff.details.interviewer}${ff.details.location ? ` · ${ff.details.location}` : ""}`} />
-                ) : null; })()}
-              </dl>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
+                  <Fact label="Country" value={shown(app.country)} />
+                  <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
+                  <div className="sm:col-span-2"><Fact label="Email" value={shown(app.email)} /></div>
+                </dl>
+                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
+                  <Fact label="Recruiter" value={recruiterName} />
+                  <Fact label="Manager" value={shown(managerName)} />
+                  <Fact label="Grammar Test" value={grammarScore} />
+                  <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
+                  <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
+                  <Fact label="First interview" value={fmt(interview?.submitted_at)} />
+                  {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
+                    <div className="sm:col-span-2"><Fact label="Final interview" value={`${ff.details.date} · ${ff.details.time} · ${ff.details.interviewer}${ff.details.location ? ` · Interview location: ${ff.details.location}` : ""}`} /></div>
+                  ) : null; })()}
+                </dl>
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {d.resumeUrl ? (
@@ -727,38 +729,35 @@ function ReviewPage() {
               </section>
               <Stage id="reconfirmation">
                 <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
-                <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                  <Fact label="Class schedule" value={answer("candidate", "schedule")} />
-                  <Fact label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
-                  <Fact label="Training start (Recruitment)" value={shown(trainingDefaults[TRAINING_KEYS.startDate])} />
-                  <Fact label="Modality / branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} />
-                  <Fact label="Current job / routine" value={answer("profile", "routine_answer")} />
-                  <Fact label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
-                  {isOnline && (
-                    <Fact
-                      label="Internet"
-                      value={p?.internet_download_mbps != null ? `${p.internet_download_mbps}↓ / ${p.internet_upload_mbps ?? "—"}↑ Mbps · ${p.internet_test_passed ? "Passed" : p.internet_override ? "Override" : "Below minimum"}` : "Not evaluated"}
-                    />
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-x-5 gap-y-2">
-                  {RECONFIRM_CHECKS.filter(([k]) => k !== "equipment" || isOnline).map(([k, label]) => (
-                    <label key={k} className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={Boolean(form.checks[k])} onCheckedChange={(v) => set({ checks: { ...form.checks, [k]: v === true } })} />
-                      {label}
-                    </label>
-                  ))}
-                  {!isOnline && <span className="text-xs text-muted-foreground">Equipment and internet: N/A (Onsite)</span>}
-                </div>
-                <div className="grid gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-                  <div>
-                    <Label className="text-sm font-semibold">Training start date (confirm or correct)</Label>
-                    <Input value={tv(TRAINING_KEYS.startDate)} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-semibold">Reconfirmation Comments</Label>
-                    <Textarea rows={2} value={note(STAGE_NOTE_KEYS.reconfirmation)} onChange={(e) => setNote(STAGE_NOTE_KEYS.reconfirmation, e.target.value)} />
-                  </div>
+                {(() => {
+                  const chk = (k: string) => ({ checked: Boolean(form.checks[k]), onChange: (v: boolean) => set({ checks: { ...form.checks, [k]: v } }) });
+                  const recStart = shown(trainingDefaults[TRAINING_KEYS.startDate]);
+                  const curStart = tv(TRAINING_KEYS.startDate);
+                  return (
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <VerifyRow label="Class schedule" value={answer("candidate", "schedule")} {...chk("schedule")} />
+                      <VerifyRow label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} {...chk("availability")} />
+                      <VerifyRow label="Modality and job branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} {...chk("modality")} />
+                      <VerifyRow label="Current job and schedule compatibility" value={answer("profile", "routine_answer")} {...chk("current_job")} />
+                      <VerifyRow label="Work history and references" value={`${jobs.length} jobs · ${d.references.length} references`} {...chk("work_info")} />
+                      <VerifyRow label="Training start date" {...chk("training_start")}>
+                        <Input className="mt-1 max-w-xs text-base" value={curStart} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
+                        {recStart !== curStart && <span className="mt-1 block text-sm text-muted-foreground">Recorded by Recruitment: {recStart}</span>}
+                      </VerifyRow>
+                      <VerifyRow label="Red flags and pending inconsistencies" value={recruitmentFlags || "None recorded"} {...chk("red_flags")} />
+                      {isOnline ? (
+                        <VerifyRow
+                          label="Equipment and internet"
+                          value={p?.internet_download_mbps != null ? `${p.internet_download_mbps}↓ / ${p.internet_upload_mbps ?? "—"}↑ Mbps · ${p.internet_test_passed ? "Passed" : p.internet_override ? "Override" : "Below minimum"}` : "Not evaluated"}
+                          {...chk("equipment")}
+                        />
+                      ) : null}
+                    </div>
+                  );
+                })()}
+                <div>
+                  <Label className="text-sm font-semibold">Reconfirmation Comments</Label>
+                  <Textarea rows={3} className="text-base" value={note(STAGE_NOTE_KEYS.reconfirmation)} onChange={(e) => setNote(STAGE_NOTE_KEYS.reconfirmation, e.target.value)} />
                 </div>
               </Stage>
 
@@ -1124,6 +1123,22 @@ function QA({ label, value }: { label: string; value: string }) {
 
 function Guide({ children }: { children: React.ReactNode }) {
   return <p className="rounded-md border-l-4 border-primary bg-primary/5 px-3 py-2 text-sm">{children}</p>;
+}
+
+function VerifyRow({ label, value, checked, onChange, children }: { label: string; value?: string; checked: boolean; onChange: (v: boolean) => void; children?: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border bg-background p-3">
+      <div className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-muted-foreground">{label}</span>
+        {value !== undefined && <span className="whitespace-pre-wrap break-words text-base">{value}</span>}
+        {children}
+      </div>
+      <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm font-medium hover:bg-secondary">
+        <Checkbox className="h-5 w-5 rounded-sm" checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+        Verified
+      </label>
+    </div>
+  );
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
