@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, Wifi } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
+import { measureSpeed } from "@/lib/speed-test-client";
 
 export const Route = createFileRoute("/speed-test")({
   head: () => ({
@@ -30,125 +31,14 @@ function SpeedTestPage() {
   async function runTest() {
     setTesting(true);
     setError("");
-    setLive("Starting…");
+    setResult(null);
+    setLive("Measuring…");
     try {
-      const CF = "https://speed.cloudflare.com";
-      const median = (a: number[]) => {
-        const s = [...a].sort((x, y) => x - y);
-        return s[Math.floor(s.length / 2)] ?? 0;
-      };
-      let ping = 0,
-        dl = 0,
-        ul = 0;
-      try {
-        setLive("Measuring ping…");
-        const pings: number[] = [];
-        for (let i = 0; i < 8; i++) {
-          const t = performance.now();
-          const r = await fetch(`${CF}/__down?bytes=0&r=${Math.random()}`, { cache: "no-store" });
-          await r.arrayBuffer();
-          pings.push(performance.now() - t);
-        }
-        ping = median(pings.slice(1));
-
-        const start = performance.now();
-        const endAt = start + 8000;
-        let bytes = 0;
-        let measuredFrom = 0;
-        let measuredBytes = 0;
-        const worker = async () => {
-          let size = 1_000_000;
-          while (performance.now() < endAt) {
-            const r = await fetch(`${CF}/__down?bytes=${size}&r=${Math.random()}`, { cache: "no-store" });
-            const reader = r.body!.getReader();
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              bytes += value.byteLength;
-              const now = performance.now();
-              if (now - start > 1000) {
-                if (!measuredFrom) {
-                  measuredFrom = now;
-                  measuredBytes = bytes;
-                } else {
-                  const mbps = ((bytes - measuredBytes) * 8) / ((now - measuredFrom) / 1000) / 1e6;
-                  setLive(`Testing download… ${mbps.toFixed(0)} Mbps`);
-                }
-              }
-              if (now > endAt) {
-                void reader.cancel();
-                break;
-              }
-            }
-            size = Math.min(size * 2, 25_000_000);
-          }
-        };
-        setLive("Testing download…");
-        await Promise.all(Array.from({ length: 6 }, worker));
-        dl = measuredFrom
-          ? ((bytes - measuredBytes) * 8) / ((performance.now() - measuredFrom) / 1000) / 1e6
-          : 0;
-
-        setLive("Testing upload…");
-        const uStart = performance.now();
-        const uEnd = uStart + 6000;
-        let sent = 0;
-        const blob = new Uint8Array(5_000_000);
-        const upWorker = async () => {
-          while (performance.now() < uEnd) {
-            const r = await fetch(`${CF}/__up?r=${Math.random()}`, {
-              method: "POST",
-              body: blob,
-              cache: "no-store",
-            });
-            await r.arrayBuffer();
-            sent += blob.byteLength;
-            setLive(
-              `Testing upload… ${((sent * 8) / ((performance.now() - uStart) / 1000) / 1e6).toFixed(0)} Mbps`,
-            );
-          }
-        };
-        await Promise.all(Array.from({ length: 4 }, upWorker));
-        ul = (sent * 8) / ((performance.now() - uStart) / 1000) / 1e6;
-        if (!dl || !ul) throw new Error("empty");
-      } catch {
-        // Fallback: our own endpoint so the user is never blocked.
-        setLive("Testing…");
-        const t0 = performance.now();
-        await fetch(`/api/public/speed-test?ping=${Date.now()}`, {
-          method: "POST",
-          body: "x",
-          cache: "no-store",
-        });
-        ping = performance.now() - t0;
-        const t1 = performance.now();
-        const sizes = await Promise.all(
-          Array.from({ length: 4 }, (_, i) =>
-            fetch(`/api/public/speed-test?d=${Date.now()}-${i}`, { cache: "no-store" })
-              .then((r) => r.arrayBuffer())
-              .then((b) => b.byteLength),
-          ),
-        );
-        dl =
-          (sizes.reduce((a, b) => a + b, 0) * 8) /
-          Math.max((performance.now() - t1) / 1000, 0.05) /
-          1e6;
-        const chunk = new Uint8Array(2 * 1024 * 1024);
-        const t2 = performance.now();
-        await Promise.all(
-          Array.from({ length: 4 }, () =>
-            fetch("/api/public/speed-test", { method: "POST", body: chunk, cache: "no-store" }),
-          ),
-        );
-        ul = (chunk.byteLength * 4 * 8) / Math.max((performance.now() - t2) / 1000, 0.05) / 1e6;
-      }
-      const r1 = (n: number) => Math.round(n * 10) / 10;
-      setResult({ download: r1(dl), upload: r1(ul), ping: Math.round(ping) });
-      setLive("");
+      setResult(await measureSpeed(setLive));
     } catch {
       setError("We could not complete the speed test. Please try again.");
-      setLive("");
     } finally {
+      setLive("");
       setTesting(false);
     }
   }
