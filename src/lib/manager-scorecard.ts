@@ -236,6 +236,12 @@ export function confirmedModality(evidence: Record<string, string> | null | unde
   return normalizeModality(evidence?.[AGREEMENT_KEYS.modality]);
 }
 
+/** Structured (dropdown) schedules; the readable text is kept in the original keys. */
+export const SCHEDULE_STRUCT_KEYS = {
+  training: "training:schedule_struct",
+  classes: "agreement:class_schedule_struct",
+} as const;
+
 export function missingTraining(evidence: Record<string, string>, isOnline: boolean): string[] {
   const t = (k: string) => (evidence[k] ?? "").trim();
   const out: string[] = [];
@@ -245,11 +251,12 @@ export function missingTraining(evidence: Record<string, string>, isOnline: bool
   if (isOnline) {
     if (!t(TRAINING_KEYS.zoom)) out.push("Zoom link");
   } else {
-    if (!t(TRAINING_KEYS.schedule)) out.push("Training days and schedule");
+    // Legacy free-text schedules must be re-selected with the dropdowns.
+    if (!t(TRAINING_KEYS.schedule) || !t(SCHEDULE_STRUCT_KEYS.training)) out.push("Training days and schedule");
     if (!t(TRAINING_KEYS.branch)) out.push("Training branch");
     if (!t(AGREEMENT_KEYS.lob)) out.push("LOB / position type");
     if (t(AGREEMENT_KEYS.classSameBranch) !== "yes" && !t(AGREEMENT_KEYS.classBranch)) out.push("Assigned class branch");
-    if (!t(AGREEMENT_KEYS.classSchedule)) out.push("Class days and schedule");
+    if (!t(AGREEMENT_KEYS.classSchedule) || !t(SCHEDULE_STRUCT_KEYS.classes)) out.push("Class days and schedule");
   }
   return out;
 }
