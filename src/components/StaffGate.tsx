@@ -38,6 +38,10 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     }
     if (data.mustChangePassword) {
       void navigate({ to: "/change-password", replace: true });
+      return;
+    }
+    if (data.isTrainerOnly && !window.location.pathname.startsWith("/training")) {
+      void navigate({ to: "/training", replace: true });
     }
   }, [data, isError, isPending, navigate]);
 
