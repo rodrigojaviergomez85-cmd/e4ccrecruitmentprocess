@@ -22,3 +22,4 @@
 - [x] Aviso rojo de revisión y casilla obligatoria antes de Confirm and finish
 - [x] Rediseño de lectura Recruitment/Manager (encabezado, expediente completo, tarjetas de empleos, etapas con tiempos)
 - [x] Verificar permisos: sin sesión / aplicante no acceden a evaluaciones internas (pantalla, servidor, base de datos)
+- [x] Eliminar resumen duplicado; entrevista completa dentro de Reconfirmation, datos y casillas juntos; verificado visualmente sin modificar expedientes
