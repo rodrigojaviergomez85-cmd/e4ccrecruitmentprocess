@@ -58,6 +58,8 @@ export const Route = createFileRoute("/_authenticated/second-filter/$application
       { name: "description", content: "Six-stage Manager final interview for E4CC candidates." },
       { property: "og:title", content: "Manager Final Interview — E4CC" },
       { property: "og:description", content: "Internal E4CC Manager final interview." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: ReviewPage,
@@ -363,119 +365,8 @@ function ReviewPage() {
     />
   );
 
-  return (
-    <main className="min-h-screen bg-secondary/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto max-w-[1500px] px-5 py-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3">
-                <BrandMark className="h-6 shrink-0" />
-                <h1 className="truncate text-2xl font-bold">{app.full_name}</h1>
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                  {app.status}
-                </span>
-                {app.withdrawn_at && (
-                  <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
-                    Withdrawn by applicant
-                  </span>
-                )}
-              </div>
-              <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
-                  <Fact label="Country" value={shown(app.country)} />
-                  <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
-                  <div className="sm:col-span-2"><Fact label="Email" value={shown(app.email)} /></div>
-                </dl>
-                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
-                  <Fact label="Recruiter" value={recruiterName} />
-                  <Fact label="Manager" value={shown(managerName)} />
-                  <Fact label="Grammar Test" value={grammarScore} />
-                  <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
-                  <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
-                  <Fact label="First interview" value={fmt(interview?.submitted_at)} />
-                  {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
-                    <div className="sm:col-span-2"><Fact label="Final interview" value={`${ff.details.date} · ${ff.details.time} · ${ff.details.interviewer}${ff.details.location ? ` · Interview location: ${ff.details.location}` : ""}`} /></div>
-                  ) : null; })()}
-                </dl>
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {d.resumeUrl ? (
-                <Button asChild variant="outline" size="sm">
-                  <a href={d.resumeUrl} target="_blank" rel="noreferrer">Open CV <ExternalLink className="ml-2 h-4 w-4" /></a>
-                </Button>
-              ) : (
-                <span className="text-xs text-muted-foreground">CV not uploaded</span>
-              )}
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/second-filter"><ArrowLeft className="mr-2 h-4 w-4" /> Queue</Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-          <nav className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-5 py-2">
-            {NAV.map(([id, label]) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className={cn(
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-                  active === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
-                )}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-      </div>
-
-      <div className="mx-auto grid max-w-[1200px] gap-5 px-5 py-5">
-        <div className="min-w-0 space-y-4">
-          {app.withdrawn_at && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
-              <p className="font-semibold">Withdrawn by Applicant · {fmt(app.withdrawn_at)} · Stage: manager_final_filter</p>
-              {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
-            </div>
-          )}
-
-          {!current &&
-            (d.access.canDecide ? (
-              <Button onClick={() => void onStart()}>Start evaluation</Button>
-            ) : (
-              <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
-            ))}
-
-              <section id="recruitment-file" className="scroll-mt-16 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-xl font-bold">Recruitment interview and candidate file</h2>
-                  {d.resumeUrl ? (
-                    <Button asChild variant="outline"><a href={d.resumeUrl} target="_blank" rel="noreferrer">Open CV <ExternalLink className="ml-2 h-4 w-4" /></a></Button>
-                  ) : <span className="text-sm text-muted-foreground">CV not uploaded</span>}
-                </div>
-                <dl className="grid gap-x-6 gap-y-3 md:grid-cols-2 xl:grid-cols-3">
-                  <QA label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} />
-                  <QA label="Class schedule requested" value={answer("candidate", "schedule")} />
-                  <QA label="Training start (Recruitment)" value={answer("profile", "training_start")} />
-                  <QA label="Teaching experience" value={`${answer("profile", "teaching_experience")} · ${shown(app.teaching_experience)}`} />
-                  <QA label="Call center experience" value={`${answer("profile", "callcenter_experience")} · ${shown(app.callcenter_experience_level)}`} />
-                  <QA label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
-                  <QA label="Jobs / references" value={`${jobs.length} jobs · ${d.references.length} references`} />
-                  <QA label="Pending verification" value={[
-                    ...d.references.filter((r) => !/verified/i.test(String(r.verification_status ?? ""))).map((r) => `Reference: ${shown(r.company)}`),
-                    ...jobs.filter((j) => String(j.gap_explanation ?? "").trim()).map((j) => `Gap: ${shown(j.company)}`),
-                  ].join("\n") || "Nothing pending"} />
-                </dl>
-                <div className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-4">
-                  <p className="flex items-center gap-2 text-base font-semibold text-destructive"><AlertTriangle className="h-5 w-5 shrink-0" /> Red flags from Recruitment — internal, never sent to the candidate</p>
-                  <p className="mt-1 whitespace-pre-wrap text-base">{recruitmentFlags || "None reported"}</p>
-                </div>
-                <Button type="button" size="lg" variant={showFull ? "outline" : "default"} className="w-full sm:w-auto" onClick={() => setShowFull((v) => !v)}>
-                  {showFull ? "Hide full Recruitment interview" : "View full Recruitment interview"}
-                </Button>
-                {showFull && (
+  const recruitmentDetails = (<>
+{showFull && (
                   <fieldset disabled className="min-w-0 space-y-4">
               <Part id="perfil" n={1} title="Profile, modality and availability">
                 {item("perfil.modality", "Work modality", shown(p?.work_modality ?? S["candidate"]?.["lob"]))}
@@ -707,10 +598,97 @@ function ReviewPage() {
               </Part>
                   </fieldset>
                 )}
-              </section>
+  </>);
+
+  return (
+    <main className="min-h-screen bg-secondary/30">
+      <header className="border-b border-border bg-background">
+        <div className="mx-auto max-w-[1500px] px-5 py-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <BrandMark className="h-6 shrink-0" />
+                <h1 className="truncate text-2xl font-bold">{app.full_name}</h1>
+                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                  {app.status}
+                </span>
+                {app.withdrawn_at && (
+                  <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                    Withdrawn by applicant
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
+                  <Fact label="Country" value={shown(app.country)} />
+                  <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
+                  <div className="sm:col-span-2"><Fact label="Email" value={shown(app.email)} /></div>
+                </dl>
+                <dl className="grid gap-x-5 gap-y-2 rounded-xl border bg-card p-3 sm:grid-cols-2">
+                  <Fact label="Recruiter" value={recruiterName} />
+                  <Fact label="Manager" value={shown(managerName)} />
+                  <Fact label="Grammar Test" value={grammarScore} />
+                  <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
+                  <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
+                  <Fact label="First interview" value={fmt(interview?.submitted_at)} />
+                  {(() => { const ff = readFinalFilter(S["result"]); return ff.state === "complete" ? (
+                    <div className="sm:col-span-2"><Fact label="Final interview" value={`${ff.details.date} · ${ff.details.time} · ${ff.details.interviewer}${ff.details.location ? ` · Interview location: ${ff.details.location}` : ""}`} /></div>
+                  ) : null; })()}
+                </dl>
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {d.resumeUrl ? (
+                <Button asChild variant="outline" size="sm">
+                  <a href={d.resumeUrl} target="_blank" rel="noreferrer">Open CV <ExternalLink className="ml-2 h-4 w-4" /></a>
+                </Button>
+              ) : (
+                <span className="text-xs text-muted-foreground">CV not uploaded</span>
+              )}
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/second-filter"><ArrowLeft className="mr-2 h-4 w-4" /> Queue</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+          <nav className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-5 py-2">
+            {NAV.map(([id, label]) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className={cn(
+                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  active === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary",
+                )}
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+      </div>
+
+      <div className="mx-auto grid max-w-[1200px] gap-5 px-5 py-5">
+        <div className="min-w-0 space-y-4">
+          {app.withdrawn_at && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm">
+              <p className="font-semibold">Withdrawn by Applicant · {fmt(app.withdrawn_at)} · Stage: manager_final_filter</p>
+              {app.withdrawn_reason && <p className="mt-1 italic">“{app.withdrawn_reason}”</p>}
+            </div>
+          )}
+
+          {!current &&
+            (d.access.canDecide ? (
+              <Button onClick={() => void onStart()}>Start evaluation</Button>
+            ) : (
+              <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
+            ))}
+
+
 
           {form && (
-            <fieldset disabled={!editable} className="min-w-0 space-y-4">
+            <div className="min-w-0 space-y-4">
               {locked && (
                 <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
                   <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
@@ -726,24 +704,32 @@ function ReviewPage() {
                 <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
                 <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
               </section>
-              <Stage id="reconfirmation">
+              <Stage id="reconfirmation" disabled={!editable} before={
+                  <>
+                    <Button type="button" size="lg" variant={showFull ? "outline" : "default"} className="w-full sm:w-auto" aria-expanded={showFull} aria-controls="recruitment-details" onClick={() => setShowFull((v) => !v)}>
+                      {showFull ? "Hide full Recruitment interview" : "View full Recruitment interview"}
+                    </Button>
+                    <div id="recruitment-details">{recruitmentDetails}</div>
+                  </>
+                }>
                 <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
                 {(() => {
                   const chk = (k: string) => ({ checked: Boolean(form.checks[k]), onChange: (v: boolean) => set({ checks: { ...form.checks, [k]: v } }) });
-                  const recStart = shown(trainingDefaults[TRAINING_KEYS.startDate]);
                   const curStart = tv(TRAINING_KEYS.startDate);
                   return (
-                    <div className="grid gap-3 lg:grid-cols-2">
+                    <div className="divide-y divide-border">
                       <VerifyRow label="Class schedule" value={answer("candidate", "schedule")} {...chk("schedule")} />
                       <VerifyRow label="Availability" value={`${answer("profile", "availability_required")} · ${answer("profile", "main_schedule")}`} {...chk("availability")} />
                       <VerifyRow label="Modality and job branch" value={`${shown(p?.work_modality ?? S["candidate"]?.["lob"])} · ${shown(app.city)}`} {...chk("modality")} />
                       <VerifyRow label="Current job and schedule compatibility" value={answer("profile", "routine_answer")} {...chk("current_job")} />
                       <VerifyRow label="Work history and references" value={`${jobs.length} jobs · ${d.references.length} references`} {...chk("work_info")} />
                       <VerifyRow label="Training start date" {...chk("training_start")}>
-                        <Input className="mt-1 max-w-xs text-base" value={curStart} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
-                        {recStart !== curStart && <span className="mt-1 block text-sm text-muted-foreground">Recorded by Recruitment: {recStart}</span>}
+                        <Input aria-label="Training start date" className="mt-1 max-w-xs text-base" value={curStart} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
                       </VerifyRow>
-                      <VerifyRow label="Red flags and pending inconsistencies" value={recruitmentFlags || "None recorded"} {...chk("red_flags")} />
+                      <VerifyRow label="Red flags and pending inconsistencies" {...chk("red_flags")}>
+                        <p className="mt-1 flex items-center gap-2 text-base font-semibold text-destructive"><AlertTriangle className="h-5 w-5 shrink-0" /> Internal — never sent to the candidate</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-base text-destructive">{recruitmentFlags || "None recorded"}</p>
+                      </VerifyRow>
                       {isOnline ? (
                         <VerifyRow
                           label="Equipment and internet"
@@ -760,7 +746,7 @@ function ReviewPage() {
                 </div>
               </Stage>
 
-              <Stage id="grammar">
+              <Stage id="grammar" disabled={!editable}>
                 <Guide>Evaluate Simple Present, Present Progressive, Simple Past and Past Progressive: use, structure and an example. Then ask the candidate to identify, correct and explain intermediate-level errors.</Guide>
                 <div>
                   <Label className="text-sm font-semibold">Comments (grammar, comprehension, fluency, pronunciation)</Label>
@@ -768,7 +754,7 @@ function ReviewPage() {
                 </div>
               </Stage>
 
-              <Stage id="demo">
+              <Stage id="demo" disabled={!editable}>
                 <Guide>Assign a topic. Observe without interrupting or completing the candidate’s ideas. Look at accuracy, clarity, interaction, checking questions, correction, energy and time management.</Guide>
                 <div className="space-y-3">
                   <div className="max-w-md">
@@ -782,7 +768,7 @@ function ReviewPage() {
                 </div>
               </Stage>
 
-              <Stage id="feedback">
+              <Stage id="feedback" disabled={!editable}>
                 <Guide>Identify 1–2 areas for improvement. Ask permission to provide open and honest feedback.</Guide>
                 <div>
                   <Label className="text-sm font-semibold">Feedback Given (and the action to apply in the retake)</Label>
@@ -790,7 +776,7 @@ function ReviewPage() {
                 </div>
               </Stage>
 
-              <Stage id="retake">
+              <Stage id="retake" disabled={!editable}>
                 <Guide>Look for visible, specific improvement in the repeated demonstration. This is part of the interview — it does not change the candidate status or send emails.</Guide>
                 <div>
                   <Label className="text-sm font-semibold">Observed Improvement / Coachability Comments</Label>
@@ -798,7 +784,7 @@ function ReviewPage() {
                 </div>
               </Stage>
 
-              <Stage id="closing">
+              <Stage id="closing" disabled={!editable}>
                 <div className="rounded-lg bg-secondary/50 p-3 text-sm">
                   <p className="text-xs font-semibold text-muted-foreground">Recruitment final comments (read only)</p>
                   <p className="whitespace-pre-wrap">{shown(interview?.comments)}</p>
@@ -835,7 +821,6 @@ function ReviewPage() {
                   )}
                   {form.finalDecision === "Approved for Training" && (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <TField label="Training start date" value={tv(TRAINING_KEYS.startDate)} onChange={(v) => setT(TRAINING_KEYS.startDate, v)} type="date" />
                       {isOnline ? (
                         <>
                           <Fact label="Training schedule (fixed)" value={ONLINE_FIXED.training} />
@@ -946,7 +931,7 @@ function ReviewPage() {
                   </div>
                 </div>
               </Stage>
-            </fieldset>
+            </div>
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -1097,8 +1082,9 @@ function Item({
   );
 }
 
-function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode }) {
-  const st = MANAGER_STAGES.find((x) => x.id === id)!;
+function Stage({ id, children, disabled = false, before }: { id: (typeof MANAGER_STAGES)[number]["id"]; children: React.ReactNode; disabled?: boolean; before?: React.ReactNode }) {
+  const st = MANAGER_STAGES.find((x) => x.id === id);
+  if (!st) return null;
   return (
     <section id={id} className="scroll-mt-16 rounded-xl border border-border bg-card">
       <header className="flex items-center gap-3 border-b border-border px-4 py-2">
@@ -1106,7 +1092,10 @@ function Stage({ id, children }: { id: (typeof MANAGER_STAGES)[number]["id"]; ch
         <h2 className="text-lg font-semibold">{st.title}</h2>
         <span className="rounded-full bg-secondary px-2.5 py-0.5 text-sm font-medium text-muted-foreground">{st.time}</span>
       </header>
-      <div className="space-y-4 px-5 py-4 text-base">{children}</div>
+      <div className="space-y-4 px-5 py-4 text-base">
+        {before}
+        <fieldset disabled={disabled} className="min-w-0 space-y-4">{children}</fieldset>
+      </div>
     </section>
   );
 }
@@ -1126,14 +1115,14 @@ function Guide({ children }: { children: React.ReactNode }) {
 
 function VerifyRow({ label, value, checked, onChange, children }: { label: string; value?: string; checked: boolean; onChange: (v: boolean) => void; children?: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border bg-background p-3">
+    <div className="flex items-start gap-3 py-4">
       <div className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-muted-foreground">{label}</span>
+        <span className="text-base font-semibold">{label}: </span>
         {value !== undefined && <span className="whitespace-pre-wrap break-words text-base">{value}</span>}
         {children}
       </div>
       <label className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm font-medium hover:bg-secondary">
-        <Checkbox className="h-5 w-5 rounded-sm" checked={checked} onCheckedChange={(v) => onChange(v === true)} />
+        <Checkbox aria-label={`Verify ${label}`} className="h-5 w-5 rounded-sm" checked={checked} onCheckedChange={(v) => onChange(v === true)} />
         Verified
       </label>
     </div>
