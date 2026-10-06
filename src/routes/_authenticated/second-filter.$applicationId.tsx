@@ -120,6 +120,13 @@ function shown(value: unknown): string {
   return text;
 }
 
+/** Prefer the recorded experience range; fall back to the Recruitment Yes/No answer. */
+function experienceText(range: unknown, interviewAnswer: string): string {
+  const r = typeof range === "string" ? range.trim() : "";
+  if (r && r.toLowerCase() !== "not specified") return r;
+  return interviewAnswer;
+}
+
 function jobDuration(start: string | null, end: string | null) {
   const from = new Date(start ?? "");
   const to = end ? new Date(end) : new Date();
@@ -412,8 +419,8 @@ function ReviewPage() {
 
       <Part id="expectativas" n={1} title="Part 1 · Expectations of position">
         <div className="px-5 divide-y divide-border">
-          <VerifyRow label="Teaching / Training experience (min. 1 year)" value={`${answer("profile", "teaching_experience")} · ${shown(app.teaching_experience)}`} {...chk("teaching")} />
-          <VerifyRow label="Call Center experience (min. 1 year)" value={`${answer("profile", "callcenter_experience")} · ${shown(app.callcenter_experience_level)}`} {...chk("callcenter")} />
+          <VerifyRow label="Teaching / Training experience (min. 1 year)" value={experienceText(app.teaching_experience, answer("profile", "teaching_experience"))} {...chk("teaching")} />
+          <VerifyRow label="Call Center experience (min. 1 year)" value={experienceText(app.callcenter_experience_level, answer("profile", "callcenter_experience"))} {...chk("callcenter")} />
           <VerifyRow label="Training start date" {...chk("training_start")}>
             <Input aria-label="Training start date" className="mt-1 max-w-xs text-base" value={tv(TRAINING_KEYS.startDate)} onChange={(e) => setT(TRAINING_KEYS.startDate, e.target.value)} placeholder="e.g. 2026-10-05" />
           </VerifyRow>
