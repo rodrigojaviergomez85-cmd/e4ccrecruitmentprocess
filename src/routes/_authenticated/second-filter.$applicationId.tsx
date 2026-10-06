@@ -445,23 +445,6 @@ function ReviewPage() {
               <p className="text-sm text-muted-foreground">The Manager has not started the evaluation yet.</p>
             ))}
 
-          {form && (
-            <fieldset disabled={!editable} className="min-w-0 space-y-4">
-              {locked && (
-                <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
-                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
-                </p>
-              )}
-              {!current && (
-                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Interview not started — the file below is read-only until you start it.</p>
-              )}
-
-              <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
-                <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
-                <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
-                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
-                <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
-              </section>
               <section id="recruitment-file" className="scroll-mt-40 space-y-4 rounded-2xl border-2 border-primary/30 bg-card p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-xl font-bold">Recruitment interview and candidate file</h2>
@@ -723,6 +706,23 @@ function ReviewPage() {
                 )}
               </section>
 
+          {form && (
+            <fieldset disabled={!editable} className="min-w-0 space-y-4">
+              {locked && (
+                <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
+                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
+                </p>
+              )}
+              {!current && (
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">Interview not started — the file below is read-only until you start it.</p>
+              )}
+
+              <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-border bg-card px-4 py-2 text-xs text-muted-foreground">
+                <span className="text-sm font-semibold text-foreground">Manager Final Interview</span>
+                <span>Estimated duration: <strong className="text-foreground">{MANAGER_TOTAL_TIME}</strong> · guide only</span>
+                <span>Recruitment record: <strong className="text-foreground">read only · one reconfirmation checklist</strong></span>
+                <span className="ml-auto">{saving === "saving" ? "Saving…" : saving === "saved" ? "All changes saved" : ""}</span>
+              </section>
               <Stage id="reconfirmation">
                 <p className="text-xs text-muted-foreground">Focus on changes, availability and inconsistencies from the first interview. Do not repeat it.</p>
                 <div className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
