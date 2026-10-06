@@ -1449,6 +1449,68 @@ export type Database = {
         }
         Relationships: []
       }
+      training_roster: {
+        Row: {
+          agreed_schedule: string
+          application_id: string
+          comments: string
+          created_at: string
+          documents: Json
+          hiring_date: string | null
+          reference_call: string
+          reference_called_at: string | null
+          reference_called_by: string | null
+          reference_details: string
+          request_date: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          wave_start: string | null
+        }
+        Insert: {
+          agreed_schedule?: string
+          application_id: string
+          comments?: string
+          created_at?: string
+          documents?: Json
+          hiring_date?: string | null
+          reference_call?: string
+          reference_called_at?: string | null
+          reference_called_by?: string | null
+          reference_details?: string
+          request_date?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          wave_start?: string | null
+        }
+        Update: {
+          agreed_schedule?: string
+          application_id?: string
+          comments?: string
+          created_at?: string
+          documents?: Json
+          hiring_date?: string | null
+          reference_call?: string
+          reference_called_at?: string | null
+          reference_called_by?: string | null
+          reference_details?: string
+          request_date?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          wave_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_roster_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transcripts: {
         Row: {
           application_id: string
