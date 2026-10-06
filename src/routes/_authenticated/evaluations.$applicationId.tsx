@@ -229,7 +229,8 @@ function EvaluationForm() {
     const appt = data?.finalFilterAppointment;
     if (!finishOpen || !appt || finalResult !== "Approved for last step") return;
     if (String(sections["result"]?.["ff_known"] ?? "")) return;
-    const tz = appt.timezone || "America/El_Salvador";
+    // Convert to the same zone the email label names (country time), not the candidate's browser zone.
+    const tz = ffIanaZone(candidate?.countryCode);
     const parts = Object.fromEntries(
       new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
         .formatToParts(new Date(appt.startsAt)).map((p) => [p.type, p.value]),
@@ -1620,7 +1621,12 @@ function EvaluationForm() {
                 {str("result", "ff_known") === "yes" && (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Field label="Final filter date"><Input type="date" value={str("result", "ff_date")} onChange={(e) => set("result", "ff_date", e.target.value)} /></Field>
-                    <Field label="Time"><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
+                    <Field label="Time" hint={(() => {
+                      const [h, m] = str("result", "ff_time").split(":").map(Number);
+                      if (!Number.isFinite(h)) return undefined;
+                      const label = `${((h! + 11) % 12) + 1}:${String(m ?? 0).padStart(2, "0")} ${h! < 12 ? "AM" : "PM"}`;
+                      return h! < 7 || h! >= 21 ? `Email will say ${label} — check AM/PM.` : `Email will say ${label}.`;
+                    })()}><Input type="time" value={str("result", "ff_time")} onChange={(e) => set("result", "ff_time", e.target.value)} /></Field>
                     <Field label="Time zone">
                       <Select value={str("result", "ff_timezone") || defaultFfTimezone(candidate?.countryCode)} onValueChange={(v) => set("result", "ff_timezone", v)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1642,6 +1648,7 @@ function EvaluationForm() {
                       <>
                         <Field label="Branch"><Input value={str("result", "ff_branch")} onChange={(e) => set("result", "ff_branch", e.target.value)} /></Field>
                         <Field label="Address"><Input value={str("result", "ff_address")} onChange={(e) => set("result", "ff_address", e.target.value)} /></Field>
+                        <Field label="Location link (optional)"><Input type="url" placeholder="https://maps.google.com/..." value={str("result", "ff_map_link")} onChange={(e) => set("result", "ff_map_link", e.target.value)} /></Field>
                       </>
                     )}
                   </div>
