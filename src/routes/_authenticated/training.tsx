@@ -6,7 +6,6 @@ import { AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
-import { StaffGate } from "@/components/StaffGate";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -27,11 +26,7 @@ export const Route = createFileRoute("/_authenticated/training")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => (
-    <StaffGate>
-      <TrainingPage />
-    </StaffGate>
-  ),
+  component: TrainingPage,
 });
 
 type Row = Awaited<ReturnType<typeof listTrainingRoster>>["rows"][number];
