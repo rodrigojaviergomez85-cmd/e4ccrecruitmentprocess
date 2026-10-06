@@ -4,7 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, Lock } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, Lock } from "lucide-react";
+import { defaultFfTimezone } from "@/lib/evaluations";
+import { BLOCK_LABEL, DAY_PATTERNS, TIME_OPTIONS, blocksFor, fmt12, formatSchedule, parseSchedule, scheduleProblems, type BlockKey, type DayPattern, type ScheduleStruct } from "@/lib/schedule";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -41,6 +43,7 @@ import {
   TRAINING_KEYS,
   AGREEMENT_KEYS,
   missingTraining,
+  SCHEDULE_STRUCT_KEYS,
   confirmedModality,
   normalizeModality,
   type ManagerDecision,
@@ -158,6 +161,9 @@ function ReviewPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [saving, setSaving] = useState<"idle" | "saving" | "saved">("idle");
   const [confirm, setConfirm] = useState(false);
+  const [reviewed, setReviewed] = useState(false);
+  // Any change to the form after reviewing requires a new review.
+  useEffect(() => { setReviewed(false); }, [form]); // eslint-disable-line react-hooks/exhaustive-deps
   const [active, setActive] = useState<string>("reconfirmation");
   const [period, setPeriod] = useState<{ amount: string; unit: "days" | "weeks" | "months" }>({ amount: "", unit: "months" });
   const [submitting, setSubmitting] = useState(false);
@@ -324,6 +330,9 @@ function ReviewPage() {
   const setNote = (key: string, text: string) => set({ evidence: { ...(form?.evidence ?? {}), [key]: text } });
   const tv = (key: string) => form?.evidence[key] ?? trainingDefaults[key] ?? "";
   const setT = setNote;
+  const tz = defaultFfTimezone((app as { country_code?: string | null }).country_code);
+  const setSchedule = (structKey: string, textKey: string, v: ScheduleStruct) =>
+    set({ evidence: { ...(form?.evidence ?? {}), [structKey]: JSON.stringify(v), [textKey]: formatSchedule(v, tz) } });
   const trainingMissing = [
     ...(confirmedMod ? [] : ["Position modality (Online / Onsite)"]),
     ...missingTraining(withDefaults(form?.evidence ?? {}), isOnline),
@@ -773,6 +782,15 @@ function ReviewPage() {
                   </div>
 
                   {form.finalDecision === "Approved for Training" && (
+                    <div role="alert" className="flex gap-3 rounded-lg border-2 border-destructive bg-destructive/10 p-3 text-sm text-destructive">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                      <div>
+                        <p className="font-semibold">Revisa cuidadosamente antes de confirmar</p>
+                        <p>Esta información aparecerá en el convenio de entrenamiento y en el correo de bienvenida del candidato. Verifica nombre completo, modalidad, fecha de inicio, días, horarios (AM/PM), sucursal y entrenador antes de finalizar.</p>
+                      </div>
+                    </div>
+                  )}
+                  {form.finalDecision === "Approved for Training" && (
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                       <TField label="Training start date" value={tv(TRAINING_KEYS.startDate)} onChange={(v) => setT(TRAINING_KEYS.startDate, v)} type="date" />
                       {isOnline ? (
@@ -782,7 +800,9 @@ function ReviewPage() {
                         </>
                       ) : (
                         <>
-                          <TField label="Training days and schedule" value={tv(TRAINING_KEYS.schedule)} onChange={(v) => setT(TRAINING_KEYS.schedule, v)} placeholder="Mon–Fri 7:00 AM – 4:00 PM" />
+                          <div className="sm:col-span-2 xl:col-span-4">
+                            <ScheduleField label="Training days and schedule" tz={tz} raw={tv(SCHEDULE_STRUCT_KEYS.training)} legacy={tv(TRAINING_KEYS.schedule)} onChange={(v) => setSchedule(SCHEDULE_STRUCT_KEYS.training, TRAINING_KEYS.schedule, v)} />
+                          </div>
                         </>
                       )}
                       <div className="space-y-1">
@@ -810,7 +830,9 @@ function ReviewPage() {
                           {tv(AGREEMENT_KEYS.classSameBranch) !== "yes" && (
                             <TField label="Assigned class branch" value={tv(AGREEMENT_KEYS.classBranch)} onChange={(v) => setT(AGREEMENT_KEYS.classBranch, v)} />
                           )}
-                          <TField label="Class days and schedule" value={tv(AGREEMENT_KEYS.classSchedule)} onChange={(v) => setT(AGREEMENT_KEYS.classSchedule, v)} placeholder="Mon–Fri 7:00 AM – 3:40 PM" />
+                          <div className="sm:col-span-2 xl:col-span-4">
+                            <ScheduleField label="Class days and schedule" tz={tz} raw={tv(SCHEDULE_STRUCT_KEYS.classes)} legacy={tv(AGREEMENT_KEYS.classSchedule)} onChange={(v) => setSchedule(SCHEDULE_STRUCT_KEYS.classes, AGREEMENT_KEYS.classSchedule, v)} />
+                          </div>
                         </>
                       )}
                       <p className="text-xs text-muted-foreground sm:col-span-2 xl:col-span-4">
@@ -969,9 +991,40 @@ function ReviewPage() {
               {form?.eligibleAgainDate && (form.finalDecision === "Retake" || form.finalDecision === "Not Approved") ? ` with the date ${form.eligibleAgainDate}` : ""}.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {form?.finalDecision === "Approved for Training" && (
+            <div className="space-y-3 text-sm">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border border-border p-3">
+                {([
+                  ["Full name", app.full_name],
+                  ["Modality", confirmedMod === "online" ? "Online" : confirmedMod === "onsite" ? "Onsite" : "Not confirmed"],
+                  ["Start date", tv(TRAINING_KEYS.startDate)],
+                  ["Training schedule", isOnline ? ONLINE_FIXED.training : tv(TRAINING_KEYS.schedule)],
+                  ...(isOnline
+                    ? [["Classes", `${ONLINE_FIXED.classes} · ${ONLINE_FIXED.fixedClass}; ${ONLINE_FIXED.extraClass}`], ["Zoom", tv(TRAINING_KEYS.zoom)]]
+                    : [
+                        ["Training branch", tv(TRAINING_KEYS.branch)],
+                        ["Class branch", tv(AGREEMENT_KEYS.classSameBranch) === "yes" ? tv(TRAINING_KEYS.branch) : tv(AGREEMENT_KEYS.classBranch)],
+                        ["Class schedule", tv(AGREEMENT_KEYS.classSchedule)],
+                        ["LOB", tv(AGREEMENT_KEYS.lob)],
+                      ]),
+                  ["Trainer", `${tv(TRAINING_KEYS.trainer)} — ${tv(TRAINING_KEYS.trainerContact)}`],
+                ] as [string, string][]).map(([k, v]) => (
+                  <div key={k} className="contents">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="font-medium">{v?.trim() || "—"}</dd>
+                  </div>
+                ))}
+              </dl>
+              {trainingMissing.length > 0 && <p className="text-destructive">Still missing: {trainingMissing.join(", ")}.</p>}
+              <label className="flex items-start gap-2">
+                <Checkbox checked={reviewed} onCheckedChange={(v) => setReviewed(v === true)} className="mt-0.5" />
+                He revisado los datos y confirmo que son correctos para el convenio y el correo de bienvenida.
+              </label>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={submitting} onClick={() => void onSubmit()}>Confirm and finish</AlertDialogAction>
+            <AlertDialogAction disabled={submitting || (form?.finalDecision === "Approved for Training" && !reviewed)} onClick={() => void onSubmit()}>Confirm and finish</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -1043,6 +1096,47 @@ function TField({ label, value, onChange, placeholder, type }: { label: string; 
     <div>
       <Label className="text-xs">{label}</Label>
       <Input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function ScheduleField({ label, tz, raw, legacy, onChange }: { label: string; tz: string; raw: string; legacy: string; onChange: (v: ScheduleStruct) => void }) {
+  const v: ScheduleStruct = parseSchedule(raw) ?? { pattern: "" };
+  const problems = v.pattern ? scheduleProblems(v) : [];
+  const setBlock = (k: BlockKey, part: "start" | "end", val: string) =>
+    onChange({ ...v, [k]: { start: "", end: "", ...v[k], [part]: val } });
+  return (
+    <div className="space-y-2 rounded-lg border border-border p-3">
+      <Label className="text-xs">{label} <span className="text-muted-foreground">· {tz}</span></Label>
+      {!raw && legacy.trim() && (
+        <p className="rounded bg-destructive/10 p-2 text-xs text-destructive">Previous value (not converted): “{legacy}”. Please review and select the days and times again.</p>
+      )}
+      <Select value={v.pattern} onValueChange={(p) => onChange({ ...v, pattern: p as DayPattern })}>
+        <SelectTrigger className="max-w-sm"><SelectValue placeholder="Select the days" /></SelectTrigger>
+        <SelectContent>{DAY_PATTERNS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+      </Select>
+      {blocksFor(v.pattern).map((k) => {
+        const b = v[k];
+        return (
+          <div key={k} className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="w-32 font-medium">{BLOCK_LABEL[k]}</span>
+            <Select value={b?.start ?? ""} onValueChange={(x) => setBlock(k, "start", x)}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Hora de inicio" /></SelectTrigger>
+              <SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent>
+            </Select>
+            <span>–</span>
+            <Select value={b?.end ?? ""} onValueChange={(x) => setBlock(k, "end", x)}>
+              <SelectTrigger className="w-36"><SelectValue placeholder="Hora de finalización" /></SelectTrigger>
+              <SelectContent>{TIME_OPTIONS.filter((t) => !b?.start || t > b.start).map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        );
+      })}
+      {problems.length > 0 ? (
+        <p className="text-xs text-destructive">{problems.join(" · ")}</p>
+      ) : v.pattern ? (
+        <p className="text-xs">Shown in the email and agreement: <strong>{formatSchedule(v, tz)}</strong></p>
+      ) : null}
     </div>
   );
 }

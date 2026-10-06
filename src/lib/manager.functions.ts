@@ -460,6 +460,8 @@ async function setStatus(ctx: Ctx, actorId: string, applicationId: string, from:
   });
 }
 
+const ONLINE_FIXED_TRAINING = "Lunes a viernes: 5:00 PM–9:00 PM (UTC-6)";
+
 async function applyDecision(
   ctx: Ctx,
   actorId: string,
@@ -490,7 +492,7 @@ async function applyDecision(
       countryCode: d.countryCode,
       isOnline: d.isOnline,
       startDate: t(TRAINING_KEYS.startDate),
-      schedule: t(TRAINING_KEYS.schedule),
+      schedule: d.isOnline ? (t(TRAINING_KEYS.schedule) || ONLINE_FIXED_TRAINING) : t(TRAINING_KEYS.schedule),
       trainer: t(TRAINING_KEYS.trainer),
       trainerContact: t(TRAINING_KEYS.trainerContact),
       branch: t(TRAINING_KEYS.branch),
