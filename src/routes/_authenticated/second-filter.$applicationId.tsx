@@ -389,7 +389,7 @@ function ReviewPage() {
                 <Fact label="Email" value={shown(app.email)} />
                 <Fact label="Phone" value={shown(app.phone_e164 ?? app.phone)} />
                 <Fact label="Recruiter" value={recruiterName} />
-                <Fact label="Manager" value={managerName} />
+                <Fact label="Manager" value={shown(managerName)} />
                 <Fact label="Grammar Test" value={grammarScore} />
                 <Fact label="English level (AI)" value={(app.ai_evaluations as { cefr: string | null }[] | null)?.[0]?.cefr ?? "Not evaluated"} />
                 <Fact label="Recruitment result" value={resultLabel(interview?.final_result) || "Not recorded"} />
