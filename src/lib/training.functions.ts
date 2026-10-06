@@ -119,8 +119,8 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       reference_details: data.referenceDetails,
     };
     if (data.referenceCall !== undefined) {
-      patch.reference_called_by = context.userId;
-      patch.reference_called_at = new Date().toISOString();
+      patch["reference_called_by"] = context.userId;
+      patch["reference_called_at"] = new Date().toISOString();
     }
     for (const k of Object.keys(patch)) if (patch[k] === undefined) delete patch[k];
     const { error } = await ctx.db.from("training_roster").upsert(patch as never, { onConflict: "application_id" });
