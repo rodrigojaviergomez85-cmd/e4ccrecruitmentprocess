@@ -20,5 +20,5 @@
 - [x] Conservar completa la evaluacion propia del Manager (Grammar, Demo Class, Feedback, Retake y decision)
 - [x] Horarios de Training/Clases con listas desplegables (7 AM–10 PM, 5 min), resumen previo
 - [x] Aviso rojo de revisión y casilla obligatoria antes de Confirm and finish
-- [ ] Rediseño de lectura Recruitment/Manager (encabezado, expediente completo, tarjetas de empleos, etapas con tiempos)
-- [ ] Verificar permisos: sin sesión / aplicante no acceden a evaluaciones internas (pantalla, servidor, base de datos)
+- [x] Rediseño de lectura Recruitment/Manager (encabezado, expediente completo, tarjetas de empleos, etapas con tiempos)
+- [x] Verificar permisos: sin sesión / aplicante no acceden a evaluaciones internas (pantalla, servidor, base de datos)
