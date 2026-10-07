@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Play, Timer } from "lucide-react";
-import { toast } from "sonner";
+import { Timer } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { startInterviewTimer } from "@/lib/aht.functions";
 
 export function formatDuration(totalSeconds: number) {
