@@ -39,7 +39,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
-      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), training_roster(*)")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), training_roster(*), recruitment_progress(work_modality)")
       .eq("status", "Approved for Training")
       .is("archived_at", null);
     if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
@@ -51,7 +51,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         .sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
       const t = (ev?.evidence as Record<string, string> | null) ?? {};
       const r = (Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null;
-      const modality = normalizeModality(t[AGREEMENT_KEYS.modality]);
+      const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null } | null;
+      const modality = normalizeModality(t[AGREEMENT_KEYS.modality]) ?? normalizeModality(rp?.work_modality);
       const docs = trainingDocsFor(a.country_code)?.items ?? [];
       const refs = a.work_references ?? [];
       return {

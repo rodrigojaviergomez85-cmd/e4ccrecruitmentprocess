@@ -224,7 +224,7 @@ function CandidateDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_OPTIONS.map((option) => (
+                  {((STATUS_OPTIONS as readonly string[]).includes(app.status) ? [...STATUS_OPTIONS] : [app.status, ...STATUS_OPTIONS]).map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
                     </SelectItem>
