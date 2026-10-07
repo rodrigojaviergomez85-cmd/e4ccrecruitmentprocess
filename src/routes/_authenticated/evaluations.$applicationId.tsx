@@ -479,6 +479,9 @@ function EvaluationForm() {
             <Badge variant={isLockedStatus(evaluation.status) ? "default" : "secondary"}>
               {evaluation.status}
             </Badge>
+            {approvedReadOnly && (
+              <Badge variant="outline">Candidate approved — view only</Badge>
+            )}
             {locked ? (
               <span className="flex items-center text-xs text-muted-foreground">
                 <Lock className="mr-1 h-3 w-3" /> Read-only
