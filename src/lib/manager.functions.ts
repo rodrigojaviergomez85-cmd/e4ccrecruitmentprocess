@@ -390,6 +390,10 @@ export const saveManagerEvaluation = createServerFn({ method: "POST" })
       if (data.submit) return { ok: true as const, missing: [] as string[], email: null, duplicate: true };
       throw new Error("This evaluation was finished and is locked.");
     }
+    if (data.submit) {
+      const { stopInterviewTimer } = await import("./aht.server");
+      await stopInterviewTimer(ctx.db as never, "manager_evaluations", current.id);
+    }
 
     const audit = (action: string, oldValue: unknown, newValue: unknown) =>
       writeAudit(ctx.db as never, {

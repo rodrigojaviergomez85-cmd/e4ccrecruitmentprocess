@@ -633,6 +633,10 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       })
       .eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
+    if (data.submit) {
+      const { stopInterviewTimer } = await import("./aht.server");
+      await stopInterviewTimer(db as never, "interview_evaluations", data.evaluationId);
+    }
 
     await db.from("evaluation_verbs").delete().eq("evaluation_id", data.evaluationId);
     if (verbs.length) {
