@@ -13,7 +13,7 @@ export function formatDuration(totalSeconds: number) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** Iniciar button + live clock. The timer stops on the server when the interview is finished. */
+/** Live clock that starts automatically when the interview is opened. The timer stops on the server when the interview is finished. */
 export function InterviewTimer(props: {
   kind: "recruitment" | "manager";
   evaluationId: string | null | undefined;
@@ -24,7 +24,7 @@ export function InterviewTimer(props: {
   const start = useServerFn(startInterviewTimer);
   const [startedAt, setStartedAt] = useState<string | null>(props.startedAt ?? null);
   const [now, setNow] = useState(() => Date.now());
-  const [busy, setBusy] = useState(false);
+  const autoStarted = useRef(false);
   useEffect(() => setStartedAt(props.startedAt ?? null), [props.startedAt]);
   const running = Boolean(startedAt) && props.handleSeconds == null;
   useEffect(() => {
@@ -32,6 +32,21 @@ export function InterviewTimer(props: {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [running]);
+
+  // Auto-start: opening an unfinished interview starts the clock, no button needed.
+  useEffect(() => {
+    if (autoStarted.current || startedAt || props.handleSeconds != null) return;
+    if (!props.canStart || !props.evaluationId) return;
+    autoStarted.current = true;
+    start({ data: { kind: props.kind, evaluationId: props.evaluationId } })
+      .then((r) => {
+        setStartedAt(r.startedAt);
+        setNow(Date.now());
+      })
+      .catch(() => {
+        autoStarted.current = false;
+      });
+  }, [start, startedAt, props.canStart, props.evaluationId, props.handleSeconds, props.kind]);
 
   if (props.handleSeconds != null) {
     return (
@@ -48,25 +63,5 @@ export function InterviewTimer(props: {
       </span>
     );
   }
-  if (!props.canStart || !props.evaluationId) return null;
-  return (
-    <Button
-      size="sm"
-      disabled={busy}
-      onClick={async () => {
-        setBusy(true);
-        try {
-          const r = await start({ data: { kind: props.kind, evaluationId: props.evaluationId! } });
-          setStartedAt(r.startedAt);
-          setNow(Date.now());
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Could not start the timer.");
-        } finally {
-          setBusy(false);
-        }
-      }}
-    >
-      <Play className="mr-1 h-4 w-4" /> Iniciar
-    </Button>
-  );
+  return null;
 }
