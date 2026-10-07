@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
+import { AhtReport } from "@/components/AhtReport";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,6 +154,7 @@ function Dashboard() {
       </header>
 
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
+        {isAdmin && <AhtReport />}
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

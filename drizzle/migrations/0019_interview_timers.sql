@@ -1,0 +1,2 @@
+ALTER TABLE public.interview_evaluations ADD COLUMN IF NOT EXISTS timer_started_at timestamptz, ADD COLUMN IF NOT EXISTS timer_ended_at timestamptz, ADD COLUMN IF NOT EXISTS handle_seconds integer;
+ALTER TABLE public.manager_evaluations ADD COLUMN IF NOT EXISTS timer_started_at timestamptz, ADD COLUMN IF NOT EXISTS timer_ended_at timestamptz, ADD COLUMN IF NOT EXISTS handle_seconds integer;

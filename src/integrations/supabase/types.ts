@@ -763,6 +763,7 @@ export type Database = {
           decision_stage: string | null
           evaluator_id: string
           final_result: string | null
+          handle_seconds: number | null
           hiring_bonus: string | null
           id: string
           interview_date: string | null
@@ -780,6 +781,8 @@ export type Database = {
           started_at: string
           status: string
           submitted_at: string | null
+          timer_ended_at: string | null
+          timer_started_at: string | null
           total_score: number | null
           updated_at: string
         }
@@ -797,6 +800,7 @@ export type Database = {
           decision_stage?: string | null
           evaluator_id: string
           final_result?: string | null
+          handle_seconds?: number | null
           hiring_bonus?: string | null
           id?: string
           interview_date?: string | null
@@ -814,6 +818,8 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_ended_at?: string | null
+          timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
         }
@@ -831,6 +837,7 @@ export type Database = {
           decision_stage?: string | null
           evaluator_id?: string
           final_result?: string | null
+          handle_seconds?: number | null
           hiring_bonus?: string | null
           id?: string
           interview_date?: string | null
@@ -848,6 +855,8 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_ended_at?: string | null
+          timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
         }
@@ -1023,6 +1032,7 @@ export type Database = {
           evidence: Json
           final_decision: string | null
           gates: Json
+          handle_seconds: number | null
           id: string
           improvement_areas: string | null
           internal_comments: string | null
@@ -1035,6 +1045,8 @@ export type Database = {
           started_at: string
           status: string
           submitted_at: string | null
+          timer_ended_at: string | null
+          timer_started_at: string | null
           total_score: number | null
           updated_at: string
           verifications: Json
@@ -1056,6 +1068,7 @@ export type Database = {
           evidence?: Json
           final_decision?: string | null
           gates?: Json
+          handle_seconds?: number | null
           id?: string
           improvement_areas?: string | null
           internal_comments?: string | null
@@ -1068,6 +1081,8 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_ended_at?: string | null
+          timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
           verifications?: Json
@@ -1089,6 +1104,7 @@ export type Database = {
           evidence?: Json
           final_decision?: string | null
           gates?: Json
+          handle_seconds?: number | null
           id?: string
           improvement_areas?: string | null
           internal_comments?: string | null
@@ -1101,6 +1117,8 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_ended_at?: string | null
+          timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
           verifications?: Json

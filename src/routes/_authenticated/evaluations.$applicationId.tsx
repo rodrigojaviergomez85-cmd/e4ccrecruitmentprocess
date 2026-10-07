@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Save, Unlock } from "lucid
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
+import { InterviewTimer } from "@/components/InterviewTimer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -466,6 +467,13 @@ function EvaluationForm() {
             <p className="text-xs text-muted-foreground">E4CC Interview — live evaluation</p>
           </div>
           <div className="flex items-center gap-2">
+            <InterviewTimer
+              kind="recruitment"
+              evaluationId={evaluation.id}
+              startedAt={evaluation.timer_started_at}
+              handleSeconds={evaluation.handle_seconds}
+              canStart={!locked}
+            />
             <Badge variant={isLockedStatus(evaluation.status) ? "default" : "secondary"}>
               {evaluation.status}
             </Badge>
