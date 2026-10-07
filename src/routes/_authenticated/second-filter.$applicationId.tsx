@@ -531,6 +531,13 @@ function ReviewPage() {
                 <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
                   {app.status}
                 </span>
+                <InterviewTimer
+                  kind="manager"
+                  evaluationId={current?.id}
+                  startedAt={current?.timer_started_at}
+                  handleSeconds={current?.handle_seconds}
+                  canStart={editable}
+                />
                 {app.withdrawn_at && (
                   <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                     Withdrawn by applicant
