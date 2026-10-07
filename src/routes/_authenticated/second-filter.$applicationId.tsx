@@ -10,6 +10,7 @@ import { BLOCK_LABEL, DAY_PATTERNS, TIME_OPTIONS, blocksFor, fmt12, formatSchedu
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
+import { InterviewTimer } from "@/components/InterviewTimer";
 import {
   AlertDialog,
   AlertDialogAction,
