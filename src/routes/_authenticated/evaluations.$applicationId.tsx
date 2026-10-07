@@ -166,7 +166,9 @@ function EvaluationForm() {
 
   const evaluation = data?.evaluation ?? null;
   const candidate = data?.candidate ?? null;
-  const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate;
+  const approvedReadOnly =
+    candidate?.pipelineStatus === "Approved for Training" && !data?.access.isAdmin;
+  const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate || approvedReadOnly;
 
   useEffect(() => {
     if (!evaluation || hydrated) return;

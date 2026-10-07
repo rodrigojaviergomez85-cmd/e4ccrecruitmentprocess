@@ -547,9 +547,12 @@ export const saveEvaluation = createServerFn({ method: "POST" })
 
     const { data: app } = await db
       .from("applications")
-      .select("id, country_code, recruitment_progress(work_modality)")
+      .select("id, country_code, status, recruitment_progress(work_modality)")
       .eq("id", current.application_id)
       .maybeSingle();
+    if (app?.status === "Approved for Training" && !ctx.isAdmin) {
+      throw new Error("This candidate is already approved; the interview is read-only. An admin can make changes if needed.");
+    }
     if (ctx.allowedCountries && !ctx.allowedCountries.includes(app?.country_code ?? "")) {
       throw new Error("This candidate is outside the countries assigned to your account.");
     }
