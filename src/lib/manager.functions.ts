@@ -125,7 +125,93 @@ export const listSecondFilterQueue = createServerFn({ method: "POST" })
       };
     });
     rows.sort((x, y) => (y.daysWaiting ?? 0) - (x.daysWaiting ?? 0));
-    return { rows, managers, canAssign: ctx.isAdmin, canDecide: ctx.canDecide };
+    return {
+      rows,
+      managers,
+      canAssign: ctx.isAdmin,
+      canDecide: ctx.canDecide,
+      me: { id: context.userId, name: ctx.fullName || ctx.email || "", isManager: ctx.tier.isManager, isAdmin: ctx.isAdmin },
+    };
+  });
+
+/** Marks a pending second filter as No Show from the agenda list, without opening the full interview. */
+export const markSecondFilterNoShow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ applicationId: z.string().uuid(), appointmentAt: z.string().max(40) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await managerCtx(context.userId);
+    if (!ctx.canDecide) throw new Error("Only a Manager or Admin can mark a No Show.");
+    const app = await assertAccess(ctx, data.applicationId);
+    if (app.status !== PENDING_SECOND_FILTER) throw new Error("This candidate already has a final decision.");
+    const { data: latest } = await ctx.db
+      .from("manager_evaluations")
+      .select("id, submitted_at, status, attempt_number")
+      .eq("application_id", app.id)
+      .order("attempt_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    let evaluationId = latest && (!latest.submitted_at || latest.status === "Reopened") ? latest.id : null;
+    if (!evaluationId) {
+      const { data: created, error } = await ctx.db
+        .from("manager_evaluations")
+        .insert({
+          application_id: app.id,
+          attempt_number: (latest?.attempt_number ?? 0) + 1,
+          manager_id: app.assigned_manager_id ?? context.userId,
+          evaluator_id: context.userId,
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      evaluationId = created.id;
+    }
+    const nowIso = new Date().toISOString();
+    const { error: upErr } = await ctx.db
+      .from("manager_evaluations")
+      .update({
+        final_decision: "No Show",
+        appointment_at: new Date(data.appointmentAt).toISOString(),
+        evaluator_id: context.userId,
+        status: "Submitted",
+        submitted_at: nowIso,
+        decided_by: context.userId,
+        decided_at: nowIso,
+        decision_stage: "manager_final_filter",
+        no_show_marked_at: nowIso,
+      })
+      .eq("id", evaluationId);
+    if (upErr) throw new Error(upErr.message);
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId,
+      actorEmail: ctx.email,
+      action: "manager_evaluation.no_show",
+      entityType: "manager_evaluation",
+      entityId: evaluationId,
+      applicationId: app.id,
+      oldValue: { status: app.status },
+      newValue: { final_decision: "No Show", source: "agenda_quick_action" },
+    });
+    const { data: prog } = await ctx.db
+      .from("recruitment_progress")
+      .select("work_modality")
+      .eq("application_id", app.id)
+      .maybeSingle();
+    const email = await applyDecision(ctx, context.userId, {
+      applicationId: app.id,
+      applicantName: app.full_name,
+      applicantEmail: app.email,
+      countryCode: app.country_code,
+      isOnline: (prog?.work_modality ?? "").toLowerCase() === "online",
+      previousStatus: app.status,
+      evaluationId,
+      decision: "No Show",
+      retakeFeedbackText: "",
+      eligibleAgainDate: null,
+      training: {},
+    });
+    return { ok: true, email };
   });
 
 export const assignManager = createServerFn({ method: "POST" })
