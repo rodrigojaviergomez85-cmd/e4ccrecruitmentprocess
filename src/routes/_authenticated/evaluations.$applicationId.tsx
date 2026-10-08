@@ -1458,7 +1458,7 @@ function EvaluationForm() {
             <ArrowLeft className="mr-2 h-4 w-4" /> Previous
           </Button>
           <div className="flex flex-wrap justify-end gap-2">
-            {!locked && (
+            {!locked && step < visibleSections.length - 1 && (
               <Button variant="destructive" onClick={() => setFinishOpen(true)}>
                 Finish interview
               </Button>
@@ -1482,9 +1482,7 @@ function EvaluationForm() {
               </Button>
             ) : (
               !locked && (
-                <Button onClick={() => void submit(false)} disabled={missing.length > 0}>
-                  Submit evaluation
-                </Button>
+                <Button onClick={() => setFinishOpen(true)}>Finish interview</Button>
               )
             )}
           </div>
