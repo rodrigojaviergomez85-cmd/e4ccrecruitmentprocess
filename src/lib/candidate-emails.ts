@@ -391,6 +391,23 @@ export function buildNoShowEmail(input: { fullName: string; responseUrl: string 
   return { subject, html };
 }
 
+/** Sent when a candidate misses the Recruitment interview; the link lets them rebook. */
+export function buildInterviewNoShowEmail(input: { fullName: string; scheduleUrl: string }) {
+  const name = input.fullName.trim().split(/\s+/)[0] || input.fullName.trim();
+  const subject = "We missed you at your E4CC interview";
+  const url = escapeHtml(input.scheduleUrl);
+  const html = `
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
+      <p style="margin:0 0 12px">Dear ${escapeHtml(name)},</p>
+      <p style="margin:0 0 12px">We were expecting you at your E4CC interview today, but we were not able to connect with you.</p>
+      <p style="margin:0 0 16px">Don't worry — you can pick a new date and time here:</p>
+      <p><a href="${url}" style="display:inline-block;padding:10px 18px;border-radius:6px;background:#ea580c;color:#ffffff;text-decoration:none;font-weight:bold">Reschedule My Interview</a></p>
+      <p style="margin:16px 0 12px;font-size:12px;color:#6b7280">This link is personal and expires in 14 days.</p>
+      <p style="margin:0">Best regards,<br/>E4CC Recruitment Team</p>
+    </div>`;
+  return { subject, html };
+}
+
 /**
  * Retake decided at the Manager final filter. Shares only the areas to improve
  * and the eligible date; the link returns the candidate to the Manager stage.

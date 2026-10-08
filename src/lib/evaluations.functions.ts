@@ -209,6 +209,7 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
         grammarTestScore: progress?.grammar_test_score ?? null,
         appointmentAt: appt?.starts_at ?? null,
         appointmentStatus: appt?.status ?? null,
+        appointmentId: appt?.id ?? null,
         pipelineStatus: a.status,
         attemptNumber: evaluation?.attempt_number ?? 0,
         evaluationId: evaluation?.id ?? null,
