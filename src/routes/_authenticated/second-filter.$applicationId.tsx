@@ -225,7 +225,12 @@ function ReviewPage() {
     const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
     const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
     // Suggested modality from the Recruitment file; the Manager must confirm it in the closing step.
-    return { [TRAINING_KEYS.startDate]: start } as Record<string, string>;
+    const online = normalizeModality(d.progress?.work_modality) === "online";
+    return {
+      [TRAINING_KEYS.startDate]: start,
+      // Online always trains with the same trainer and Zoom room; the Manager can pick "Other…".
+      ...(online ? { [TRAINING_KEYS.trainer]: ONLINE_TRAINER, [TRAINING_KEYS.zoom]: ONLINE_ZOOM } : {}),
+    } as Record<string, string>;
   }, [d]);
   const withDefaults = (ev: Record<string, string>) => {
     const out = { ...ev };
@@ -718,10 +723,14 @@ function ReviewPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <TField label="Trainer name" value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
+                      {isOnline ? (
+                        <PresetField label="Trainer name" presets={[ONLINE_TRAINER]} value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
+                      ) : (
+                        <TField label="Trainer name" value={tv(TRAINING_KEYS.trainer)} onChange={(v) => setT(TRAINING_KEYS.trainer, v)} />
+                      )}
                       <TField label="Trainer contact" value={tv(TRAINING_KEYS.trainerContact)} onChange={(v) => setT(TRAINING_KEYS.trainerContact, v)} placeholder="Email or WhatsApp" />
                       {isOnline ? (
-                        <TField label="Zoom link" value={tv(TRAINING_KEYS.zoom)} onChange={(v) => setT(TRAINING_KEYS.zoom, v)} placeholder="https://zoom.us/j/…" />
+                        <PresetField label="Zoom link" presets={[ONLINE_ZOOM]} value={tv(TRAINING_KEYS.zoom)} onChange={(v) => setT(TRAINING_KEYS.zoom, v)} placeholder="https://zoom.us/j/…" />
                       ) : (
                         <>
                           <TField label="LOB / position type" value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} placeholder="Onsite Full-Time" />
@@ -1065,6 +1074,34 @@ function ScheduleField({ label, tz, raw, legacy, onChange }: { label: string; tz
       ) : v.pattern ? (
         <p className="text-xs">Shown in the email and agreement: <strong>{formatSchedule(v, tz)}</strong></p>
       ) : null}
+    </div>
+  );
+}
+
+const ONLINE_TRAINER = "Roberto Sánchez";
+const ONLINE_ZOOM = "https://zoom.us/j/98598146278";
+const OTHER = "__other__";
+
+/** Dropdown with the usual values plus "Other…" to type a different one. */
+function PresetField({ label, presets, value, onChange, placeholder }: { label: string; presets: string[]; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [custom, setCustom] = useState(() => Boolean(value) && !presets.includes(value));
+  return (
+    <div className="space-y-1">
+      <Label className="text-sm font-semibold">{label}</Label>
+      <Select
+        value={custom ? OTHER : value}
+        onValueChange={(v) => {
+          if (v === OTHER) { setCustom(true); onChange(""); }
+          else { setCustom(false); onChange(v); }
+        }}
+      >
+        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+        <SelectContent>
+          {presets.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+          <SelectItem value={OTHER}>Other…</SelectItem>
+        </SelectContent>
+      </Select>
+      {custom && <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoFocus />}
     </div>
   );
 }

@@ -442,3 +442,12 @@ export function readFinalFilter(result: Record<string, unknown> | undefined): Ff
     },
   };
 }
+
+/** ISO start of a manually entered second filter (date + time + "GMT-6" style label). */
+export function ffStartIso(date: string, time: string, tzLabel: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return null;
+  const m = /GMT([+-])(\d{1,2})/.exec(tzLabel || "");
+  const off = m ? `${m[1]}${m[2]!.padStart(2, "0")}:00` : "-06:00";
+  const d = new Date(`${date}T${time}:00${off}`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
