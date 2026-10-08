@@ -301,6 +301,31 @@ export const markInterviewNoShow = createServerFn({ method: "POST" })
     return { ok: true, email: sent.status, detail: sent.detail };
   });
 
+/** Quick action from today's interviews: moves the candidate to the Waiting List (no email sent). */
+export const markInterviewWaitingList = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Only interview staff can move a candidate to the Waiting List.");
+    const { db } = ctx;
+    const { data: app, error } = await db.from("applications").select("id, status").eq("id", data.applicationId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!app) throw new Error("Candidate not found.");
+    const { error: upErr } = await db.from("applications").update({ status: "Waiting List" }).eq("id", app.id);
+    if (upErr) throw new Error(upErr.message);
+    await writeAudit(db, {
+      actorId: context.userId,
+      action: "application.waiting_list",
+      entityType: "application",
+      entityId: app.id,
+      applicationId: app.id,
+      oldValue: { status: app.status },
+      newValue: { status: "Waiting List", source: "queue_quick_action" },
+    });
+    return { ok: true };
+  });
+
 /** Opens (or creates) the single evaluation for an application and loads existing candidate data. */
 export const openEvaluation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
