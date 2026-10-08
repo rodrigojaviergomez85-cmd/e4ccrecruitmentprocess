@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assignManager, listSecondFilterQueue } from "@/lib/manager.functions";
+import { ManagerMyFilters } from "@/components/ManagerMyFilters";
 
 export const Route = createFileRoute("/_authenticated/second-filter/")({
   head: () => ({
@@ -101,6 +102,7 @@ function QueuePage() {
           </div>
         </div>
 
+        {data && <ManagerMyFilters rows={data.rows} me={data.me} canDecide={data.canDecide} />}
         {data && <Agenda rows={data.rows} managers={data.managers} />}
 
         {error && <p className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">{error instanceof Error ? error.message : "Could not load"}</p>}

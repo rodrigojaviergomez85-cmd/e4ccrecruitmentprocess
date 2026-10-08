@@ -323,6 +323,53 @@ export const overrideInternetRequirement = createServerFn({ method: "POST" })
   });
 
 
+/** Lets full staff (Recruitment, Manager, Admin) correct what the applicant typed in the screening form. */
+export const updateCandidateInfo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        full_name: z.string().trim().min(2).max(150),
+        email: z.string().trim().email().max(255),
+        phone: z.string().trim().min(4).max(40),
+        city: z.string().trim().max(120),
+        teaching_experience: z.string().trim().max(60),
+        callcenter_experience_level: z.string().trim().max(60),
+        taught_children: z.boolean(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db, allowedCountries, isAdmin } = await staffContext(context.userId);
+    const { data: app } = await db
+      .from("applications")
+      .select("country_code, full_name, email, phone, city, teaching_experience, callcenter_experience_level, taught_children")
+      .eq("id", data.id)
+      .single();
+    if (!app || (allowedCountries && !allowedCountries.includes(app.country_code ?? "")))
+      throw new Error("You do not have access to this candidate.");
+    const { id, ...patch } = data;
+    const update = {
+      ...patch,
+      email: patch.email.toLowerCase(),
+      callcenter_experience: patch.callcenter_experience_level !== "No experience",
+    };
+    const { error } = await db.from("applications").update(update).eq("id", id);
+    if (error) throw new Error(error.message);
+    const { country_code: _c, ...old } = app;
+    await writeAudit(db as never, {
+      actorId: context.userId,
+      action: isAdmin ? "application.info_edited_by_admin" : "application.info_edited",
+      entityType: "application",
+      entityId: id,
+      applicationId: id,
+      oldValue: old,
+      newValue: update,
+    });
+    return { ok: true };
+  });
+
 export const updateCandidateStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
