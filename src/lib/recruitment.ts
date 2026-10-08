@@ -61,6 +61,7 @@ export const STATUS_OPTIONS = [
   "Approved for Training",
   "Not Approved",
   "Withdrawn by Applicant",
+  "Waiting List",
   "No-show",
   "Canceled",
   "Interview",

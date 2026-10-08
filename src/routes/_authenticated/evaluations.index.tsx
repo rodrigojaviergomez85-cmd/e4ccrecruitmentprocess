@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCountries } from "@/hooks/useLocations";
-import { getEvaluatorAccess, listEvaluationQueue, markInterviewNoShow } from "@/lib/evaluations.functions";
+import { getEvaluatorAccess, listEvaluationQueue, markInterviewNoShow, markInterviewWaitingList } from "@/lib/evaluations.functions";
 import { EVALUATION_STATUSES } from "@/lib/evaluations";
 
 export const Route = createFileRoute("/_authenticated/evaluations/")({
@@ -54,6 +54,25 @@ function EvaluationsPage() {
   const queueFn = useServerFn(listEvaluationQueue);
   const noShowFn = useServerFn(markInterviewNoShow);
   const [noShowBusy, setNoShowBusy] = useState<string | null>(null);
+  const waitFn = useServerFn(markInterviewWaitingList);
+  const [action, setAction] = useState<Record<string, string>>({});
+
+  async function onSend(r: { applicationId: string; fullName: string }) {
+    const a = action[r.applicationId];
+    if (a === "noshow") return onNoShow(r);
+    if (a !== "waiting") return;
+    if (!window.confirm(`¿Mover a ${r.fullName} a Waiting List?`)) return;
+    setNoShowBusy(r.applicationId);
+    try {
+      await waitFn({ data: { applicationId: r.applicationId } });
+      toast.success(`${r.fullName} movido a Waiting List`);
+      await queryClient.invalidateQueries({ queryKey: ["evaluation-queue"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setNoShowBusy(null);
+    }
+  }
   const { data: countries = [] } = useCountries();
 
   async function onNoShow(r: { applicationId: string; fullName: string }) {
@@ -343,14 +362,18 @@ function EvaluationsPage() {
                               {group.title === "Today's interviews" &&
                                 access.canEvaluate &&
                                 (r.appointmentStatus === "Scheduled" || r.appointmentStatus === "Confirmed") && (
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    disabled={noShowBusy === r.applicationId}
-                                    onClick={() => void onNoShow(r)}
-                                  >
-                                    <UserX className="mr-1 h-3.5 w-3.5" /> No Show
-                                  </Button>
+                                  <>
+                                    <Select value={action[r.applicationId] ?? ""} onValueChange={(v) => setAction({ ...action, [r.applicationId]: v })}>
+                                      <SelectTrigger className="h-8 w-36"><SelectValue placeholder="Acción…" /></SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="noshow">No Show</SelectItem>
+                                        <SelectItem value="waiting">Waiting List</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <Button size="sm" variant="destructive" disabled={!action[r.applicationId] || noShowBusy === r.applicationId} onClick={() => void onSend(r)}>
+                                      <UserX className="mr-1 h-3.5 w-3.5" /> Enviar
+                                    </Button>
+                                  </>
                                 )}
                               <Button
                                 size="sm"
