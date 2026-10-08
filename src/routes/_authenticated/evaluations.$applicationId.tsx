@@ -253,6 +253,17 @@ function EvaluationForm() {
     }));
   }, [finishOpen, finalResult, data?.finalFilterAppointment]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Preselect the Manager already assigned to the candidate, if any.
+  useEffect(() => {
+    if (!finishOpen || finalResult !== "Approved for last step" || locked) return;
+    const id = data?.assignedManagerId;
+    if (!id || String(sections["result"]?.["ff_manager_id"] ?? "")) return;
+    const m = data?.managers.find((x) => x.id === id);
+    if (!m) return;
+    set("result", "ff_manager_id", m.id);
+    set("result", "ff_interviewer", m.name);
+  }, [finishOpen, finalResult, data?.assignedManagerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Store the default time zone so it reaches the email.
   useEffect(() => {
     if (sections["result"]?.["ff_known"] === "yes" && !sections["result"]?.["ff_timezone"]) {
