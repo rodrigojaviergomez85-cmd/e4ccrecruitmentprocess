@@ -23,14 +23,41 @@ export const startInterviewTimer = createServerFn({ method: "POST" })
     const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
     if (!ok) throw new Error("You cannot start this interview timer.");
     const now = new Date().toISOString();
+    // Resume keeps any previously accumulated handle_seconds (paused time is not counted).
     const { error } = await db
       .from(TABLES[data.kind])
-      .update({ timer_started_at: now, timer_ended_at: null, handle_seconds: null })
+      .update({ timer_started_at: now, timer_ended_at: null })
       .eq("id", data.evaluationId)
       .is("timer_started_at", null);
     if (error) throw new Error(error.message);
     const { data: row } = await db.from(TABLES[data.kind]).select("timer_started_at").eq("id", data.evaluationId).maybeSingle();
     return { startedAt: row?.timer_started_at ?? now };
+  });
+
+/** Pauses a running timer (user left the interview page). Accumulates elapsed time into handle_seconds so it can resume later. */
+export const pauseInterviewTimer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ kind: z.enum(["recruitment", "manager"]), evaluationId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db, tier } = await roles(context.userId);
+    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
+    if (!ok) throw new Error("You cannot pause this interview timer.");
+    const { data: row } = await db
+      .from(TABLES[data.kind])
+      .select("timer_started_at, timer_ended_at, handle_seconds")
+      .eq("id", data.evaluationId)
+      .maybeSingle();
+    if (!row?.timer_started_at || row.timer_ended_at) return { paused: false };
+    const elapsed = Math.max(0, Math.round((Date.now() - new Date(row.timer_started_at).getTime()) / 1000));
+    const total = (row.handle_seconds ?? 0) + elapsed;
+    const { error } = await db
+      .from(TABLES[data.kind])
+      .update({ timer_started_at: null, timer_ended_at: null, handle_seconds: total })
+      .eq("id", data.evaluationId);
+    if (error) throw new Error(error.message);
+    return { paused: true, handleSeconds: total };
   });
 
 export const getAhtReport = createServerFn({ method: "POST" })
