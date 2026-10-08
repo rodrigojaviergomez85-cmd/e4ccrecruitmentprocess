@@ -362,7 +362,19 @@ export const openEvaluation = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
+    const { data: mgrRoles } = await db.from("user_roles").select("user_id").eq("role", "manager");
+    const mgrIds = [...new Set((mgrRoles ?? []).map((r) => r.user_id))];
+    const { data: mgrProfiles } = mgrIds.length
+      ? await db.from("staff_profiles").select("user_id, full_name, email, active").in("user_id", mgrIds)
+      : { data: [] as { user_id: string; full_name: string; email: string; active: boolean }[] };
+    const managers = (mgrProfiles ?? [])
+      .filter((p) => p.active)
+      .map((p) => ({ id: p.user_id, name: p.full_name || p.email }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
     return {
+      managers,
+      assignedManagerId: (app as { assigned_manager_id?: string | null }).assigned_manager_id ?? null,
       finalFilterAppointment: mgrAppt
         ? {
             startsAt: mgrAppt.starts_at,
@@ -588,6 +600,7 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     if (data.submit && data.finalResult === "Approved for last step") {
       const ff = readFinalFilter(sections["result"]);
       if (ff.state === "incomplete") missing.push(...ff.missing.map((m) => `Final filter ${m}`));
+      if (!String(sections["result"]?.["ff_manager_id"] ?? "")) missing.push("Second filter Manager");
     }
     if (data.submit && missing.length) return { ok: false as const, missing };
 
@@ -636,6 +649,14 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       })
       .eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
+    if (data.submit && data.finalResult === "Approved for last step") {
+      const managerId = String(sections["result"]?.["ff_manager_id"] ?? "");
+      const { data: isMgr } = await db.from("user_roles").select("user_id").eq("user_id", managerId).eq("role", "manager").maybeSingle();
+      if (isMgr) {
+        await db.from("applications").update({ assigned_manager_id: managerId }).eq("id", current.application_id);
+        await db.from("manager_evaluations").update({ manager_id: managerId }).eq("application_id", current.application_id).is("submitted_at", null);
+      }
+    }
     if (data.submit) {
       const { stopInterviewTimer } = await import("./aht.server");
       await stopInterviewTimer(db as never, "interview_evaluations", data.evaluationId);
