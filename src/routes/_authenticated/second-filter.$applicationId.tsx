@@ -1089,7 +1089,7 @@ function PresetField({ label, presets, value, onChange, placeholder }: { label: 
     <div className="space-y-1">
       <Label className="text-sm font-semibold">{label}</Label>
       <Select
-        value={custom ? OTHER : value || undefined}
+        value={custom ? OTHER : value}
         onValueChange={(v) => {
           if (v === OTHER) { setCustom(true); onChange(""); }
           else { setCustom(false); onChange(v); }

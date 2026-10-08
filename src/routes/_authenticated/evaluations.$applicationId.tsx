@@ -1635,7 +1635,7 @@ function EvaluationForm() {
               <div className="space-y-3 rounded-2xl border border-border p-3">
                 <Field label="Which Manager will see the candidate in the Second Filter?">
                   <Select
-                    value={str("result", "ff_manager_id") || undefined}
+                    value={str("result", "ff_manager_id")}
                     onValueChange={(id) => {
                       set("result", "ff_manager_id", id);
                       set("result", "ff_interviewer", data?.managers.find((m) => m.id === id)?.name ?? "");
