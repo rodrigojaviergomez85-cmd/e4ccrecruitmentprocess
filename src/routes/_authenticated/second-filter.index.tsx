@@ -101,6 +101,8 @@ function QueuePage() {
           </div>
         </div>
 
+        {data && <Agenda rows={data.rows} managers={data.managers} />}
+
         {error && <p className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">{error instanceof Error ? error.message : "Could not load"}</p>}
         {isLoading && <Skeleton className="h-40 w-full rounded-2xl" />}
         {data && rows.length === 0 && (
@@ -160,5 +162,65 @@ function F({ label, value, onChange, options }: { label: string; value: string; 
         </SelectContent>
       </Select>
     </div>
+  );
+}
+
+type AgendaRow = { id: string; fullName: string; country: string; modality: string | null; managerId: string | null; agendaAt: string | null };
+
+function Agenda({ rows, managers }: { rows: AgendaRow[]; managers: { id: string; name: string }[] }) {
+  const now = new Date();
+  const todayKey = now.toDateString();
+  const items = rows
+    .filter((r) => r.agendaAt && new Date(r.agendaAt).getTime() >= now.getTime() - 2 * 3600_000)
+    .sort((a, b) => a.agendaAt!.localeCompare(b.agendaAt!));
+  const groups = [
+    ...managers.map((m) => ({ id: m.id, name: m.name })),
+    { id: "none", name: "Unassigned" },
+  ]
+    .map((g) => ({ ...g, list: items.filter((r) => (r.managerId ?? "none") === g.id) }))
+    .filter((g) => g.list.length);
+  const time = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const dateTime = (iso: string) =>
+    new Date(iso).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  return (
+    <section className="space-y-3 rounded-2xl border border-border bg-card p-4">
+      <div>
+        <h2 className="text-lg font-semibold">Agenda — Second Filters</h2>
+        <p className="text-xs text-muted-foreground">Today with time, upcoming with date and time, by Manager.</p>
+      </div>
+      {groups.length === 0 && <p className="text-sm text-muted-foreground">No second filters scheduled.</p>}
+      <div className="grid gap-3 md:grid-cols-2">
+        {groups.map((g) => {
+          const today = g.list.filter((r) => new Date(r.agendaAt!).toDateString() === todayKey);
+          const next = g.list.filter((r) => new Date(r.agendaAt!).toDateString() !== todayKey);
+          return (
+            <div key={g.id} className="space-y-2 rounded-xl border border-border p-3">
+              <p className="font-semibold">{g.name}</p>
+              <div>
+                <p className="text-xs font-bold uppercase text-primary">Today</p>
+                {today.length === 0 ? <p className="text-xs text-muted-foreground">—</p> : today.map((r) => (
+                  <AgendaItem key={r.id} r={r} when={time(r.agendaAt!)} />
+                ))}
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground">Upcoming</p>
+                {next.length === 0 ? <p className="text-xs text-muted-foreground">—</p> : next.map((r) => (
+                  <AgendaItem key={r.id} r={r} when={dateTime(r.agendaAt!)} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AgendaItem({ r, when }: { r: AgendaRow; when: string }) {
+  return (
+    <Link to="/second-filter/$applicationId" params={{ applicationId: r.id }} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1 text-sm hover:bg-secondary">
+      <span className="font-medium tabular-nums">{when}</span>
+      <span className="truncate text-right">{r.fullName} <span className="text-xs capitalize text-muted-foreground">· {r.modality ?? r.country}</span></span>
+    </Link>
   );
 }
