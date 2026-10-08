@@ -1,4 +1,5 @@
 import { readFinalFilter } from "@/lib/evaluations";
+import { EditCandidateInfo } from "@/components/EditCandidateInfo";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -211,7 +212,7 @@ function CandidateDetail() {
                   Submitted {new Date(app.submitted_at).toLocaleString()}
                 </p>
               )}
-              <EditInfo id={id} app={app} />
+              <EditCandidateInfo id={id} app={app} />
             </div>
             <div className="w-full space-y-1.5 sm:w-48">
               <Label className="text-xs">Application status</Label>
