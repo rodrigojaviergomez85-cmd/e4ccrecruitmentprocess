@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { MANAGER_DECISIONS, TRAINING_KEYS, missingTraining, type ManagerDecision } from "./manager-scorecard";
+import { ffStartIso } from "./evaluations";
 import { PENDING_SECOND_FILTER, staffTier } from "./roles";
 
 async function getAdmin() {
@@ -77,7 +78,7 @@ export const listSecondFilterQueue = createServerFn({ method: "POST" })
     let query = ctx.db
       .from("applications")
       .select(
-        "id, full_name, country, country_code, city, status, assigned_manager_id, recruitment_approved_at, last_contact_at, recruitment_progress(work_modality), appointments(starts_at, status, created_at), interview_evaluations(attempt_number, final_result, decided_at, submitted_at), candidate_emails(created_at)",
+        "id, full_name, country, country_code, city, status, assigned_manager_id, recruitment_approved_at, last_contact_at, recruitment_progress(work_modality), appointments(starts_at, status, created_at), interview_evaluations(attempt_number, final_result, decided_at, submitted_at, sections), candidate_emails(created_at)",
       )
       .eq("status", PENDING_SECOND_FILTER)
       .is("archived_at", null)
@@ -99,6 +100,11 @@ export const listSecondFilterQueue = createServerFn({ method: "POST" })
       const scheduled = Boolean(
         appt && approvedAt && appt.starts_at > approvedAt && appt.status !== "Canceled",
       );
+      const ffr = ((approvedEval?.sections as Record<string, Record<string, unknown>> | null)?.["result"] ?? {}) as Record<string, unknown>;
+      const manualAt = ffr["ff_known"] === "yes"
+        ? ffStartIso(String(ffr["ff_date"] ?? ""), String(ffr["ff_time"] ?? ""), String(ffr["ff_timezone"] ?? ""))
+        : null;
+      const agendaAt = scheduled ? appt!.starts_at : manualAt;
       const lastEmail = [...(a.candidate_emails ?? [])].sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
       return {
         id: a.id,
@@ -114,6 +120,7 @@ export const listSecondFilterQueue = createServerFn({ method: "POST" })
         managerName: managers.find((m) => m.id === a.assigned_manager_id)?.name ?? null,
         appointmentAt: scheduled ? appt!.starts_at : null,
         appointmentStatus: scheduled ? appt!.status : "Not scheduled",
+        agendaAt,
         isRetake: evals.length > 1,
       };
     });
