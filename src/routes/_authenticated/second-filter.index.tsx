@@ -102,7 +102,7 @@ function QueuePage() {
           </div>
         </div>
 
-        {data && <MyFilters rows={data.rows} me={data.me} canDecide={data.canDecide} />}
+        {data && <ManagerMyFilters rows={data.rows} me={data.me} canDecide={data.canDecide} />}
         {data && <Agenda rows={data.rows} managers={data.managers} />}
 
         {error && <p className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">{error instanceof Error ? error.message : "Could not load"}</p>}
