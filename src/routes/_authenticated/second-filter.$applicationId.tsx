@@ -225,7 +225,12 @@ function ReviewPage() {
     const sec = (iv?.sections ?? {}) as Record<string, Record<string, unknown>>;
     const start = String(sec["profile"]?.["training_start"] ?? sec["candidate"]?.["training_start"] ?? "").trim();
     // Suggested modality from the Recruitment file; the Manager must confirm it in the closing step.
-    return { [TRAINING_KEYS.startDate]: start } as Record<string, string>;
+    const online = normalizeModality(d.progress?.work_modality) === "online";
+    return {
+      [TRAINING_KEYS.startDate]: start,
+      // Online always trains with the same trainer and Zoom room; the Manager can pick "Other…".
+      ...(online ? { [TRAINING_KEYS.trainer]: ONLINE_TRAINER, [TRAINING_KEYS.zoom]: ONLINE_ZOOM } : {}),
+    } as Record<string, string>;
   }, [d]);
   const withDefaults = (ev: Record<string, string>) => {
     const out = { ...ev };
