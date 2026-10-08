@@ -192,6 +192,38 @@ export const createStaffUser = createServerFn({ method: "POST" })
     return { userId, tempPassword, invited };
   });
 
+export const updateStaffName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ userId: z.string().uuid(), fullName: z.string().trim().min(2).max(120) })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db, email } = await requireActiveAdmin(context.userId);
+    const { data: profile } = await db
+      .from("staff_profiles")
+      .select("full_name")
+      .eq("user_id", data.userId)
+      .maybeSingle();
+    if (!profile) throw new Error("Staff member not found.");
+    const { error } = await db
+      .from("staff_profiles")
+      .update({ full_name: data.fullName })
+      .eq("user_id", data.userId);
+    if (error) throw new Error(error.message);
+    await audit(db, {
+      actorId: context.userId,
+      actorEmail: email,
+      action: "staff.name_changed",
+      entityType: "staff",
+      entityId: data.userId,
+      oldValue: { full_name: profile.full_name },
+      newValue: { full_name: data.fullName },
+    });
+    return { ok: true };
+  });
+
 export const setStaffActive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
