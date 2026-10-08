@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Copy, Loader2, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, Check, Copy, Loader2, Pencil, ShieldCheck, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ import {
   sendStaffResetLink,
   setStaffActive,
   updateStaffAccess,
+  updateStaffName,
   type StaffRole,
 } from "@/lib/staff.functions";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -60,6 +61,7 @@ function StaffPage() {
   const activeFn = useServerFn(setStaffActive);
   const accessFn = useServerFn(updateStaffAccess);
   const resetFn = useServerFn(sendStaffResetLink);
+  const nameFn = useServerFn(updateStaffName);
 
   const staff = useQuery({ queryKey: ["staff"], queryFn: () => fetchStaff(), retry: false });
   const countries = useQuery({
@@ -75,6 +77,9 @@ function StaffPage() {
   const [picked, setPicked] = useState<string[]>([]);
   const [sendInvite, setSendInvite] = useState(true);
   const [tempPassword, setTempPassword] = useState<string | null>(null);
+  const [editingNameId, setEditingNameId] = useState<string | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["staff"] });
@@ -242,7 +247,65 @@ function StaffPage() {
                 <div key={s.user_id} className="rounded-2xl border border-border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="font-medium">{s.full_name || s.email}</p>
+                      {editingNameId === s.user_id ? (
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            value={nameDraft}
+                            onChange={(e) => setNameDraft(e.target.value)}
+                            className="h-8 w-56"
+                            aria-label="Edit staff name"
+                            autoFocus
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            aria-label="Save name"
+                            disabled={savingName || nameDraft.trim().length < 2}
+                            onClick={() => {
+                              setSavingName(true);
+                              nameFn({ data: { userId: s.user_id, fullName: nameDraft.trim() } })
+                                .then(() => {
+                                  toast.success("Name updated");
+                                  setEditingNameId(null);
+                                  invalidate();
+                                })
+                                .catch((e: Error) => toast.error(e.message))
+                                .finally(() => setSavingName(false));
+                            }}
+                          >
+                            {savingName ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            aria-label="Cancel editing name"
+                            onClick={() => setEditingNameId(null)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="flex items-center gap-1.5 font-medium">
+                          {s.full_name || s.email}
+                          <button
+                            type="button"
+                            aria-label={`Edit name of ${s.full_name || s.email}`}
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setEditingNameId(s.user_id);
+                              setNameDraft(s.full_name ?? "");
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">{s.email}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
