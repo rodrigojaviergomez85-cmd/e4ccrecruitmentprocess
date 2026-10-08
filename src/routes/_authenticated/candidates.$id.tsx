@@ -211,6 +211,7 @@ function CandidateDetail() {
                   Submitted {new Date(app.submitted_at).toLocaleString()}
                 </p>
               )}
+              <EditInfo id={id} app={app} />
             </div>
             <div className="w-full space-y-1.5 sm:w-48">
               <Label className="text-xs">Application status</Label>
