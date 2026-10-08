@@ -541,6 +541,7 @@ function ReviewPage() {
                   kind="manager"
                   evaluationId={current?.id}
                   startedAt={current?.timer_started_at}
+                  endedAt={current?.timer_ended_at}
                   handleSeconds={current?.handle_seconds}
                   canStart={editable}
                 />

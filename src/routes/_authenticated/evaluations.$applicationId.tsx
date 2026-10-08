@@ -484,6 +484,7 @@ function EvaluationForm() {
               kind="recruitment"
               evaluationId={evaluation.id}
               startedAt={evaluation.timer_started_at}
+              endedAt={evaluation.timer_ended_at}
               handleSeconds={evaluation.handle_seconds}
               canStart={!locked}
             />
