@@ -209,6 +209,7 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
         grammarTestScore: progress?.grammar_test_score ?? null,
         appointmentAt: appt?.starts_at ?? null,
         appointmentStatus: appt?.status ?? null,
+        appointmentId: appt?.id ?? null,
         pipelineStatus: a.status,
         attemptNumber: evaluation?.attempt_number ?? 0,
         evaluationId: evaluation?.id ?? null,
@@ -239,6 +240,65 @@ export const listEvaluationQueue = createServerFn({ method: "POST" })
       rows: filtered,
       evaluators: (staff ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email })),
     };
+  });
+
+/**
+ * Marks today's Recruitment interview as No Show from the queue, without opening
+ * the evaluation: the appointment closes as "No-show" and the candidate gets the
+ * No Show email with a personal link to rebook.
+ */
+export const markInterviewNoShow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Only interview staff can mark a No Show.");
+    const { db } = ctx;
+
+    const { data: app, error } = await db
+      .from("applications")
+      .select("id, full_name, email")
+      .eq("id", data.applicationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!app) throw new Error("Candidate not found.");
+
+    const { data: appt } = await db
+      .from("appointments")
+      .select("id, starts_at, status")
+      .eq("application_id", app.id)
+      .in("status", ["Scheduled", "Confirmed"])
+      .order("starts_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (appt) {
+      const { error: upErr } = await db.from("appointments").update({ status: "No-show" }).eq("id", appt.id);
+      if (upErr) throw new Error(upErr.message);
+    }
+
+    const { issueSchedulingToken, schedulingUrl } = await import("./scheduling.server");
+    const { sendEmail } = await import("./notify.server");
+    const { buildInterviewNoShowEmail } = await import("./candidate-emails");
+    const token = await issueSchedulingToken(app.id);
+    const mail = buildInterviewNoShowEmail({ fullName: app.full_name, scheduleUrl: schedulingUrl(token) });
+    const sent = await sendEmail({
+      to: app.email,
+      subject: mail.subject,
+      html: mail.html,
+      candidateName: app.full_name,
+      result: "no_show",
+    });
+
+    await writeAudit(db, {
+      actorId: context.userId,
+      action: "interview.no_show",
+      entityType: "appointment",
+      entityId: appt?.id ?? null,
+      applicationId: app.id,
+      newValue: { status: "No-show", email: sent.status, source: "queue_quick_action" },
+    });
+
+    return { ok: true, email: sent.status, detail: sent.detail };
   });
 
 /** Opens (or creates) the single evaluation for an application and loads existing candidate data. */

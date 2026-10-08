@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { BarChart3, ClipboardList, Search, SlidersHorizontal } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart3, ClipboardList, Search, SlidersHorizontal, UserX } from "lucide-react";
+import { toast } from "sonner";
 
 import { BrandMark } from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCountries } from "@/hooks/useLocations";
-import { getEvaluatorAccess, listEvaluationQueue } from "@/lib/evaluations.functions";
+import { getEvaluatorAccess, listEvaluationQueue, markInterviewNoShow } from "@/lib/evaluations.functions";
 import { EVALUATION_STATUSES } from "@/lib/evaluations";
 
 export const Route = createFileRoute("/_authenticated/evaluations/")({
@@ -48,9 +49,27 @@ function isToday(iso: string | null) {
 
 function EvaluationsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const accessFn = useServerFn(getEvaluatorAccess);
   const queueFn = useServerFn(listEvaluationQueue);
+  const noShowFn = useServerFn(markInterviewNoShow);
+  const [noShowBusy, setNoShowBusy] = useState<string | null>(null);
   const { data: countries = [] } = useCountries();
+
+  async function onNoShow(r: { applicationId: string; fullName: string }) {
+    if (!window.confirm(`¿Marcar a ${r.fullName} como No Show y enviarle el correo para reagendar?`)) return;
+    setNoShowBusy(r.applicationId);
+    try {
+      const res = await noShowFn({ data: { applicationId: r.applicationId } });
+      if (res.email === "sent") toast.success(`${r.fullName} marcado como No Show — correo enviado`);
+      else toast.warning(`No Show guardado, pero el correo no se envió: ${res.detail}`);
+      await queryClient.invalidateQueries({ queryKey: ["evaluation-queue"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo marcar el No Show");
+    } finally {
+      setNoShowBusy(null);
+    }
+  }
 
   const { data: access, isPending: accessPending } = useQuery({
     queryKey: ["evaluator-access"],
@@ -320,18 +339,32 @@ function EvaluationsPage() {
                             </div>
                           </td>
                           <td className="px-4 py-2 text-right">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                void navigate({
-                                  to: "/evaluations/$applicationId",
-                                  params: { applicationId: r.applicationId },
-                                })
-                              }
-                            >
-                              {access.canEvaluate ? "Open" : "View"}
-                            </Button>
+                            <div className="flex items-center justify-end gap-2">
+                              {group.title === "Today's interviews" &&
+                                access.canEvaluate &&
+                                (r.appointmentStatus === "Scheduled" || r.appointmentStatus === "Confirmed") && (
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    disabled={noShowBusy === r.applicationId}
+                                    onClick={() => void onNoShow(r)}
+                                  >
+                                    <UserX className="mr-1 h-3.5 w-3.5" /> No Show
+                                  </Button>
+                                )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  void navigate({
+                                    to: "/evaluations/$applicationId",
+                                    params: { applicationId: r.applicationId },
+                                  })
+                                }
+                              >
+                                {access.canEvaluate ? "Open" : "View"}
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
