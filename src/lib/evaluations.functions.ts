@@ -253,7 +253,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
     const { data: app, error } = await db
       .from("applications")
       .select(
-        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
+        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, assigned_manager_id, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
       )
       .eq("id", data.applicationId)
       .maybeSingle();
@@ -374,7 +374,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
 
     return {
       managers,
-      assignedManagerId: (app as { assigned_manager_id?: string | null }).assigned_manager_id ?? null,
+      assignedManagerId: app.assigned_manager_id ?? null,
       finalFilterAppointment: mgrAppt
         ? {
             startsAt: mgrAppt.starts_at,

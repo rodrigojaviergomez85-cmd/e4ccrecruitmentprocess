@@ -1622,7 +1622,19 @@ function EvaluationForm() {
             )}
             {finalResult === "Approved for last step" && (
               <div className="space-y-3 rounded-2xl border border-border p-3">
-                <Label className="text-sm font-semibold">Do you already have the final filter date, time and interviewer?</Label>
+                <Field label="Which Manager will see the candidate in the Second Filter?">
+                  <Select
+                    value={str("result", "ff_manager_id") || undefined}
+                    onValueChange={(id) => {
+                      set("result", "ff_manager_id", id);
+                      set("result", "ff_interviewer", data?.managers.find((m) => m.id === id)?.name ?? "");
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select the Manager" /></SelectTrigger>
+                    <SelectContent>{(data?.managers ?? []).map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </Field>
+                <Label className="text-sm font-semibold">Do you already have the second filter date and time?</Label>
                 <div className="flex gap-2">
                   {["yes", "no"].map((v) => (
                     <Button key={v} type="button" size="sm" variant={str("result", "ff_known") === v ? "default" : "outline"} onClick={() => set("result", "ff_known", v)}>
@@ -1645,7 +1657,6 @@ function EvaluationForm() {
                         <SelectContent>{FF_TIMEZONES.map((tz) => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Interviewer name"><Input value={str("result", "ff_interviewer")} onChange={(e) => set("result", "ff_interviewer", e.target.value)} /></Field>
                     <Field label="Interview format" hint="How the final interview happens — not the position's modality.">
                       <div className="flex gap-2">
                         {[["video", "Video call"], ["onsite", "In person"]].map(([v, label]) => (
@@ -1707,7 +1718,7 @@ function EvaluationForm() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFinishOpen(false)}>Cancel</Button>
-            <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving" || (finalResult === "Approved for last step" && (!str("result", "ff_known") || ffCheck.state === "incomplete"))}>
+            <Button onClick={() => void submit(true)} disabled={missingEarlyFinish(complianceInput).length > 0 || saveState === "saving" || (finalResult === "Approved for last step" && (!str("result", "ff_manager_id") || !str("result", "ff_known") || ffCheck.state === "incomplete"))}>
               Confirm and finish
             </Button>
           </DialogFooter>
