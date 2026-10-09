@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Save, Unlock } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { InterviewTimer } from "@/components/InterviewTimer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -473,12 +472,9 @@ function EvaluationForm() {
 
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">E4CC Interview — live evaluation</p>
-          </div>
+      <div className="border-b border-border bg-background">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <p className="text-sm font-medium">Live evaluation</p>
           <div className="flex items-center gap-2">
             <InterviewTimer
               kind="recruitment"
@@ -521,7 +517,7 @@ function EvaluationForm() {
             </Button>
           </div>
         </div>
-      </header>
+      </div>
 
       <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <div className="min-w-0 space-y-5 lg:col-start-2 lg:row-start-1">
