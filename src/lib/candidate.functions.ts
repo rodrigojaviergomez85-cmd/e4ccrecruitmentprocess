@@ -37,7 +37,7 @@ async function assertOwner(applicationId: string, token: string) {
   const db = await admin();
   const { data, error } = await db
     .from("applications")
-    .select("id, full_name, teaching_experience, submitted_at, submit_token")
+    .select("id, full_name, teaching_experience, submitted_at, submit_token, screening_attempts")
     .eq("id", applicationId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -89,6 +89,7 @@ export const getApplicationState = createServerFn({ method: "POST" })
       fullName: app.full_name,
       teachingExperience: app.teaching_experience,
       submitted: Boolean(app.submitted_at),
+      screeningAttempts: app.screening_attempts,
       recordedSlots: (videos ?? []).map((v) => v.slot),
     };
   });
@@ -169,24 +170,26 @@ export const getReviewData = createServerFn({ method: "POST" })
 export const submitApplication = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ownerSchema.parse(d))
   .handler(async ({ data }) => {
-    await assertOwner(data.applicationId, data.token);
+    const app = await assertOwner(data.applicationId, data.token);
+    // Re-submitting (double click, reload, second tab) is a no-op, never a new attempt.
+    if (app.submitted_at) return { ok: true, duplicate: true };
     const db = await admin();
     const { data: videos } = await db
       .from("videos")
       .select("slot")
       .eq("application_id", data.applicationId);
     if ((videos ?? []).length < 2) throw new Error("Both videos are required before submitting");
-    const { error } = await db
-      .from("applications")
-      .update({ submitted_at: new Date().toISOString() })
-      .eq("id", data.applicationId);
+    const { data: attempt, error } = await db.rpc("submit_screening", {
+      _application_id: data.applicationId,
+    });
     if (error) throw new Error(error.message);
+    if (!attempt) return { ok: true, duplicate: true };
     await db
       .from("ai_evaluations")
-      .upsert({ application_id: data.applicationId, state: "pending" }, {
+      .upsert({ application_id: data.applicationId, state: "pending", error_message: null }, {
         onConflict: "application_id",
       });
-    return { ok: true };
+    return { ok: true, duplicate: false };
   });
 
 /** Runs transcription + AI evaluation for a submitted application. Idempotent. */
@@ -196,11 +199,14 @@ export async function runAnalysisForApplication(applicationId: string) {
   const { computeProficiencyScore } = await import("./recruitment");
   type MediaInput = { base64: string; ext: string; mime: string };
 
-  await db
+  // Claim the job so the same submission is never evaluated (or billed) twice.
+  const { data: claimed } = await db
     .from("ai_evaluations")
-    .upsert({ application_id: applicationId, state: "running", error_message: null }, {
-      onConflict: "application_id",
-    });
+    .update({ state: "running", error_message: null })
+    .eq("application_id", applicationId)
+    .in("state", ["pending", "error"])
+    .select("id");
+  if (!claimed || claimed.length === 0) return { ok: true, skipped: true };
 
   try {
     const { data: videos, error } = await db
@@ -345,7 +351,7 @@ export const runAnalysis = createServerFn({ method: "POST" })
     try {
       return await runAnalysisForApplication(data.applicationId);
     } catch {
-      // One automatic retry so a transient gateway hiccup does not leave a
+      // One automatic retry (only re-runs if the first try ended in "error") so a transient gateway hiccup does not leave a
       // candidate without a score.
       await new Promise((r) => setTimeout(r, 2000));
       return runAnalysisForApplication(data.applicationId);
@@ -353,9 +359,12 @@ export const runAnalysis = createServerFn({ method: "POST" })
 
   });
 
+/** Max technical redos (unusable audio) that never count as a screening attempt. */
+const MAX_TECHNICAL_RESETS = 2;
+
 /**
- * Candidate outcome after the AI evaluation. Eligible candidates receive a
- * fresh secure scheduling link; everyone else only sees a thank-you message.
+ * Candidate outcome after the AI evaluation. Distinguishes technical problems
+ * from level results and tells the candidate whether a final attempt remains.
  */
 export const getOutcome = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ownerSchema.parse(d))
@@ -364,33 +373,123 @@ export const getOutcome = createServerFn({ method: "POST" })
     const db = await admin();
     const { data: evaluation } = await db
       .from("ai_evaluations")
-      .select("state, cefr")
+      .select("state, cefr, areas_to_review, grammar_evidence")
       .eq("application_id", data.applicationId)
       .maybeSingle();
-
-    const { isSchedulingEligible } = await import("./interviews");
     const { data: app } = await db
       .from("applications")
-      .select("eligibility_override")
+      .select("eligibility_override, screening_attempts, screening_technical_resets")
       .eq("id", data.applicationId)
       .maybeSingle();
+    const base = { areas: [] as string[], attempt: app?.screening_attempts ?? 1, processUrl: null as string | null };
 
+    if (evaluation?.state === "error") return { ...base, state: "error", result: null };
+    if (evaluation?.state !== "done") return { ...base, state: evaluation?.state ?? "pending", result: null };
+
+    const evidence = (evaluation.grammar_evidence ?? {}) as { assessment_status?: string };
+    const scored = !evidence.assessment_status || evidence.assessment_status === "Scored";
+    const { isSchedulingEligible } = await import("./interviews");
     const eligible =
       app?.eligibility_override === true
         ? true
         : app?.eligibility_override === false
           ? false
-          : isSchedulingEligible(evaluation?.cefr);
+          : isSchedulingEligible(evaluation.cefr);
 
-    if (evaluation?.state !== "done") {
-      return { state: evaluation?.state ?? "pending", eligible: false, processUrl: null };
+    if (eligible) {
+      return { ...base, state: "done", result: "eligible", processUrl: `/process/${data.applicationId}?t=${data.token}` };
     }
-    if (!eligible) return { state: "done", eligible: false, processUrl: null };
-
-    // Eligible candidates continue to the E4CC Recruitment Process checklist.
+    if (!scored && app?.eligibility_override == null) {
+      return {
+        ...base,
+        state: "done",
+        result: (app?.screening_technical_resets ?? 0) < MAX_TECHNICAL_RESETS ? "audio_issue" : "manual_review",
+      };
+    }
+    const areas = scored
+      ? ((evaluation.areas_to_review ?? []) as unknown[]).filter((x): x is string => typeof x === "string" && x.trim().length > 0).slice(0, 2)
+      : [];
     return {
+      ...base,
+      areas,
       state: "done",
-      eligible: true,
-      processUrl: `/process/${data.applicationId}?t=${data.token}`,
+      result: (app?.screening_attempts ?? 1) < 2 ? "retake_available" : "final_not_approved",
     };
+  });
+
+/**
+ * Starts the single screening retake (kind "level") or a technical redo after
+ * unusable audio (kind "technical", does not consume an attempt). The first
+ * result and recordings stay in screening_attempts as history.
+ */
+export const startScreeningRetry = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => ownerSchema.extend({ kind: z.enum(["level", "technical"]) }).parse(d))
+  .handler(async ({ data }) => {
+    await assertOwner(data.applicationId, data.token);
+    const db = await admin();
+    const { data: app } = await db
+      .from("applications")
+      .select("submitted_at, screening_attempts, screening_technical_resets, eligibility_override")
+      .eq("id", data.applicationId)
+      .single();
+    if (!app?.submitted_at) return { ok: true }; // already reset (other tab / reload)
+    const { data: evaluation } = await db
+      .from("ai_evaluations")
+      .select("*")
+      .eq("application_id", data.applicationId)
+      .maybeSingle();
+    if (evaluation?.state !== "done") throw new Error("Your screening result is not ready yet.");
+    const evidence = (evaluation.grammar_evidence ?? {}) as { assessment_status?: string };
+    const scored = !evidence.assessment_status || evidence.assessment_status === "Scored";
+    const { isSchedulingEligible } = await import("./interviews");
+    if (app.eligibility_override === true || isSchedulingEligible(evaluation.cefr)) {
+      throw new Error("Your screening was approved; no new attempt is needed.");
+    }
+    if (data.kind === "level") {
+      if (!scored) throw new Error("This result needs a technical re-recording instead.");
+      if (app.screening_attempts >= 2) throw new Error("There are no additional screening attempts available for this application.");
+    } else {
+      if (scored) throw new Error("A technical re-recording is not available for this result.");
+      if (app.screening_technical_resets >= MAX_TECHNICAL_RESETS) throw new Error("Our team will review your recordings manually.");
+    }
+
+    const [{ data: videos }, { data: transcripts }] = await Promise.all([
+      db.from("videos").select("*").eq("application_id", data.applicationId),
+      db.from("transcripts").select("*").eq("application_id", data.applicationId),
+    ]);
+    const kind = data.kind === "level" ? "level" : `technical-${app.screening_technical_resets + 1}`;
+    const { error: histErr } = await db.from("screening_attempts").upsert(
+      {
+        application_id: data.applicationId,
+        attempt_number: app.screening_attempts,
+        kind,
+        ai_result: evaluation as never,
+        videos: (videos ?? []) as never,
+        transcripts: (transcripts ?? []) as never,
+      },
+      { onConflict: "application_id,attempt_number,kind" },
+    );
+    if (histErr) throw new Error(histErr.message);
+
+    // Conditional reset: only one tab/request can win it.
+    const reset =
+      data.kind === "level"
+        ? { submitted_at: null }
+        : {
+            submitted_at: null,
+            screening_attempts: Math.max(0, app.screening_attempts - 1),
+            screening_technical_resets: app.screening_technical_resets + 1,
+          };
+    const { data: won } = await db
+      .from("applications")
+      .update(reset)
+      .eq("id", data.applicationId)
+      .eq("screening_attempts", app.screening_attempts)
+      .not("submitted_at", "is", null)
+      .select("id");
+    if (!won || won.length === 0) return { ok: true };
+    await db.from("transcripts").delete().eq("application_id", data.applicationId);
+    await db.from("videos").delete().eq("application_id", data.applicationId);
+    await db.from("ai_evaluations").delete().eq("application_id", data.applicationId);
+    return { ok: true };
   });
