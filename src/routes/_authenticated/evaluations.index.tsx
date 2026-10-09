@@ -75,7 +75,7 @@ const RESULT_TONE: Record<string, string> = {
   "Retake required": "border-warning/40 bg-warning/15 text-warning-foreground",
 };
 
-function Tag({ label, tone }: { label: string; tone?: string }) {
+function Tag({ label, tone }: { label: string; tone?: string | undefined }) {
   return (
     <span className={`inline-flex max-w-full items-center truncate rounded-md border px-2 py-0.5 text-[11px] font-medium ${tone ?? "border-border bg-secondary text-secondary-foreground"}`}>
       {label}
