@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCountries } from "@/hooks/useLocations";
+import { CalendlyToday } from "@/components/CalendlyToday";
 import { getEvaluatorAccess, listEvaluationQueue, markInterviewNoShow, markInterviewWaitingList } from "@/lib/evaluations.functions";
 import { DEFAULT_WEIGHTS, EVALUATION_STATUSES } from "@/lib/evaluations";
 
@@ -275,6 +276,8 @@ function EvaluationsPage() {
             <Clock className="h-3.5 w-3.5" /> Times shown in {OPS_TZ_LABEL}
           </p>
         </div>
+
+        <CalendlyToday canEvaluate={access.canEvaluate} />
 
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
