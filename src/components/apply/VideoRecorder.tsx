@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Circle, Play, RefreshCw, Square, Video } from "lucide-react";
+import { AlertCircle, Circle, Loader2, RefreshCw, Square, Video } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  MAX_ATTEMPTS,
   MAX_RECORD_SECONDS,
   PREP_SECONDS,
 } from "@/lib/recruitment";
 import { formatTime, pickVideoType, type Recording } from "./media";
 import { useMediaStream } from "./useMediaStream";
 
-type Phase = "prep" | "ready" | "recording" | "review";
+type Phase = "prep" | "ready" | "recording" | "saving";
 
 export function VideoRecorder({
   slot,
@@ -26,7 +25,6 @@ export function VideoRecorder({
 }) {
   const { state, error, request, stop, streamRef } = useMediaStream();
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
-  const playbackRef = useRef<HTMLVideoElement | null>(null);
   const videoRecorderRef = useRef<MediaRecorder | null>(null);
   const autoStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
@@ -36,7 +34,6 @@ export function VideoRecorder({
   const [phase, setPhase] = useState<Phase>("prep");
   const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
   const [elapsed, setElapsed] = useState(0);
-  const [attempts, setAttempts] = useState(0);
   const [recording, setRecording] = useState<Recording | null>(null);
 
   useEffect(() => {
@@ -90,14 +87,17 @@ export function VideoRecorder({
     videoRecorder.onstop = () => {
       const durationSeconds = Math.min(MAX_RECORD_SECONDS, (Date.now() - startedAtRef.current) / 1000);
       const videoBlob = new Blob(videoChunks, { type: videoType.mimeType ?? "video/mp4" });
-      setRecording({
+      const rec = {
         videoBlob,
         videoExt: videoType.ext,
         durationSeconds,
         previewUrl: URL.createObjectURL(videoBlob),
-      });
-      setAttempts((a) => a + 1);
-      setPhase("review");
+      };
+      // Camera and microphone are released as soon as the answer is recorded.
+      stop();
+      setRecording(rec);
+      setPhase("saving");
+      onContinue(rec);
     };
 
     videoRecorderRef.current = videoRecorder;
@@ -111,13 +111,14 @@ export function VideoRecorder({
       setElapsed(Math.min(MAX_RECORD_SECONDS, secs));
     }, 250);
     autoStopRef.current = setTimeout(stopRecording, MAX_RECORD_SECONDS * 1000);
-  }, [request, stopRecording, streamRef]);
+  }, [request, stopRecording, streamRef, stop, onContinue]);
 
   const recordAgain = () => {
     if (recording) URL.revokeObjectURL(recording.previewUrl);
     setRecording(null);
     setElapsed(0);
     setPhase("ready");
+    void request();
   };
 
   return (
@@ -131,14 +132,13 @@ export function VideoRecorder({
 
       <div className="overflow-hidden rounded-3xl border border-border bg-foreground/95 shadow-sm">
         <div className="relative aspect-[3/4] w-full sm:aspect-video">
-          {phase === "review" && recording ? (
-            <video
-              ref={playbackRef}
-              src={recording.previewUrl}
-              controls
-              playsInline
-              className="h-full w-full bg-black object-contain"
-            />
+          {phase === "saving" ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-black p-6 text-center text-background">
+              {busy ? <Loader2 className="h-8 w-8 animate-spin" /> : <AlertCircle className="h-8 w-8" />}
+              <p className="text-sm font-medium">
+                {busy ? "Uploading your recording…" : "Your recording could not be uploaded."}
+              </p>
+            </div>
           ) : (
             <video
               ref={liveVideoRef}
@@ -214,33 +214,14 @@ export function VideoRecorder({
         </Button>
       )}
 
-      {phase === "review" && recording && (
-        <div className="space-y-3">
-          <p className="text-center text-sm text-muted-foreground">
-            <Play className="mr-1 inline h-4 w-4" />
-            Watch your recording above. Attempt {attempts} of {MAX_ATTEMPTS}.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            {attempts < MAX_ATTEMPTS && (
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-14 flex-1 rounded-2xl"
-                onClick={recordAgain}
-                disabled={busy}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" /> Record again
-              </Button>
-            )}
-            <Button
-              size="lg"
-              className="h-14 flex-1 rounded-2xl text-base"
-              onClick={() => onContinue(recording)}
-              disabled={busy}
-            >
-              {busy ? "Saving…" : "Continue"}
-            </Button>
-          </div>
+      {phase === "saving" && recording && !busy && (
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button variant="outline" size="lg" className="h-14 flex-1 rounded-2xl" onClick={recordAgain}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Record again
+          </Button>
+          <Button size="lg" className="h-14 flex-1 rounded-2xl text-base" onClick={() => onContinue(recording)}>
+            Try uploading again
+          </Button>
         </div>
       )}
     </div>
