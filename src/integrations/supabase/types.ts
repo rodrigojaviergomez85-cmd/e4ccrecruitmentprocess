@@ -100,7 +100,7 @@ export type Database = {
           status: string
           submit_token: string
           submitted_at: string | null
-          taught_children: boolean
+          taught_children: boolean | null
           teaching_experience: string
           updated_at: string
           withdrawn_at: string | null
@@ -139,7 +139,7 @@ export type Database = {
           status?: string
           submit_token?: string
           submitted_at?: string | null
-          taught_children: boolean
+          taught_children?: boolean | null
           teaching_experience: string
           updated_at?: string
           withdrawn_at?: string | null
@@ -178,7 +178,7 @@ export type Database = {
           status?: string
           submit_token?: string
           submitted_at?: string | null
-          taught_children?: boolean
+          taught_children?: boolean | null
           teaching_experience?: string
           updated_at?: string
           withdrawn_at?: string | null
@@ -205,7 +205,9 @@ export type Database = {
       appointments: {
         Row: {
           application_id: string
+          calendly_event_name: string | null
           calendly_event_uri: string | null
+          calendly_host_name: string | null
           calendly_invitee_uri: string | null
           canceled_at: string | null
           candidate_timezone: string
@@ -223,7 +225,9 @@ export type Database = {
         }
         Insert: {
           application_id: string
+          calendly_event_name?: string | null
           calendly_event_uri?: string | null
+          calendly_host_name?: string | null
           calendly_invitee_uri?: string | null
           canceled_at?: string | null
           candidate_timezone?: string
@@ -241,7 +245,9 @@ export type Database = {
         }
         Update: {
           application_id?: string
+          calendly_event_name?: string | null
           calendly_event_uri?: string | null
+          calendly_host_name?: string | null
           calendly_invitee_uri?: string | null
           canceled_at?: string | null
           candidate_timezone?: string
@@ -882,6 +888,7 @@ export type Database = {
           allow_reapply_days: number
           assignment_mode: string
           buffer_minutes: number
+          calendly_last_synced_at: string | null
           created_at: string
           default_meeting_link: string
           duration_minutes: number
@@ -903,6 +910,7 @@ export type Database = {
           allow_reapply_days?: number
           assignment_mode?: string
           buffer_minutes?: number
+          calendly_last_synced_at?: string | null
           created_at?: string
           default_meeting_link?: string
           duration_minutes?: number
@@ -924,6 +932,7 @@ export type Database = {
           allow_reapply_days?: number
           assignment_mode?: string
           buffer_minutes?: number
+          calendly_last_synced_at?: string | null
           created_at?: string
           default_meeting_link?: string
           duration_minutes?: number
