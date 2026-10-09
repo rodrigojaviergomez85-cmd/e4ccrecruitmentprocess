@@ -16,6 +16,7 @@ type CalendlyEvent = {
   start_time: string;
   end_time: string;
   location?: { join_url?: string | null; location?: string | null; type?: string | null } | null;
+  event_memberships?: { user_name?: string | null; user_email?: string | null }[] | null;
 };
 
 type CalendlyInvitee = {
@@ -26,6 +27,7 @@ type CalendlyInvitee = {
   status: string;
   cancel_url?: string | null;
   reschedule_url?: string | null;
+  rescheduled?: boolean | null;
 };
 
 function token() {
@@ -72,12 +74,17 @@ type SyncOptions = {
   applicationId?: string;
   /** How far back to look for events. Defaults to 30 days. */
   sinceDays?: number;
+  /** Send the preparation email for new bookings (webhook behaviour). Defaults to true. */
+  sendEmails?: boolean;
+  /** Create a minimal candidate record when no application matches the email. Defaults to true. */
+  createMissing?: boolean;
 };
 
 export type CalendlySyncResult = {
   scanned: number;
   created: number;
   updated: number;
+  candidatesCreated: number;
   unmatched: string[];
 };
 
@@ -96,7 +103,7 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
     next = page.pagination?.next_page ?? null;
   }
 
-  const result: CalendlySyncResult = { scanned: events.length, created: 0, updated: 0, unmatched: [] };
+  const result: CalendlySyncResult = { scanned: events.length, created: 0, updated: 0, candidatesCreated: 0, unmatched: [] };
 
   for (const event of events) {
     const invitees = await inviteesFor(event.uri);
@@ -104,17 +111,40 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
       const email = (invitee.email ?? "").trim().toLowerCase();
       if (!email) continue;
 
-      const { data: application } = await db
+      const { data: found } = await db
         .from("applications")
         .select("id, country_code")
-        .ilike("email", email)
+        .ilike("email", email.replace(/[\\%_]/g, (c) => `\\${c}`))
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
+      let application = found;
+      let createdFromCalendly = false;
       if (!application) {
-        if (!result.unmatched.includes(email)) result.unmatched.push(email);
-        continue;
+        if (options.applicationId || options.createMissing === false) {
+          if (!result.unmatched.includes(email)) result.unmatched.push(email);
+          continue;
+        }
+        // Minimal record with only what Calendly gives us; no invented profile data.
+        const { data: created, error: createError } = await db
+          .from("applications")
+          .insert({
+            full_name: (invitee.name ?? "").trim() || email,
+            email,
+            phone: "",
+            country: "",
+            city: "",
+            teaching_experience: "",
+            taught_children: null,
+            source: "calendly",
+          })
+          .select("id, country_code")
+          .single();
+        if (createError) throw new Error(createError.message);
+        application = created;
+        createdFromCalendly = true;
+        result.candidatesCreated += 1;
       }
       if (options.applicationId && application.id !== options.applicationId) continue;
 
@@ -122,7 +152,7 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
       const marker = `calendly:${event.uri}`;
       const { data: existing } = await db
         .from("appointments")
-        .select("id, status, starts_at, notes")
+        .select("id, status, starts_at, notes, meeting_link, calendly_event_name")
         .eq("calendly_invitee_uri", invitee.uri)
         .maybeSingle();
 
@@ -130,20 +160,29 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
         application_id: application.id,
         starts_at: event.start_time,
         ends_at: event.end_time,
-        status: canceled ? "Canceled" : "Scheduled",
+        status: canceled ? (invitee.rescheduled ? "Rescheduled" : "Canceled") : "Scheduled",
         candidate_timezone: invitee.timezone ?? "UTC",
         meeting_link: meetingLink(event),
         notes: marker,
         calendly_event_uri: event.uri,
         calendly_invitee_uri: invitee.uri,
+        calendly_event_name: event.name ?? null,
+        calendly_host_name:
+          (event.event_memberships ?? []).map((m) => m.user_name || m.user_email).filter(Boolean).join(", ") || null,
         canceled_at: canceled ? new Date().toISOString() : (null as string | null),
       };
 
       if (existing) {
+        // Staff outcomes (No-show, Completed…) are kept unless Calendly canceled the booking.
+        const syncable = ["Scheduled", "Confirmed", "Canceled", "Rescheduled"].includes(existing.status);
+        const status = syncable || canceled ? payload.status : existing.status;
         const changed =
-          existing.starts_at !== payload.starts_at || existing.status !== payload.status;
+          new Date(existing.starts_at).getTime() !== new Date(payload.starts_at).getTime() ||
+          existing.status !== status ||
+          existing.meeting_link !== payload.meeting_link ||
+          existing.calendly_event_name !== payload.calendly_event_name;
         if (changed) {
-          await db.from("appointments").update(payload).eq("id", existing.id);
+          await db.from("appointments").update({ ...payload, status, notes: existing.notes ?? marker }).eq("id", existing.id);
           result.updated += 1;
         }
       } else {
@@ -163,6 +202,8 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
           .single();
         if (error) throw new Error(error.message);
         result.created += 1;
+        // Calendly-only candidates and manual refreshes never trigger emails or pipeline changes.
+        if (createdFromCalendly || options.sendEmails === false) continue;
         if (managerStage) {
           // Confirmed booking returns No Show / Manager Retake candidates to the Manager queue.
           if (!canceled && currentStatus !== "Pending Second Filter") {
@@ -239,5 +280,6 @@ export async function syncCalendly(options: SyncOptions = {}): Promise<CalendlyS
     }
   }
 
+  await db.from("interview_settings").update({ calendly_last_synced_at: new Date().toISOString() }).eq("id", true);
   return result;
 }
