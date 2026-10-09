@@ -116,6 +116,8 @@ function Apply() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Re-recording from the final review returns straight to it (not a screening retake).
+  const [returnToReview, setReturnToReview] = useState(false);
   const [reviewVideos, setReviewVideos] = useState<
     Array<{ slot: number; question: string; url: string | null }>
   >([]);
@@ -127,6 +129,7 @@ function Apply() {
   const review = useServerFn(getReviewData);
   const submit = useServerFn(submitApplication);
   const analyze = useServerFn(runAnalysis);
+  const appState = useServerFn(getApplicationState);
 
   const { data: countries = [], isLoading: countriesLoading } = useCountries();
   const { data: cities = [], isLoading: citiesLoading } = useCities(profile.country_code || null);
@@ -165,11 +168,26 @@ function Apply() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       try {
-        setSession(JSON.parse(raw) as Session);
+        const saved = JSON.parse(raw) as Session;
+        setSession(saved);
+        // Resume where the candidate left off; reloads never create new attempts.
+        void appState({ data: { applicationId: saved.applicationId, token: saved.token } })
+          .then(async (st) => {
+            if (st.submitted) return setStep("done");
+            if (st.recordedSlots.includes(1) && st.recordedSlots.includes(2)) {
+              const data = await review({ data: { applicationId: saved.applicationId, token: saved.token } });
+              setReviewVideos(data.videos);
+              return setStep("review");
+            }
+            if (st.recordedSlots.includes(1)) return setStep("video2");
+            if (st.screeningAttempts > 0) return setStep("check");
+          })
+          .catch(() => localStorage.removeItem(STORAGE_KEY));
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -275,13 +293,14 @@ function Apply() {
         },
       });
 
-      if (slot === 1) {
+      if (slot === 1 && !returnToReview) {
         setStep("video2");
       } else {
         const data = await review({
           data: { applicationId: session.applicationId, token: session.token },
         });
         setReviewVideos(data.videos);
+        setReturnToReview(false);
         setStep("review");
       }
     } catch (err) {
@@ -303,7 +322,6 @@ function Apply() {
       void analyze({
         data: { applicationId: session.applicationId, token: session.token },
       }).catch(() => {});
-      localStorage.removeItem(STORAGE_KEY);
       setStep("done");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not submit your application.");
@@ -522,7 +540,7 @@ function Apply() {
 
         {step === "video1" && session && (
           <VideoRecorder
-            key="video-1"
+            key={`video-1-${returnToReview}`}
             slot={1}
             busy={busy}
             question={questionForSlot(1, session.experience)}
@@ -532,7 +550,7 @@ function Apply() {
 
         {step === "video2" && session && (
           <VideoRecorder
-            key="video-2"
+            key={`video-2-${returnToReview}`}
             slot={2}
             busy={busy}
             question={questionForSlot(2, session.experience)}
@@ -555,7 +573,9 @@ function Apply() {
                 </p>
                 {video.url ? (
                   <video
+                    key={video.url}
                     src={video.url}
+                    preload="metadata"
                     controls
                     playsInline
                     className="w-full rounded-2xl border border-border bg-black"
@@ -563,6 +583,18 @@ function Apply() {
                 ) : (
                   <p className="text-sm text-muted-foreground">Preview unavailable.</p>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  disabled={busy}
+                  onClick={() => {
+                    setReturnToReview(true);
+                    setStep(video.slot === 1 ? "video1" : "video2");
+                  }}
+                >
+                  Record video {video.slot} again
+                </Button>
               </div>
             ))}
             <Button
@@ -595,7 +627,16 @@ function Apply() {
           </div>
         )}
 
-        {step === "done" && <DoneScreen session={session} />}
+        {step === "done" && (
+          <DoneScreen
+            session={session}
+            onRetry={() => {
+              setReviewVideos([]);
+              setReturnToReview(false);
+              setStep("check");
+            }}
+          />
+        )}
 
       </div>
     </main>
@@ -620,22 +661,27 @@ function Field({
   );
 }
 
+type Outcome = Awaited<ReturnType<typeof getOutcome>>;
+
 /**
- * Final screen. While the AI evaluation runs we show a thank-you; B2+ candidates
- * then get a congratulations screen with their secure scheduling link.
+ * Final screen: "Uploading" → "Reviewing your answers" → "Your screening result".
+ * Technical problems never show as a level rejection nor use up an attempt.
  */
-function DoneScreen({ session }: { session: Session | null }) {
+function DoneScreen({ session, onRetry }: { session: Session | null; onRetry: () => void }) {
   const outcome = useServerFn(getOutcome);
-  const [state, setState] = useState<{ state: string; eligible: boolean; processUrl: string | null }>(
-    { state: "pending", eligible: false, processUrl: null },
-  );
+  const analyze = useServerFn(runAnalysis);
+  const retry = useServerFn(startScreeningRetry);
+  const [state, setState] = useState<Outcome | null>(null);
   const [waited, setWaited] = useState(0);
+  const [pollKey, setPollKey] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const finished = state?.state === "done" || state?.state === "error";
 
   useEffect(() => {
-    if (state.state === "done") return;
+    if (finished) return;
     const id = setInterval(() => setWaited((v) => v + 1), 1000);
     return () => clearInterval(id);
-  }, [state.state]);
+  }, [finished]);
 
   useEffect(() => {
     if (!session) return;
@@ -650,7 +696,7 @@ function DoneScreen({ session }: { session: Session | null }) {
         });
         if (stop) return;
         setState(result);
-        if (result.state === "done") return;
+        if (result.state === "done" || result.state === "error") return;
       } catch {
         // keep waiting; the evaluation may still be starting
       }
@@ -660,12 +706,41 @@ function DoneScreen({ session }: { session: Session | null }) {
     return () => {
       stop = true;
     };
-  }, [session, outcome]);
+  }, [session, outcome, pollKey]);
 
-  if (state.state === "done" && state.eligible && state.processUrl) {
+  async function retryAnalysis() {
+    if (!session) return;
+    setBusy(true);
+    setState(null);
+    setWaited(0);
+    void analyze({ data: { applicationId: session.applicationId, token: session.token } }).catch(() => {});
+    setPollKey((k) => k + 1);
+    setBusy(false);
+  }
+
+  async function startAgain(kind: "level" | "technical") {
+    if (!session) return;
+    setBusy(true);
+    try {
+      await retry({ data: { applicationId: session.applicationId, token: session.token, kind } });
+      onRetry();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start a new attempt.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const card = "rounded-3xl border border-border bg-card p-8 shadow-sm";
+  const resultHeader = (
+    <p className="text-center text-xs font-semibold uppercase tracking-wide text-primary">Your screening result</p>
+  );
+
+  if (state?.state === "done" && state.result === "eligible" && state.processUrl) {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-        <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
+      <div className={`${card} text-center`}>
+        {resultHeader}
+        <span className="mx-auto mt-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/15 text-success">
           <PartyPopper className="h-8 w-8" />
         </span>
         <h1 className="mt-5 text-2xl font-bold">Congratulations!</h1>
@@ -680,31 +755,123 @@ function DoneScreen({ session }: { session: Session | null }) {
     );
   }
 
-  if (state.state === "done" && !state.eligible) {
+  if (state?.state === "done" && state.result === "retake_available") {
     return (
-      <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
-        <h1 className="text-2xl font-bold">Thank you for your application</h1>
-        <p className="mt-3 text-muted-foreground">
-          We appreciate the time you invested with us. At this moment we are not moving forward
-          with an interview, but your profile stays on file for future openings.
-        </p>
-        <Button asChild variant="outline" className="mt-8 rounded-2xl">
-          <Link to="/">Back to home</Link>
+      <div className={card}>
+        {resultHeader}
+        <h1 className="mt-3 text-center text-2xl font-bold">Thank you for applying</h1>
+        <div className="mt-4 space-y-3 text-muted-foreground">
+          <p>Thank you for taking the time to apply to E4CC and share your answers with us.</p>
+          <p>
+            Based on this screening, we&apos;re unable to move forward with interview scheduling because
+            your responses did not demonstrate the English proficiency required for the coach position
+            at this stage.
+          </p>
+          <p>
+            We understand that nerves or recording difficulties can affect how you express yourself.
+            You have one additional opportunity to complete the screening and show us your English skills.
+          </p>
+          <p>
+            Before trying again, choose a quiet place, check your microphone, listen carefully to each
+            question, and answer naturally in your own words.
+          </p>
+          {state.areas.length > 0 && (
+            <div className="rounded-2xl bg-secondary p-4 text-sm">
+              <p className="font-semibold text-foreground">Areas you may want to practice</p>
+              <ul className="mt-1 list-disc pl-5">
+                {state.areas.map((a) => <li key={a}>{a}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+        <Button size="lg" className="mt-8 h-14 w-full rounded-2xl text-base" disabled={busy} onClick={() => void startAgain("level")}>
+          {busy ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+          Take my final screening attempt
         </Button>
       </div>
     );
   }
 
+  if (state?.state === "done" && state.result === "final_not_approved") {
+    return (
+      <div className={card}>
+        {resultHeader}
+        <h1 className="mt-3 text-center text-2xl font-bold">Thank you for your interest</h1>
+        <div className="mt-4 space-y-3 text-muted-foreground">
+          <p>Thank you for completing your final screening attempt and for your interest in joining E4CC.</p>
+          <p>
+            Based on the results of both attempts, we&apos;re unable to move forward with an interview for
+            this application because the English proficiency required for the coach position has not yet
+            been demonstrated.
+          </p>
+          <p>
+            We appreciate the time and effort you invested. We encourage you to keep developing your
+            English skills and wish you success in your professional goals.
+          </p>
+          <p className="font-medium text-foreground">There are no additional screening attempts available for this application.</p>
+        </div>
+        <div className="mt-8 text-center">
+          <Button asChild variant="outline" className="rounded-2xl"><Link to="/">Back to home</Link></Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state?.state === "done" && state.result === "audio_issue") {
+    return (
+      <div className={`${card} text-center`}>
+        <AlertTriangle className="mx-auto h-10 w-10 text-warning" />
+        <h1 className="mt-4 text-2xl font-bold">We couldn&apos;t hear your answers clearly</h1>
+        <p className="mt-3 text-muted-foreground">
+          The audio in your recordings was not clear enough for a reliable review. This is a technical
+          issue and does not count as a screening attempt. Please find a quiet place, check your
+          microphone and record both answers again.
+        </p>
+        <Button size="lg" className="mt-8 h-14 w-full rounded-2xl text-base" disabled={busy} onClick={() => void startAgain("technical")}>
+          Record my answers again
+        </Button>
+      </div>
+    );
+  }
+
+  if (state?.state === "done" && state.result === "manual_review") {
+    return (
+      <div className={`${card} text-center`}>
+        <h1 className="text-2xl font-bold">Your recordings are with our team</h1>
+        <p className="mt-3 text-muted-foreground">
+          We couldn&apos;t complete an automatic review of your audio, so our recruitment team will
+          review your answers personally and contact you by email.
+        </p>
+      </div>
+    );
+  }
+
+  if (state?.state === "error") {
+    return (
+      <div className={`${card} text-center`}>
+        <AlertTriangle className="mx-auto h-10 w-10 text-warning" />
+        <h1 className="mt-4 text-2xl font-bold">We hit a technical problem</h1>
+        <p className="mt-3 text-muted-foreground">
+          Your answers were received, but our review service had a temporary problem. This does not
+          count against you and does not use a screening attempt.
+        </p>
+        <Button size="lg" className="mt-8 h-14 w-full rounded-2xl text-base" disabled={busy} onClick={() => void retryAnalysis()}>
+          Try the review again
+        </Button>
+      </div>
+    );
+  }
   const estimate = 180;
   const progress = Math.min(95, Math.round((waited / estimate) * 95));
   const slow = waited > estimate;
+  void finished;
 
   return (
     <div className="rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
       <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Loader2 className="h-8 w-8 animate-spin" />
       </span>
-      <h1 className="mt-5 text-2xl font-bold">We&apos;re reviewing your application</h1>
+      <h1 className="mt-5 text-2xl font-bold">Reviewing your answers</h1>
       <p className="mx-auto mt-3 max-w-md text-muted-foreground">
         Our team is reviewing your English performance right now. This usually takes 2–3 minutes.
         Please stay on this page — as soon as the review is complete you&apos;ll be able to book
