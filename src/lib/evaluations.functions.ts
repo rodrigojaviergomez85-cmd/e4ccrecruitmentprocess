@@ -84,6 +84,17 @@ async function evaluatorContext(userId: string) {
   };
 }
 
+/** Calendly-only candidates have no country yet, so every evaluator can see them. */
+function countryAllowed(
+  ctx: { allowedCountries: string[] | null },
+  countryCode: string | null | undefined,
+  source: string | null | undefined,
+) {
+  if (!ctx.allowedCountries) return true;
+  if (!countryCode && source === "calendly") return true;
+  return ctx.allowedCountries.includes(countryCode ?? "");
+}
+
 async function audit(
   db: Db,
   entry: {
@@ -338,13 +349,13 @@ export const openEvaluation = createServerFn({ method: "POST" })
     const { data: app, error } = await db
       .from("applications")
       .select(
-        "id, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, assigned_manager_id, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
+        "id, source, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, assigned_manager_id, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
       )
       .eq("id", data.applicationId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!app) throw new Error("Candidate not found.");
-    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) {
+    if (!countryAllowed(ctx, app.country_code, app.source)) {
       throw new Error("This candidate is outside the countries assigned to your account.");
     }
 
@@ -644,13 +655,13 @@ export const saveEvaluation = createServerFn({ method: "POST" })
 
     const { data: app } = await db
       .from("applications")
-      .select("id, country_code, status, recruitment_progress(work_modality)")
+      .select("id, source, country_code, status, recruitment_progress(work_modality)")
       .eq("id", current.application_id)
       .maybeSingle();
     if (app?.status === "Approved for Training" && !ctx.isAdmin) {
       throw new Error("This candidate is already approved; the interview is read-only. An admin can make changes if needed.");
     }
-    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app?.country_code ?? "")) {
+    if (!countryAllowed(ctx, app?.country_code, app?.source)) {
       throw new Error("This candidate is outside the countries assigned to your account.");
     }
 
@@ -967,10 +978,10 @@ export const sendResultEmail = createServerFn({ method: "POST" })
 
     const { data: app } = await db
       .from("applications")
-      .select("id, country_code")
+      .select("id, source, country_code")
       .eq("id", evaluation.application_id)
       .maybeSingle();
-    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app?.country_code ?? "")) {
+    if (!countryAllowed(ctx, app?.country_code, app?.source)) {
       throw new Error("This candidate is outside the countries assigned to your account.");
     }
 
@@ -1017,4 +1028,76 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     });
 
     return delivery;
+  });
+
+/** El Salvador (UTC-6, no DST) day bounds for "today". */
+function opsTodayBounds() {
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/El_Salvador" }).format(new Date());
+  const start = new Date(`${day}T06:00:00Z`);
+  return { start: start.toISOString(), end: new Date(start.getTime() + 86400000).toISOString() };
+}
+
+/** Today's Calendly bookings (El Salvador day), linked to candidates and their evaluations. */
+export const listCalendlyToday = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.canView) throw new Error("You do not have access to interview evaluations.");
+    const { db } = ctx;
+    const { start, end } = opsTodayBounds();
+    const { data: appts, error } = await db
+      .from("appointments")
+      .select(
+        "id, starts_at, ends_at, status, meeting_link, calendly_event_name, calendly_host_name, applications(id, full_name, email, country_code, source, submitted_at, archived_at, interview_evaluations(id, status, appointment_id, attempt_number))",
+      )
+      .not("calendly_event_uri", "is", null)
+      .neq("status", "Rescheduled")
+      .gte("starts_at", start)
+      .lt("starts_at", end)
+      .order("starts_at");
+    if (error) throw new Error(error.message);
+    const { data: settings } = await db
+      .from("interview_settings")
+      .select("calendly_last_synced_at")
+      .eq("id", true)
+      .maybeSingle();
+
+    const rows = (appts ?? []).flatMap((a) => {
+      const app = one(a.applications);
+      if (!app || app.archived_at) return [];
+      if (!countryAllowed(ctx, app.country_code, app.source)) return [];
+      const evals = [...(app.interview_evaluations ?? [])].sort(
+        (x, y) => (y.attempt_number ?? 1) - (x.attempt_number ?? 1),
+      );
+      const evaluation = evals.find((e) => e.appointment_id === a.id) ?? evals[0] ?? null;
+      return [
+        {
+          appointmentId: a.id,
+          applicationId: app.id,
+          fullName: app.full_name,
+          email: app.email,
+          startsAt: a.starts_at,
+          status: a.status,
+          eventName: a.calendly_event_name,
+          host: a.calendly_host_name,
+          meetingLink: a.meeting_link?.startsWith("http") ? a.meeting_link : null,
+          screeningCompleted: Boolean(app.submitted_at),
+          evaluationId: evaluation?.id ?? null,
+          evaluationStatus: (evaluation?.status as string | undefined) ?? "Not started",
+        },
+      ];
+    });
+    return { rows, lastSyncedAt: settings?.calendly_last_synced_at ?? null };
+  });
+
+/** Pulls today's Calendly bookings (including older ones) without sending any email. */
+export const refreshCalendlyToday = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required to refresh Calendly.");
+    const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
+    if (!calendlyConfigured()) throw new Error("Calendly is not connected (CALENDLY_API_TOKEN is missing).");
+    const result = await syncCalendly({ sinceDays: 1, sendEmails: false });
+    return result;
   });
