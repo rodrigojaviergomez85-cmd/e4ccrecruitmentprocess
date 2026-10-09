@@ -15,3 +15,4 @@
 - Trainer-only and Generalista-only accounts are limited to Training Tracker in the route guard and server role checks; RLS accepts only full staff roles. Why: training access must not expose recruitment files.
 - Training updates use separate server-enforced permissions for documents, reference calls and training fields; why: Generalistas and Recruitment have distinct responsibilities.
 - Requisiciones en Training Tracker: spots NEEDED/BACKUP que se llenan al contratar (gestionadas por personal completo).
+- All authenticated recruitment screens use the shared internal navigation rendered by StaffGate; why: navigation, active state, responsive behavior, and role visibility must stay consistent across direct loads and client navigation.

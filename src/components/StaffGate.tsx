@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { InternalNavigation } from "@/components/InternalNavigation";
 import { supabase } from "@/integrations/supabase/client";
 import { getStaffContext } from "@/lib/staff.functions";
 
@@ -75,6 +76,13 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
           Your account has no countries assigned, so no candidates can be shown. Ask an Admin to assign them in Staff.
         </div>
       )}
+      <InternalNavigation
+        access={{
+          isAdmin: data.isAdmin,
+          isRecruitment: data.isRecruitment,
+          isTrainerOnly: data.isTrainerOnly,
+        }}
+      />
       {children}
     </>
   );

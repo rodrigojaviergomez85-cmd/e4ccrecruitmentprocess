@@ -2,10 +2,8 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,17 +71,6 @@ function QueuePage() {
 
   return (
     <main className="min-h-screen bg-secondary/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <div>
-            <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">Pending Second Filter</p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Dashboard</Link>
-          </Button>
-        </div>
-      </header>
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
         <div>
           <h1 className="text-2xl font-bold">Pending Second Filter</h1>

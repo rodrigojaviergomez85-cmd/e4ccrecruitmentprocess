@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Loader2, Plus, Save, Trash2, X } from "lucide-react";
+import { Check, Loader2, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -50,13 +49,8 @@ function TrainingPage() {
   const groupNames = [...TRAINING_GROUPS, ...(rows.some((r) => trainingGroup(r.modality, r.countryCode) === "OTROS") ? ["OTROS"] : [])];
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="flex flex-wrap items-center gap-3 px-4 py-4 sm:px-6">
-          <BrandMark /><h1 className="text-xl font-semibold">Training Tracker</h1>
-          {!data?.trainingOnly && <Button asChild variant="ghost" size="sm" className="ml-auto"><Link to="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Dashboard</Link></Button>}
-        </div>
-      </header>
       <main className="space-y-5 px-4 py-5 sm:px-6">
+        <h1 className="text-xl font-semibold">Training Tracker</h1>
         <Tabs value={lob} onValueChange={setLob}>
           <div className="overflow-x-auto">
             <TabsList className="h-auto justify-start rounded-none border-b bg-transparent p-0">
