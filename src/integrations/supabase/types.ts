@@ -96,6 +96,8 @@ export type Database = {
           phone_country_code: string | null
           phone_e164: string | null
           recruitment_approved_at: string | null
+          screening_attempts: number
+          screening_technical_resets: number
           source: string
           status: string
           submit_token: string
@@ -135,6 +137,8 @@ export type Database = {
           phone_country_code?: string | null
           phone_e164?: string | null
           recruitment_approved_at?: string | null
+          screening_attempts?: number
+          screening_technical_resets?: number
           source?: string
           status?: string
           submit_token?: string
@@ -174,6 +178,8 @@ export type Database = {
           phone_country_code?: string | null
           phone_e164?: string | null
           recruitment_approved_at?: string | null
+          screening_attempts?: number
+          screening_technical_resets?: number
           source?: string
           status?: string
           submit_token?: string
@@ -1411,6 +1417,47 @@ export type Database = {
         }
         Relationships: []
       }
+      screening_attempts: {
+        Row: {
+          ai_result: Json
+          application_id: string
+          attempt_number: number
+          created_at: string
+          id: string
+          kind: string
+          transcripts: Json
+          videos: Json
+        }
+        Insert: {
+          ai_result?: Json
+          application_id: string
+          attempt_number: number
+          created_at?: string
+          id?: string
+          kind?: string
+          transcripts?: Json
+          videos?: Json
+        }
+        Update: {
+          ai_result?: Json
+          application_id?: string
+          attempt_number?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          transcripts?: Json
+          videos?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_attempts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_countries: {
         Row: {
           country_code: string
@@ -1849,6 +1896,7 @@ export type Database = {
         Returns: boolean
       }
       is_active_staff: { Args: { _user_id: string }; Returns: boolean }
+      submit_screening: { Args: { _application_id: string }; Returns: number }
     }
     Enums: {
       app_role:
