@@ -1,19 +1,13 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3,
   CalendarClock,
-  ClipboardCheck,
-  LogOut,
   Search,
-  Settings,
-  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 
-import { BrandMark } from "@/components/BrandMark";
 import { AhtReport } from "@/components/AhtReport";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
 import { useCountries } from "@/hooks/useLocations";
 import { getMyAccess, listCandidates } from "@/lib/recruiter.functions";
 import { cefrBand, scoreBand, EXPERIENCE_OPTIONS, STATUS_OPTIONS } from "@/lib/recruitment";
@@ -51,14 +44,11 @@ const ALL = "all";
 const CEFR_FILTERS = ["A2", "B1", "B1+", "B2", "B2+", "C1", "C2"];
 
 function Dashboard() {
-  const navigate = useNavigate();
   const list = useServerFn(listCandidates);
   const { data: countries = [] } = useCountries();
   const access = useServerFn(getMyAccess);
   const { data: myAccess } = useQuery({ queryKey: ["my-access"], queryFn: () => access() });
   const isAdmin = Boolean(myAccess?.roles.includes("admin"));
-  // Evaluation links only render for accounts the server will actually authorize.
-  const canEvaluate = Boolean(myAccess?.canEvaluate);
   const [search, setSearch] = useState("");
   const [cefr, setCefr] = useState(ALL);
   const [country, setCountry] = useState(ALL);
@@ -88,71 +78,8 @@ function Dashboard() {
     queryFn: () => list({ data: filters }),
   });
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    await navigate({ to: "/auth" });
-  }
-
   return (
     <main className="min-h-screen bg-secondary/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <div>
-            <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">Recruitment dashboard</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/candidates/new">Add candidate</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/second-filter">Pending Second Filter</Link>
-            </Button>
-            <Button
-              variant={archived ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setArchived((v) => !v)}
-            >
-              {archived ? "Viewing archived" : "Archived"}
-            </Button>
-            {canEvaluate && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/evaluations">
-                  <ClipboardCheck className="mr-2 h-4 w-4" /> E4CC Interviews
-                </Link>
-              </Button>
-            )}
-            {canEvaluate && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/scorecard">
-                  <BarChart3 className="mr-2 h-4 w-4" /> Scorecard
-                </Link>
-              </Button>
-            )}
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/training">Training Tracker</Link>
-            </Button>
-            {isAdmin && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/settings">
-                  <Settings className="mr-2 h-4 w-4" /> Settings
-                </Link>
-              </Button>
-            )}
-            {isAdmin && (
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/staff">
-                  <ShieldCheck className="mr-2 h-4 w-4" /> Staff
-                </Link>
-              </Button>
-            )}
-          <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-            <LogOut className="mr-2 h-4 w-4" /> Sign out
-          </Button>
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
         {isAdmin && <AhtReport />}
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -168,6 +95,12 @@ function Dashboard() {
           </div>
           <Button variant="outline" onClick={() => setShowFilters((v) => !v)}>
             <SlidersHorizontal className="mr-2 h-4 w-4" /> Filters
+          </Button>
+          <Button
+            variant={archived ? "secondary" : "outline"}
+            onClick={() => setArchived((value) => !value)}
+          >
+            {archived ? "Viewing archived" : "Archived"}
           </Button>
         </div>
 

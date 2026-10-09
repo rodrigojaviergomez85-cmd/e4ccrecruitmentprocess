@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -85,17 +84,6 @@ function AddCandidate() {
 
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-2xl items-center px-5 py-4">
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" /> All candidates
-          </Link>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-2xl px-5 py-6">
         <section className="space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm">
           <div>

@@ -2,10 +2,9 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BellRing, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { BellRing, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,15 +182,6 @@ function InterviewsPage() {
 
   return (
     <main className="min-h-screen bg-secondary/40 pb-16">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ArrowLeft className="h-4 w-4" /> Dashboard
-          </Link>
-          <BrandMark className="h-8" />
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl space-y-8 px-5 py-8">
         <div>
           <h1 className="text-2xl font-bold">Interviews</h1>

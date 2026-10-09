@@ -2,10 +2,9 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, Download, Users } from "lucide-react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -183,31 +182,12 @@ function ScorecardPage() {
 
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <div>
-            <BrandMark className="h-8" />
-            <p className="text-xs text-muted-foreground">Recruitment scorecard</p>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/evaluations">
-                <Users className="mr-2 h-4 w-4" /> Evaluations
-              </Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/dashboard">
-                <ClipboardList className="mr-2 h-4 w-4" /> Candidates
-              </Link>
-            </Button>
-            <Button size="sm" onClick={() => void exportCsv()}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => void exportCsv()}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+        </div>
         <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label className="text-xs">Date range</Label>

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, Copy, Loader2, Pencil, ShieldCheck, UserPlus, X } from "lucide-react";
+import { Check, Copy, Loader2, Pencil, ShieldCheck, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -113,20 +113,10 @@ function StaffPage() {
 
   return (
     <main className="min-h-screen bg-secondary/30">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-4">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Dashboard
-            </Link>
-          </Button>
-          <h1 className="flex items-center gap-2 text-lg font-bold">
-            <ShieldCheck className="h-5 w-5 text-primary" /> Staff Access
-          </h1>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-5xl space-y-6 px-5 py-6">
+        <h1 className="flex items-center gap-2 text-lg font-bold">
+          <ShieldCheck className="h-5 w-5 text-primary" /> Staff Access
+        </h1>
         <section className="rounded-3xl border border-border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold">
             <UserPlus className="h-4 w-4 text-primary" /> Invite a staff member

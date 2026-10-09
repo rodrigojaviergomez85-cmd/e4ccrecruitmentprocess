@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, ChevronLeft, ChevronRight, ClipboardList, Clock, Search, SlidersHorizontal, UserX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Search, SlidersHorizontal, UserX } from "lucide-react";
 import { toast } from "sonner";
 
-import { BrandMark } from "@/components/BrandMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,20 +265,6 @@ function EvaluationsPage() {
 
   return (
     <main className="min-h-screen bg-secondary/40">
-      <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
-          <BrandMark className="h-8" />
-          <nav className="flex items-center gap-1">
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/dashboard"><ClipboardList className="mr-2 h-4 w-4" /> Candidates</Link>
-            </Button>
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/scorecard"><BarChart3 className="mr-2 h-4 w-4" /> Scorecard</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
-
       <div className="mx-auto max-w-7xl space-y-5 px-5 py-6">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
