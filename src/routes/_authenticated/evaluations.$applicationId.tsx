@@ -628,8 +628,20 @@ function EvaluationForm() {
               <Field label="Candidate email">
                 <Input aria-label="Candidate email" type="email" autoComplete="email" maxLength={255} value={contact.email} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, email: e.target.value }))} />
               </Field>
+              <Field label="Candidate country">
+                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => setContact((c) => ({ ...c, country_code: v }))}>
+                  <SelectTrigger aria-label="Candidate country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(countries ?? []).map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
               <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? ""))}>
+                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? "") && contact.country_code === (candidate.countryCode ?? ""))}>
                   {contactSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save candidate details
                 </Button>
               </div>
