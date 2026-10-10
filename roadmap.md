@@ -25,3 +25,5 @@
 - [x] Eliminar resumen duplicado; entrevista completa dentro de Reconfirmation, datos y casillas juntos; verificado visualmente sin modificar expedientes
 - [x] Training Tracker en lista por ONLINE / EL SALVADOR / NICARAGUA / GUATEMALA, documentos en columnas con pendientes rojo suave
 - [x] Nuevo rol Generalista para verificar documentos; permisos separados de Recruitment y Trainer, con pruebas
+- [x] Calendly: todas las reservas/invitados visibles en Interviews sin screening, sincronización visible, sin duplicados ni correos
+- [x] Navegación: Applicants e Interviews como accesos principales; vista de entrevistas unificada
