@@ -444,7 +444,7 @@ export const syncCalendlyAppointments = createServerFn({ method: "POST" })
     if (isViewer) throw new Error("Read-only access.");
     const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
     if (!calendlyConfigured()) throw new Error("Calendly is not connected yet.");
-    const result = await syncCalendly({ sinceDays: 60 });
+    const result = await syncCalendly({ sinceDays: 30, sendEmails: false });
     await audit(db, {
       actorId: context.userId,
       actorEmail: email,

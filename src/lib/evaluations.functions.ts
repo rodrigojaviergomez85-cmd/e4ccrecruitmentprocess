@@ -150,109 +150,6 @@ export const getEvaluatorAccess = createServerFn({ method: "GET" })
     }
   });
 
-const queueFilters = z
-  .object({
-    search: z.string().max(120).optional(),
-    country: z.string().max(8).optional(),
-    city: z.string().max(80).optional(),
-    lob: z.string().max(20).optional(),
-    evaluator: z.string().max(60).optional(),
-    status: z.string().max(30).optional(),
-    from: z.string().max(30).optional(),
-    to: z.string().max(30).optional(),
-  })
-  .default({});
-
-export const listEvaluationQueue = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => queueFilters.parse(d ?? {}))
-  .handler(async ({ context, data }) => {
-    const ctx = await evaluatorContext(context.userId);
-    if (!ctx.canView) throw new Error("You do not have access to interview evaluations.");
-    const { db, allowedCountries } = ctx;
-
-    let query = db
-      .from("applications")
-      .select(
-        "id, full_name, email, phone, country, country_code, city, city_other, status, submitted_at, cities(name), ai_evaluations(cefr, overall_score), appointments(id, starts_at, status), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(id, status, final_result, evaluator_id, total_score, compliance_score, submitted_at, retake_date, interview_date, attempt_number)",
-      )
-      .not("submitted_at", "is", null)
-      .is("archived_at", null)
-      .order("submitted_at", { ascending: false })
-      .limit(400);
-
-    if (allowedCountries) {
-      if (allowedCountries.length === 0) return { rows: [], evaluators: [] };
-      query = query.in("country_code", allowedCountries);
-    }
-    if (data.country) query = query.eq("country_code", data.country);
-    if (data.search) {
-      const term = data.search.replace(/[%,]/g, " ").trim();
-      query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
-    }
-
-    const { data: apps, error } = await query;
-    if (error) throw new Error(error.message);
-
-    const { data: staff } = await db.from("staff_profiles").select("user_id, full_name, email");
-    const staffById = new Map((staff ?? []).map((s) => [s.user_id, s.full_name || s.email]));
-
-    const rows = (apps ?? []).map((a) => {
-      const appt = (a.appointments ?? [])
-        .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
-        .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
-      const evaluation = [...(a.interview_evaluations ?? [])].sort(
-        (x, y) => (y.attempt_number ?? 1) - (x.attempt_number ?? 1),
-      )[0];
-      const progress = one(a.recruitment_progress);
-      const ai = one(a.ai_evaluations);
-      return {
-        applicationId: a.id,
-        fullName: a.full_name,
-        email: a.email,
-        phone: a.phone,
-        country: a.country,
-        countryCode: a.country_code,
-        city: a.cities?.name ?? a.city_other ?? a.city,
-        lob: progress?.work_modality ?? null,
-        previousCefr: ai?.cefr ?? null,
-        previousScore: ai?.overall_score ?? null,
-        grammarTestScore: progress?.grammar_test_score ?? null,
-        appointmentAt: appt?.starts_at ?? null,
-        appointmentStatus: appt?.status ?? null,
-        appointmentId: appt?.id ?? null,
-        pipelineStatus: a.status,
-        attemptNumber: evaluation?.attempt_number ?? 0,
-        evaluationId: evaluation?.id ?? null,
-        evaluationStatus: (evaluation?.status as string) ?? "Not started",
-        finalResult: evaluation?.final_result ?? null,
-        totalScore: evaluation?.total_score ?? null,
-        complianceScore: evaluation?.compliance_score ?? null,
-        retakeDate: evaluation?.retake_date ?? null,
-        evaluatorName: evaluation?.evaluator_id
-          ? (staffById.get(evaluation.evaluator_id) ?? "")
-          : "",
-        evaluatorId: evaluation?.evaluator_id ?? null,
-      };
-    });
-
-    const filtered = rows.filter((r) => {
-      if (data.city && (r.city ?? "") !== data.city) return false;
-      if (data.lob && (r.lob ?? "") !== data.lob) return false;
-      if (data.evaluator && r.evaluatorId !== data.evaluator) return false;
-      if (data.status && r.evaluationStatus !== data.status) return false;
-      const ref = r.appointmentAt ?? null;
-      if (data.from && (!ref || ref < data.from)) return false;
-      if (data.to && (!ref || ref > `${data.to}T23:59:59Z`)) return false;
-      return true;
-    });
-
-    return {
-      rows: filtered,
-      evaluators: (staff ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email })),
-    };
-  });
-
 /**
  * Marks today's Recruitment interview as No Show from the queue, without opening
  * the evaluation: the appointment closes as "No-show" and the candidate gets the
@@ -1030,74 +927,249 @@ export const sendResultEmail = createServerFn({ method: "POST" })
     return delivery;
   });
 
-/** El Salvador (UTC-6, no DST) day bounds for "today". */
-function opsTodayBounds() {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/El_Salvador" }).format(new Date());
-  const start = new Date(`${day}T06:00:00Z`);
-  return { start: start.toISOString(), end: new Date(start.getTime() + 86400000).toISOString() };
-}
+/* ------------------------------ Interviews agenda ----------------------------- */
 
-/** Today's Calendly bookings (El Salvador day), linked to candidates and their evaluations. */
-export const listCalendlyToday = createServerFn({ method: "GET" })
+const AGENDA_DAYS_BACK = 365;
+
+/**
+ * Interviews screen: one row per Recruitment appointment (each Calendly invitee
+ * is its own appointment), plus evaluations that never had a booking. Screening
+ * is never required to appear here or to be evaluated.
+ */
+export const listInterviewAgenda = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const ctx = await evaluatorContext(context.userId);
     if (!ctx.canView) throw new Error("You do not have access to interview evaluations.");
     const { db } = ctx;
-    const { start, end } = opsTodayBounds();
-    const { data: appts, error } = await db
-      .from("appointments")
-      .select(
-        "id, starts_at, ends_at, status, meeting_link, calendly_event_name, calendly_host_name, applications(id, full_name, email, country_code, source, submitted_at, archived_at, interview_evaluations(id, status, appointment_id, attempt_number))",
-      )
-      .not("calendly_event_uri", "is", null)
-      .neq("status", "Rescheduled")
-      .gte("starts_at", start)
-      .lt("starts_at", end)
-      .order("starts_at");
-    if (error) throw new Error(error.message);
-    const { data: settings } = await db
-      .from("interview_settings")
-      .select("calendly_last_synced_at")
-      .eq("id", true)
-      .maybeSingle();
+    const since = new Date(Date.now() - AGENDA_DAYS_BACK * 86400000).toISOString();
 
-    const rows = (appts ?? []).flatMap((a) => {
-      const app = one(a.applications);
+    const appSelect =
+      "id, full_name, email, phone, country, country_code, city, city_other, source, submitted_at, archived_at, cities(name), ai_evaluations(cefr), recruitment_progress(work_modality)";
+    const evalSelect =
+      "interview_evaluations(id, status, final_result, evaluator_id, total_score, compliance_score, appointment_id, attempt_number)";
+
+    const [apptRes, evalRes, staffRes, settingsRes] = await Promise.all([
+      db
+        .from("appointments")
+        .select(
+          `id, application_id, starts_at, ends_at, status, meeting_link, calendly_event_uri, calendly_event_name, calendly_host_name, interviewers(full_name), applications(${appSelect}, ${evalSelect})`,
+        )
+        .eq("stage", "recruitment")
+        .neq("status", "Rescheduled")
+        .gte("starts_at", since)
+        .order("starts_at", { ascending: false })
+        .limit(2000),
+      db
+        .from("interview_evaluations")
+        .select(
+          `id, status, final_result, evaluator_id, total_score, compliance_score, attempt_number, started_at, applications(${appSelect}, appointments(id, status, stage))`,
+        )
+        .order("attempt_number", { ascending: false })
+        .limit(2000),
+      db.from("staff_profiles").select("user_id, full_name, email"),
+      db
+        .from("interview_settings")
+        .select("calendly_last_synced_at, calendly_last_attempt_at, calendly_last_sync_result, calendly_last_sync_error")
+        .eq("id", true)
+        .maybeSingle(),
+    ]);
+    if (apptRes.error) throw new Error(apptRes.error.message);
+    if (evalRes.error) throw new Error(evalRes.error.message);
+
+    const staffById = new Map((staffRes.data ?? []).map((s) => [s.user_id, s.full_name || s.email]));
+    type AppRow = {
+      id: string;
+      full_name: string;
+      email: string;
+      phone: string;
+      country: string;
+      country_code: string | null;
+      city: string;
+      city_other: string | null;
+      source: string;
+      submitted_at?: string | null;
+      archived_at: string | null;
+      cities: { name: string } | { name: string }[] | null;
+      ai_evaluations: { cefr: string | null } | { cefr: string | null }[] | null;
+      recruitment_progress: { work_modality: string | null } | { work_modality: string | null }[] | null;
+    };
+    const base = (app: AppRow) => ({
+      applicationId: app.id,
+      fullName: app.full_name,
+      email: app.email,
+      phone: app.phone,
+      country: app.country || "",
+      countryCode: app.country_code,
+      city: one(app.cities)?.name ?? app.city_other ?? app.city ?? "",
+      lob: one(app.recruitment_progress)?.work_modality ?? null,
+      cefr: one(app.ai_evaluations)?.cefr ?? null,
+    });
+    type Ev = {
+      id: string;
+      status: string;
+      final_result: string | null;
+      evaluator_id: string;
+      total_score: number | null;
+      compliance_score: number | null;
+      appointment_id?: string | null;
+      attempt_number: number;
+    };
+    const evalFields = (e: Ev | null) => ({
+      evaluationId: e?.id ?? null,
+      evaluationStatus: e?.status ?? "Not started",
+      finalResult: e?.final_result ?? null,
+      totalScore: e?.total_score ?? null,
+      complianceScore: e?.compliance_score ?? null,
+      evaluatorId: e?.evaluator_id ?? null,
+      evaluatorName: e?.evaluator_id ? (staffById.get(e.evaluator_id) ?? "") : "",
+    });
+
+    const appts = apptRes.data ?? [];
+    // Latest appointment per application, so the latest attempt maps to it.
+    const latestByApp = new Map<string, string>();
+    const apptIdsByApp = new Map<string, Set<string>>();
+    for (const a of appts) {
+      if (!latestByApp.has(a.application_id)) latestByApp.set(a.application_id, a.id);
+      const set = apptIdsByApp.get(a.application_id) ?? new Set<string>();
+      set.add(a.id);
+      apptIdsByApp.set(a.application_id, set);
+    }
+
+    const rows = appts.flatMap((a) => {
+      const app = one(a.applications) as (AppRow & { interview_evaluations: Ev[] | null }) | null;
       if (!app || app.archived_at) return [];
       if (!countryAllowed(ctx, app.country_code, app.source)) return [];
-      const evals = [...(app.interview_evaluations ?? [])].sort(
-        (x, y) => (y.attempt_number ?? 1) - (x.attempt_number ?? 1),
-      );
-      const evaluation = evals.find((e) => e.appointment_id === a.id) ?? evals[0] ?? null;
+      const evals = [...(app.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 1) - (x.attempt_number ?? 1));
+      const own = apptIdsByApp.get(app.id) ?? new Set<string>();
+      let evaluation = evals.find((e) => e.appointment_id === a.id) ?? null;
+      if (!evaluation && latestByApp.get(app.id) === a.id) {
+        evaluation = evals.find((e) => !e.appointment_id || !own.has(e.appointment_id)) ?? null;
+      }
+      const interviewer = one(a.interviewers);
       return [
         {
-          appointmentId: a.id,
-          applicationId: app.id,
-          fullName: app.full_name,
-          email: app.email,
-          startsAt: a.starts_at,
-          status: a.status,
+          kind: "appointment" as const,
+          key: a.id,
+          appointmentId: a.id as string | null,
+          startsAt: a.starts_at as string | null,
+          appointmentStatus: a.status as string | null,
+          source: (a.calendly_event_uri ? "Calendly" : "Manual") as "Calendly" | "Manual",
           eventName: a.calendly_event_name,
-          host: a.calendly_host_name,
+          host: a.calendly_host_name ?? interviewer?.full_name ?? null,
           meetingLink: a.meeting_link?.startsWith("http") ? a.meeting_link : null,
           screeningCompleted: Boolean(app.submitted_at),
-          evaluationId: evaluation?.id ?? null,
-          evaluationStatus: (evaluation?.status as string | undefined) ?? "Not started",
+          ...base(app),
+          ...evalFields(evaluation),
         },
       ];
     });
-    return { rows, lastSyncedAt: settings?.calendly_last_synced_at ?? null };
+
+    const seen = new Set<string>();
+    const unscheduled = (evalRes.data ?? []).flatMap((e) => {
+      const app = one(e.applications) as (AppRow & { appointments: { id: string; status: string; stage: string }[] | null }) | null;
+      if (!app || app.archived_at || seen.has(app.id)) return [];
+      seen.add(app.id);
+      if (!countryAllowed(ctx, app.country_code, app.source)) return [];
+      const booked = (app.appointments ?? []).some((x) => x.stage === "recruitment" && x.status !== "Rescheduled");
+      if (booked) return [];
+      return [
+        {
+          kind: "unscheduled" as const,
+          key: `eval-${e.id}`,
+          appointmentId: null as string | null,
+          startsAt: null as string | null,
+          appointmentStatus: null as string | null,
+          source: "Manual" as "Calendly" | "Manual",
+          eventName: null as string | null,
+          host: null as string | null,
+          meetingLink: null as string | null,
+          screeningCompleted: Boolean(app.submitted_at),
+          startedAt: e.started_at,
+          ...base(app),
+          ...evalFields(e as Ev),
+        },
+      ];
+    });
+
+    const settings = settingsRes.data;
+    return {
+      rows,
+      unscheduled,
+      evaluators: (staffRes.data ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email })),
+      sync: {
+        configured: Boolean(process.env["CALENDLY_API_TOKEN"]),
+        lastSyncedAt: settings?.calendly_last_synced_at ?? null,
+        lastAttemptAt: settings?.calendly_last_attempt_at ?? null,
+        lastError: settings?.calendly_last_sync_error ?? null,
+        lastResult: (settings?.calendly_last_sync_result ?? null) as {
+          account?: string;
+          eventTypes?: string[];
+          rangeFrom?: string;
+          scanned?: number;
+          invitees?: number;
+          activeInvitees?: number;
+          created?: number;
+          updated?: number;
+          candidatesCreated?: number;
+        } | null,
+      },
+    };
   });
 
-/** Pulls today's Calendly bookings (including older ones) without sending any email. */
-export const refreshCalendlyToday = createServerFn({ method: "POST" })
+/**
+ * Pulls Calendly bookings into Interviews. Never sends emails or changes the
+ * pipeline. "auto" runs at most every 5 minutes (claimed atomically so two open
+ * screens do not sync at once) and looks back 2 days; "manual" looks back 7 days. Future bookings are always included.
+ */
+export const syncCalendlyNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) => z.object({ mode: z.enum(["auto", "manual"]) }).parse(d))
+  .handler(async ({ context, data }) => {
     const ctx = await evaluatorContext(context.userId);
-    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required to refresh Calendly.");
+    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required to sync Calendly.");
     const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
-    if (!calendlyConfigured()) throw new Error("Calendly is not connected (CALENDLY_API_TOKEN is missing).");
-    const result = await syncCalendly({ sinceDays: 1, sendEmails: false });
-    return result;
+    if (!calendlyConfigured()) throw new Error("Calendly is not connected (the Calendly token is missing).");
+    if (data.mode === "auto") {
+      const cutoff = new Date(Date.now() - 5 * 60000).toISOString();
+      const { data: claimed } = await ctx.db
+        .from("interview_settings")
+        .update({ calendly_last_attempt_at: new Date().toISOString() })
+        .eq("id", true)
+        .or(`calendly_last_attempt_at.is.null,calendly_last_attempt_at.lt.${cutoff}`)
+        .select("id");
+      if (!claimed?.length) return { skipped: true as const };
+    }
+    const result = await syncCalendly({ sinceDays: data.mode === "auto" ? 2 : 7, sendEmails: false });
+    if (data.mode === "manual") {
+      await writeAudit(ctx.db, {
+        actorId: context.userId,
+        action: "calendly.synced",
+        entityType: "appointment",
+        newValue: { ...result, unmatched: result.unmatched.length },
+      });
+    }
+    return { skipped: false as const, ...result };
+  });
+
+/** Finds applicants to start a manual (unscheduled) evaluation; screening not required. */
+export const searchApplicantsForEvaluation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ term: z.string().trim().min(2).max(120) }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required.");
+    const term = data.term.replace(/[%,()]/g, " ").trim();
+    const { data: apps, error } = await ctx.db
+      .from("applications")
+      .select("id, full_name, email, country, country_code, source, status")
+      .is("archived_at", null)
+      .or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`)
+      .order("created_at", { ascending: false })
+      .limit(15);
+    if (error) throw new Error(error.message);
+    return (apps ?? [])
+      .filter((a) => countryAllowed(ctx, a.country_code, a.source))
+      .slice(0, 10)
+      .map((a) => ({ id: a.id, fullName: a.full_name, email: a.email, country: a.country, status: a.status }));
   });

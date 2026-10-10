@@ -411,7 +411,7 @@ export const recordCalendlyBooking = createServerFn({ method: "POST" })
       await assertEligible(data.applicationId, data.token);
       const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
       if (!calendlyConfigured()) return { ok: false as const };
-      const result = await syncCalendly({ applicationId: data.applicationId, sinceDays: 1 });
+      const result = await syncCalendly({ applicationId: data.applicationId, sinceDays: 1, sendEmails: true });
       return { ok: true as const, created: result.created, updated: result.updated };
     } catch {
       return { ok: false as const };

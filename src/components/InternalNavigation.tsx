@@ -43,7 +43,7 @@ const canEvaluate = (access: StaffNavigationAccess) => access.isAdmin || access.
 
 const ITEMS: NavItem[] = [
   {
-    label: "Candidates",
+    label: "Applicants",
     to: "/dashboard",
     icon: ClipboardList,
     active: (path) => path === "/dashboard" || (path.startsWith("/candidates/") && path !== "/candidates/new"),
@@ -64,10 +64,10 @@ const ITEMS: NavItem[] = [
     show: fullStaff,
   },
   {
-    label: "E4CC Interviews",
+    label: "Interviews",
     to: "/evaluations",
     icon: ClipboardCheck,
-    active: (path) => path.startsWith("/evaluations"),
+    active: (path) => path.startsWith("/evaluations") || path === "/interviews",
     show: canEvaluate,
   },
   {
