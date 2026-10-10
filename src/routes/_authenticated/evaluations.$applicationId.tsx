@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { resultLabel } from "@/lib/roles";
 import { candidateContactSchema } from "@/lib/candidate-contact";
+import { useCountries } from "@/hooks/useLocations";
 import {
   B2_PAST_READING,
   ENGLISH_ACTIVITIES,
@@ -139,8 +140,9 @@ function EvaluationForm() {
   const sendResultFn = useServerFn(sendResultEmail);
   const contactFn = useServerFn(updateInterviewCandidateContact);
   const queryClient = useQueryClient();
-  const [contact, setContact] = useState({ full_name: "", email: "", phone: "" });
+  const [contact, setContact] = useState({ full_name: "", email: "", phone: "", country_code: "" });
   const [contactSaving, setContactSaving] = useState(false);
+  const { data: countries } = useCountries();
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -178,11 +180,11 @@ function EvaluationForm() {
   const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate || approvedReadOnly;
 
   useEffect(() => {
-    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "" });
-  }, [candidate?.fullName, candidate?.email, candidate?.phone]);
+    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "", country_code: candidate.countryCode ?? "" });
+  }, [candidate?.fullName, candidate?.email, candidate?.phone, candidate?.countryCode]);
 
   const saveContact = async () => {
-    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact });
+    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact, country_code: contact.country_code || undefined });
     if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Review candidate details"); return; }
     setContactSaving(true);
     try {
@@ -627,8 +629,20 @@ function EvaluationForm() {
               <Field label="Candidate email">
                 <Input aria-label="Candidate email" type="email" autoComplete="email" maxLength={255} value={contact.email} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, email: e.target.value }))} />
               </Field>
+              <Field label="Candidate country">
+                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => setContact((c) => ({ ...c, country_code: v }))}>
+                  <SelectTrigger aria-label="Candidate country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(countries ?? []).map((c) => (
+                      <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
               <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? ""))}>
+                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? "") && contact.country_code === (candidate.countryCode ?? ""))}>
                   {contactSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save candidate details
                 </Button>
               </div>

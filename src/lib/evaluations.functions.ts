@@ -249,8 +249,15 @@ export const updateInterviewCandidateContact = createServerFn({ method: "POST" }
       throw new Error("You do not have access to this candidate.");
     if (!canEditInterviewContact({ canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin }, app.status))
       throw new Error("This candidate is read-only for your account.");
+    let countryUpdate: Record<string, unknown> = {};
+    if (data.country_code && data.country_code !== app.country_code) {
+      const { data: c } = await ctx.db.from("countries").select("code, name")
+        .eq("code", data.country_code).eq("active", true).maybeSingle();
+      if (!c) throw new Error("Select a valid country.");
+      countryUpdate = { country_code: c.code, country: c.name, city: "", city_id: null, city_other: null };
+    }
     const update = { full_name: data.full_name, email: data.email, phone: data.phone,
-      phone_e164: data.phone === app.phone ? app.phone_e164 : null };
+      phone_e164: data.phone === app.phone ? app.phone_e164 : null, ...countryUpdate };
     const { error } = await ctx.db.from("applications").update(update).eq("id", app.id);
     if (error) throw new Error(error.message);
     await writeAudit(ctx.db as never, {
