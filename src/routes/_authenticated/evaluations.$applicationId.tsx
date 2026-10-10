@@ -139,8 +139,9 @@ function EvaluationForm() {
   const sendResultFn = useServerFn(sendResultEmail);
   const contactFn = useServerFn(updateInterviewCandidateContact);
   const queryClient = useQueryClient();
-  const [contact, setContact] = useState({ full_name: "", email: "", phone: "" });
+  const [contact, setContact] = useState({ full_name: "", email: "", phone: "", country_code: "" });
   const [contactSaving, setContactSaving] = useState(false);
+  const { data: countries } = useCountries();
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -178,11 +179,11 @@ function EvaluationForm() {
   const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate || approvedReadOnly;
 
   useEffect(() => {
-    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "" });
-  }, [candidate?.fullName, candidate?.email, candidate?.phone]);
+    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "", country_code: candidate.countryCode ?? "" });
+  }, [candidate?.fullName, candidate?.email, candidate?.phone, candidate?.countryCode]);
 
   const saveContact = async () => {
-    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact });
+    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact, country_code: contact.country_code || undefined });
     if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Review candidate details"); return; }
     setContactSaving(true);
     try {
