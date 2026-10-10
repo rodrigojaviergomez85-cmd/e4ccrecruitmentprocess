@@ -16,7 +16,10 @@ test("approved candidates stay read-only except for Admin", () => {
 test("reading an interview does not grant editing permission", () => {
   assert.equal(canEditInterviewContact({ canEvaluate: false, isAdmin: false }, "New"), false);
 });
-test("invalid email or missing phone cannot be saved", () => {
+test("invalid email or incomplete phone cannot be saved", () => {
   assert.equal(candidateContactSchema.safeParse({ ...contact, email: "invalid" }).success, false);
-  assert.equal(candidateContactSchema.safeParse({ ...contact, phone: "" }).success, false);
+  assert.equal(candidateContactSchema.safeParse({ ...contact, phone: "12" }).success, false);
+});
+test("a full name can be corrected when Calendly has no phone number", () => {
+  assert.equal(candidateContactSchema.safeParse({ ...contact, phone: "" }).success, true);
 });

@@ -16,6 +16,8 @@ export const Route = createFileRoute("/")({
           "Apply to become an English teacher at E4CC. Complete your profile and record two short video answers in about 10 minutes.",
       },
       { property: "og:title", content: "Join E4CC — Teacher Application" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content:
