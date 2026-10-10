@@ -15,6 +15,7 @@ import {
 } from "./evaluations";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
+import { candidateContactSchema, canEditInterviewContact } from "./candidate-contact";
 
 /** Maps the evaluator's final result to the candidate-facing email kind. */
 const FOLLOW_UP_KIND: Record<string, "retake" | "not_approved" | "approved" | undefined> = {
@@ -230,6 +231,32 @@ export const markInterviewWaitingList = createServerFn({ method: "POST" })
       applicationId: app.id,
       oldValue: { status: app.status },
       newValue: { status: "Waiting List", source: "queue_quick_action" },
+    });
+    return { ok: true };
+  });
+
+/** Correct the application itself, not a duplicate copy inside the interview answers. */
+export const updateInterviewCandidateContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => candidateContactSchema.parse(input))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    const { data: app, error: readError } = await ctx.db.from("applications")
+      .select("id, source, country_code, status, full_name, email, phone, phone_e164")
+      .eq("id", data.applicationId).maybeSingle();
+    if (readError) throw new Error(readError.message);
+    if (!app || !countryAllowed(ctx, app.country_code, app.source))
+      throw new Error("You do not have access to this candidate.");
+    if (!canEditInterviewContact({ canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin }, app.status))
+      throw new Error("This candidate is read-only for your account.");
+    const update = { full_name: data.full_name, email: data.email, phone: data.phone,
+      phone_e164: data.phone === app.phone ? app.phone_e164 : null };
+    const { error } = await ctx.db.from("applications").update(update).eq("id", app.id);
+    if (error) throw new Error(error.message);
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId, action: "application.contact_edited", entityType: "application",
+      entityId: app.id, applicationId: app.id,
+      oldValue: { full_name: app.full_name, email: app.email, phone: app.phone }, newValue: update,
     });
     return { ok: true };
   });

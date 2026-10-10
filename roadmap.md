@@ -27,3 +27,4 @@
 - [x] Nuevo rol Generalista para verificar documentos; permisos separados de Recruitment y Trainer, con pruebas
 - [x] Calendly: todas las reservas/invitados visibles en Interviews sin screening, sincronización visible, sin duplicados ni correos
 - [x] Navegación: Applicants e Interviews como accesos principales; vista de entrevistas unificada
+- [x] Corregir nombre completo, correo y teléfono desde entrevistas agendadas; guardado y recarga verificados, seis pruebas de validación/permisos aprobadas

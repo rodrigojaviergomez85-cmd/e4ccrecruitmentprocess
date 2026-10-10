@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Save, Unlock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { resultLabel } from "@/lib/roles";
+import { candidateContactSchema } from "@/lib/candidate-contact";
 import {
   B2_PAST_READING,
   ENGLISH_ACTIVITIES,
@@ -60,6 +61,7 @@ import {
   reopenEvaluation,
   saveEvaluation,
   sendResultEmail,
+  updateInterviewCandidateContact,
 } from "@/lib/evaluations.functions";
 
 export const Route = createFileRoute("/_authenticated/evaluations/$applicationId")({
@@ -71,6 +73,8 @@ export const Route = createFileRoute("/_authenticated/evaluations/$applicationId
         content: "Guided E4CC live interview evaluation form with scoring and compliance tracking.",
       },
       { property: "og:title", content: "Live Interview Evaluation — E4CC" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Section-by-section evaluation of an E4CC candidate interview.",
@@ -133,6 +137,10 @@ function EvaluationForm() {
   const saveFn = useServerFn(saveEvaluation);
   const reopenFn = useServerFn(reopenEvaluation);
   const sendResultFn = useServerFn(sendResultEmail);
+  const contactFn = useServerFn(updateInterviewCandidateContact);
+  const queryClient = useQueryClient();
+  const [contact, setContact] = useState({ full_name: "", email: "", phone: "" });
+  const [contactSaving, setContactSaving] = useState(false);
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -168,6 +176,24 @@ function EvaluationForm() {
   const approvedReadOnly =
     candidate?.pipelineStatus === "Approved for Training" && !data?.access.isAdmin;
   const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate || approvedReadOnly;
+
+  useEffect(() => {
+    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "" });
+  }, [candidate?.fullName, candidate?.email, candidate?.phone]);
+
+  const saveContact = async () => {
+    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact });
+    if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Review candidate details"); return; }
+    setContactSaving(true);
+    try {
+      await contactFn({ data: parsed.data });
+      await refetch();
+      for (const key of ["candidate", "candidates", "interview-agenda", "applicants-for-evaluation"])
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      toast.success("Candidate contact details updated");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not save candidate details"); }
+    finally { setContactSaving(false); }
+  };
 
   useEffect(() => {
     if (!evaluation || hydrated) return;
@@ -592,15 +618,20 @@ function EvaluationForm() {
               <Field label="Evaluator">
                 <Input value={evaluation.evaluatorName || ""} readOnly />
               </Field>
-              <Field label="Candidate">
-                <Input value={candidate.fullName} readOnly />
+              <Field label="Candidate full name">
+                <Input aria-label="Candidate full name" autoComplete="name" maxLength={150} value={contact.full_name} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, full_name: e.target.value }))} />
               </Field>
               <Field label="Candidate phone">
-                <Input value={candidate.phone} readOnly />
+                <Input aria-label="Candidate phone" type="tel" autoComplete="tel" maxLength={40} value={contact.phone} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, phone: e.target.value }))} />
               </Field>
               <Field label="Candidate email">
-                <Input value={candidate.email} readOnly />
+                <Input aria-label="Candidate email" type="email" autoComplete="email" maxLength={255} value={contact.email} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, email: e.target.value }))} />
               </Field>
+              <div className="flex items-end">
+                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? ""))}>
+                  {contactSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save candidate details
+                </Button>
+              </div>
               <Field label="Was this person referred?">
                 <Select
                   value={str("candidate", "referred")}
