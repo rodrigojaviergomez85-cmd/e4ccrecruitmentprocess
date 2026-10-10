@@ -1120,7 +1120,7 @@ export const listInterviewAgenda = createServerFn({ method: "GET" })
 /**
  * Pulls Calendly bookings into Interviews. Never sends emails or changes the
  * pipeline. "auto" runs at most every 5 minutes (claimed atomically so two open
- * screens do not sync at once) and looks back 2 days; "manual" looks back 30 days.
+ * screens do not sync at once) and looks back 2 days; "manual" looks back 7 days. Future bookings are always included.
  */
 export const syncCalendlyNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1140,7 +1140,7 @@ export const syncCalendlyNow = createServerFn({ method: "POST" })
         .select("id");
       if (!claimed?.length) return { skipped: true as const };
     }
-    const result = await syncCalendly({ sinceDays: data.mode === "auto" ? 2 : 30, sendEmails: false });
+    const result = await syncCalendly({ sinceDays: data.mode === "auto" ? 2 : 7, sendEmails: false });
     if (data.mode === "manual") {
       await writeAudit(ctx.db, {
         actorId: context.userId,
