@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
@@ -20,11 +20,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   addBlockedDate,
   getInterviewConfig,
-  listAppointments,
   removeBlockedDate,
   saveInterviewSettings,
   sendManualReminder,
-  syncCalendlyAppointments,
   updateAppointmentStatus,
   upsertInterviewer,
 } from "@/lib/interviews.functions";
@@ -40,12 +38,12 @@ import {
 export const Route = createFileRoute("/_authenticated/interviews")({
   head: () => ({
     meta: [
-      { title: "Interview Settings — E4CC" },
+      { title: "Scheduling Settings — E4CC" },
       {
         name: "description",
         content: "Configure interview availability, interviewers, reminders and booked interviews.",
       },
-      { property: "og:title", content: "Interview Settings — E4CC" },
+      { property: "og:title", content: "Scheduling Settings — E4CC" },
       {
         property: "og:description",
         content: "Configure E4CC interview availability, interviewers and reminders.",
@@ -73,7 +71,6 @@ type SettingsForm = {
 function InterviewsPage() {
   const queryClient = useQueryClient();
   const loadConfig = useServerFn(getInterviewConfig);
-  const loadAppointments = useServerFn(listAppointments);
   const loadAccess = useServerFn(getMyAccess);
   const saveSettings = useServerFn(saveInterviewSettings);
   const saveInterviewer = useServerFn(upsertInterviewer);
@@ -81,29 +78,10 @@ function InterviewsPage() {
   const unblockDate = useServerFn(removeBlockedDate);
   const setStatus = useServerFn(updateAppointmentStatus);
   const remind = useServerFn(sendManualReminder);
-  const syncCalendly = useServerFn(syncCalendlyAppointments);
 
-  const syncMutation = useMutation({
-    mutationFn: () => syncCalendly(),
-    onSuccess: (r) => {
-      toast.success(
-        `Calendly synced: ${r.created} new, ${r.updated} updated${
-          r.unmatched.length ? `, ${r.unmatched.length} without a matching application` : ""
-        }.`,
-      );
-      void queryClient.invalidateQueries({ queryKey: ["appointments"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   const accessQuery = useQuery({ queryKey: ["my-access"], queryFn: () => loadAccess() });
   const configQuery = useQuery({ queryKey: ["interview-config"], queryFn: () => loadConfig() });
-  const [statusFilter, setStatusFilter] = useState("all");
-  const appointmentsQuery = useQuery({
-    queryKey: ["appointments", statusFilter],
-    queryFn: () =>
-      loadAppointments({ data: statusFilter === "all" ? {} : { status: statusFilter } }),
-  });
 
   const isAdmin = (accessQuery.data?.roles ?? []).includes("admin");
   const canEvaluate = Boolean(accessQuery.data?.canEvaluate);
@@ -184,138 +162,13 @@ function InterviewsPage() {
     <main className="min-h-screen bg-secondary/40 pb-16">
       <div className="mx-auto max-w-6xl space-y-8 px-5 py-8">
         <div>
-          <h1 className="text-2xl font-bold">Interviews</h1>
+          <h1 className="text-2xl font-bold">Scheduling settings</h1>
           <p className="text-sm text-muted-foreground">
-            Availability, interviewers and booked interviews. Times are shown in {orgTz}.
+            Availability, interviewers and blocked dates for internal reschedule links. Booked interviews live in Interviews. Times are shown in {orgTz}.
           </p>
         </div>
 
-        {/* ------------------------------- appointments ------------------------------ */}
-        <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-lg font-semibold">Booked interviews</h2>
-            <div className="flex items-end gap-3">
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                disabled={syncMutation.isPending}
-                onClick={() => syncMutation.mutate()}
-              >
-                {syncMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Sync Calendly
-              </Button>
-            </div>
-            <div className="w-48">
-
-              <Label className="text-xs">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="mt-1 rounded-2xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {APPOINTMENT_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {appointmentsQuery.isLoading && <Skeleton className="mt-4 h-32 w-full rounded-2xl" />}
-
-          {appointmentsQuery.data?.length === 0 && (
-            <p className="mt-4 text-sm text-muted-foreground">No interviews booked yet.</p>
-          )}
-
-          <div className="mt-4 space-y-3">
-            {(appointmentsQuery.data ?? []).map((a) => (
-              <div
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border p-4"
-              >
-                <div className="min-w-56">
-                  <Link
-                    to="/candidates/$id"
-                    params={{ id: a.candidate_id }}
-                    className="font-semibold hover:underline"
-                  >
-                    {a.candidate}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {formatInTz(a.starts_at, orgTz)} · {a.interviewer ?? "Unassigned"} ·{" "}
-                    {a.country_code ?? "—"} {a.city ? `· ${a.city}` : ""}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Reminders: {a.reminder_status} · Reschedules: {a.reschedule_count}
-                    {a.meeting_link ? (
-                      <>
-                        {" · "}
-                        <a className="text-primary underline" href={a.meeting_link}>
-                          Meeting link
-                        </a>
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {canEvaluate && a.candidate_id && (
-                    <Button asChild variant="default" className="rounded-2xl">
-                      <Link to="/evaluations/$applicationId" params={{ applicationId: a.candidate_id }}>
-                        {a.evaluation_status === "Submitted" ||
-                        a.evaluation_status === "Retake pending"
-                          ? "View interview"
-                          : a.evaluation_status
-                            ? "Continue interview"
-                            : "Start interview"}
-                      </Link>
-                    </Button>
-                  )}
-                  <Select
-                    value={a.status}
-                    onValueChange={(status) =>
-                      statusMutation.mutate({
-                        id: a.id,
-                        status: status as (typeof APPOINTMENT_STATUSES)[number],
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-40 rounded-2xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {APPOINTMENT_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl"
-                    disabled={reminderMutation.isPending}
-                    onClick={() => reminderMutation.mutate(a.id)}
-                  >
-                    <BellRing className="mr-2 h-4 w-4" /> Remind
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {!isAdmin && (
-          <p className="text-sm text-muted-foreground">
-            Only administrators can change interview settings, interviewers and blocked dates.
-          </p>
-        )}
+        {accessQuery.data && !isAdmin && <Navigate to="/evaluations" replace />}
 
         {isAdmin && form && (
           <>

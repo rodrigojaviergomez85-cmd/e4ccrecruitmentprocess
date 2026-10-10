@@ -894,6 +894,9 @@ export type Database = {
           allow_reapply_days: number
           assignment_mode: string
           buffer_minutes: number
+          calendly_last_attempt_at: string | null
+          calendly_last_sync_error: string | null
+          calendly_last_sync_result: Json | null
           calendly_last_synced_at: string | null
           created_at: string
           default_meeting_link: string
@@ -916,6 +919,9 @@ export type Database = {
           allow_reapply_days?: number
           assignment_mode?: string
           buffer_minutes?: number
+          calendly_last_attempt_at?: string | null
+          calendly_last_sync_error?: string | null
+          calendly_last_sync_result?: Json | null
           calendly_last_synced_at?: string | null
           created_at?: string
           default_meeting_link?: string
@@ -938,6 +944,9 @@ export type Database = {
           allow_reapply_days?: number
           assignment_mode?: string
           buffer_minutes?: number
+          calendly_last_attempt_at?: string | null
+          calendly_last_sync_error?: string | null
+          calendly_last_sync_result?: Json | null
           calendly_last_synced_at?: string | null
           created_at?: string
           default_meeting_link?: string

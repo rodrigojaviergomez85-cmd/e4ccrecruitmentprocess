@@ -155,6 +155,20 @@
       "when": 1791590184242,
       "tag": "0021_screening_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791642783079,
+      "tag": "0022_calendly_sync_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791642879640,
+      "tag": "0023_calendly_invitee_unique",
+      "breakpoints": true
     }
   ]
 }

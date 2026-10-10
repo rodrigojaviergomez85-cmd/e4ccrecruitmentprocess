@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS appointments_calendly_invitee_unique ON public.appointments (calendly_invitee_uri) WHERE calendly_invitee_uri IS NOT NULL;

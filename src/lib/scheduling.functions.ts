@@ -101,7 +101,7 @@ export const recordCalendlySchedule = createServerFn({ method: "POST" })
     const { applicationId } = await resolveToken(data.token);
     const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
     if (!calendlyConfigured()) return { ok: false as const };
-    const result = await syncCalendly({ applicationId, sinceDays: 1 });
+    const result = await syncCalendly({ applicationId, sinceDays: 1, sendEmails: true });
     return { ok: result.created + result.updated > 0 };
   });
 

@@ -28,12 +28,12 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Candidate Dashboard — E4CC" },
+      { title: "Applicants — E4CC" },
       {
         name: "description",
         content: "Review teacher applications, AI English level estimates and video answers.",
       },
-      { property: "og:title", content: "Candidate Dashboard — E4CC" },
+      { property: "og:title", content: "Applicants — E4CC" },
       { property: "og:description", content: "Internal recruitment dashboard for E4CC." },
     ],
   }),
@@ -81,6 +81,10 @@ function Dashboard() {
   return (
     <main className="min-h-screen bg-secondary/30">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Applicants</h1>
+          <p className="text-sm text-muted-foreground">All applications and their follow-up. Booked interviews are in Interviews.</p>
+        </div>
         {isAdmin && <AhtReport />}
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">

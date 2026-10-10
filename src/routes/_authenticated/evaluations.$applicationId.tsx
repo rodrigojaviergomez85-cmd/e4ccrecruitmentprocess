@@ -444,7 +444,7 @@ function EvaluationForm() {
             {error instanceof Error ? error.message : "This candidate could not be loaded."}
           </p>
           <Button asChild className="mt-4" variant="outline">
-            <Link to="/evaluations">Back to E4CC Interviews</Link>
+            <Link to="/evaluations">Back to Interviews</Link>
           </Button>
         </div>
       </main>
@@ -460,7 +460,7 @@ function EvaluationForm() {
             This candidate has no evaluation and your account cannot create one.
           </p>
           <Button asChild className="mt-4" variant="outline">
-            <Link to="/evaluations">Back to E4CC Interviews</Link>
+            <Link to="/evaluations">Back to Interviews</Link>
           </Button>
         </div>
       </main>

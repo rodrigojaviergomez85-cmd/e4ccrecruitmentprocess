@@ -22,7 +22,7 @@ export const Route = createFileRoute("/api/public/webhooks/calendly")({
     const payload = JSON.parse(body) as { event?: string };
     if (payload.event !== "invitee.created" && payload.event !== "invitee.canceled") return new Response("ok");
     const { syncCalendly } = await import("@/lib/calendly.server");
-    await syncCalendly({ sinceDays: 2 });
+    await syncCalendly({ sinceDays: 2, sendEmails: true });
     return new Response("ok");
   } } },
 });
