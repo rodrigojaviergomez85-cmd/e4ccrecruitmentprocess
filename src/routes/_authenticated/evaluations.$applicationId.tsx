@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { resultLabel } from "@/lib/roles";
 import { candidateContactSchema } from "@/lib/candidate-contact";
+import { useCountries } from "@/hooks/useLocations";
 import {
   B2_PAST_READING,
   ENGLISH_ACTIVITIES,
