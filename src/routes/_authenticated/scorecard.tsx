@@ -340,6 +340,25 @@ function ScorecardPage() {
     }
   }
 
+  function exportExcel() {
+    if (!data) return;
+    try {
+      const bytes = buildScorecardWorkbook(data, { from: dates.from, to: dates.to });
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `e4cc-scorecard-metrics_${dates.from || "all"}_${dates.to || "all"}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel metrics downloaded.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not build the Excel report.");
+    }
+  }
+
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-secondary/30 px-5">
