@@ -107,6 +107,8 @@ function QueuePage() {
         {tab === "done" && (
           <p className="text-sm text-muted-foreground">Every Manager Final Interview already finished, with its final decision. Open one to read it (locked).</p>
         )}
+        {tab === "pending" && (
+        <>
         <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-7">
           <F label="LOB" value={lob} onChange={setLob} options={[["online", "Online"], ["onsite-SV", "El Salvador Onsite"], ["onsite-NI", "Nicaragua Onsite"], ["onsite-GT", "Guatemala Onsite"]]} />
           <F label="Country" value={country} onChange={setCountry} options={countries.map(([c, n]) => [c, n])} />
