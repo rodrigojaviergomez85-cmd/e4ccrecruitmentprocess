@@ -537,7 +537,7 @@ function ScorecardPage() {
                     <p className="text-lg font-semibold">{f.value}</p>
                     {i > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {data.funnel[i - 1].value ? Math.round((f.value / data.funnel[i - 1].value) * 100) : 0}% of previous
+                        {(data.funnel[i - 1]?.value ?? 0) ? Math.round((f.value / (data.funnel[i - 1]?.value ?? 0)) * 100) : 0}% of previous
                       </p>
                     )}
                   </div>
