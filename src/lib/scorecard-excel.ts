@@ -117,7 +117,7 @@ function applyPctFormat(ws: XLSX.WorkSheet, cols: number[], firstDataRow: number
 export function buildScorecardWorkbook(
   data: ScorecardData,
   meta: { from: string; to: string },
-): Uint8Array {
+): ArrayBuffer {
   const wb = XLSX.utils.book_new();
   const s = data.summary;
   const rangeLabel = `${meta.from || "all"} – ${meta.to || "all"}`;
@@ -296,5 +296,6 @@ export function buildScorecardWorkbook(
   setColWidths(chWs, [30, 14, 14, 12]);
   XLSX.utils.book_append_sheet(wb, chWs, "Charts data");
 
-  return XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
+  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
+  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
 }
