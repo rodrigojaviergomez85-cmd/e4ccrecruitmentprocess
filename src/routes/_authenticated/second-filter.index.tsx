@@ -167,8 +167,127 @@ function QueuePage() {
             </div>
           ))}
         </div>
+        </>
+        )}
+        {tab === "done" && (
+          <CompletedList
+            data={doneData ?? null}
+            isLoading={doneLoading}
+            error={doneError instanceof Error ? doneError.message : doneError ? "Could not load" : null}
+            search={doneSearch}
+            onSearch={setDoneSearch}
+            decision={doneDecision}
+            onDecision={setDoneDecision}
+          />
+        )}
       </div>
     </main>
+  );
+}
+
+function decisionTone(decision: string | null) {
+  switch (decision) {
+    case "Approved for Training":
+      return "bg-success/15 text-success";
+    case "Retake":
+      return "bg-accent text-accent-foreground";
+    case "Not Approved":
+      return "bg-destructive/10 text-destructive";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+type DoneData = {
+  rows: {
+    applicationId: string;
+    attemptNumber: number;
+    fullName: string;
+    country: string;
+    modality: string | null;
+    decision: string | null;
+    decidedAt: string | null;
+    managerName: string | null;
+    isRetake: boolean;
+  }[];
+} | null;
+
+function CompletedList({
+  data,
+  isLoading,
+  error,
+  search,
+  onSearch,
+  decision,
+  onDecision,
+}: {
+  data: DoneData;
+  isLoading: boolean;
+  error: string | null;
+  search: string;
+  onSearch: (v: string) => void;
+  decision: string;
+  onDecision: (v: string) => void;
+}) {
+  const rows = (data?.rows ?? []).filter(
+    (r) =>
+      (decision === ALL || r.decision === decision) &&
+      (!search || r.fullName.toLowerCase().includes(search.toLowerCase())),
+  );
+  const dt = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Search candidate</Label>
+          <Input type="search" placeholder="Name…" value={search} onChange={(e) => onSearch(e.target.value)} />
+        </div>
+        <F
+          label="Final decision"
+          value={decision}
+          onChange={onDecision}
+          options={[
+            ["Approved for Training", "Approved for Training"],
+            ["Retake", "Retake"],
+            ["Not Approved", "Not Approved"],
+            ["No Show", "No Show"],
+          ]}
+        />
+        <div className="flex items-end">
+          <p className="text-xs text-muted-foreground">
+            {rows.length} of {data?.rows.length ?? 0} interviews · most recent 300 shown
+          </p>
+        </div>
+      </div>
+      {error && <p className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive">{error}</p>}
+      {isLoading && <Skeleton className="h-40 w-full rounded-2xl" />}
+      {data && rows.length === 0 && (
+        <p className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          No completed Manager interviews match these filters.
+        </p>
+      )}
+      <div className="divide-y divide-border rounded-2xl border border-border bg-card">
+        {rows.map((r) => (
+          <div key={`${r.applicationId}-${r.attemptNumber}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div className="min-w-0 space-y-0.5">
+              <p className="flex flex-wrap items-center gap-2 font-semibold">
+                {r.fullName}
+                <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${decisionTone(r.decision)}`}>{r.decision ?? "—"}</span>
+                {r.isRetake && <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold uppercase text-accent-foreground">Retake</span>}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {r.country} · <span className="capitalize">{r.modality ?? "—"}</span> · Manager: {r.managerName ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">Finished {dt(r.decidedAt)} · Attempt {r.attemptNumber}</p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/second-filter/$applicationId" params={{ applicationId: r.applicationId }}>View interview</Link>
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
