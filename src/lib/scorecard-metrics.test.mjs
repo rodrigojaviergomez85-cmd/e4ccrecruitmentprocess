@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+const expect = (a) => ({ toBe: (e) => assert.equal(a, e) });
 import {
   attended,
   interviewSource,
