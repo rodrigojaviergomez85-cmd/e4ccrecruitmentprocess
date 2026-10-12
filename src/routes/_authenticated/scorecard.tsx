@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { resultLabel } from "@/lib/roles";
 import { exportScorecardCsv, getScorecard, updateScorecardGoals } from "@/lib/scorecard.functions";
 import { goalTone, type Goals } from "@/lib/scorecard-metrics";
 import { formatDuration } from "@/components/InterviewTimer";
+import { buildScorecardWorkbook } from "@/lib/scorecard-excel";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/scorecard")({
