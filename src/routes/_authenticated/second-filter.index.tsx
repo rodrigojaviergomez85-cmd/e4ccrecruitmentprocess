@@ -82,10 +82,31 @@ function QueuePage() {
   return (
     <main className="min-h-screen bg-secondary/30">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">Pending Second Filter</h1>
-          <p className="text-sm text-muted-foreground">Approved by Recruitment and waiting for the Manager's final decision.</p>
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setTab("pending")}
+              className={cn("px-4 py-1.5 text-sm font-medium", tab === "pending" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground")}
+            >
+              Pending
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("done")}
+              className={cn("px-4 py-1.5 text-sm font-medium", tab === "done" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground")}
+            >
+              Completed
+            </button>
+          </div>
         </div>
+        {tab === "pending" && (
+          <p className="text-sm text-muted-foreground">Approved by Recruitment and waiting for the Manager's final decision.</p>
+        )}
+        {tab === "done" && (
+          <p className="text-sm text-muted-foreground">Every Manager Final Interview already finished, with its final decision. Open one to read it (locked).</p>
+        )}
         <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3 lg:grid-cols-7">
           <F label="LOB" value={lob} onChange={setLob} options={[["online", "Online"], ["onsite-SV", "El Salvador Onsite"], ["onsite-NI", "Nicaragua Onsite"], ["onsite-GT", "Guatemala Onsite"]]} />
           <F label="Country" value={country} onChange={setCountry} options={countries.map(([c, n]) => [c, n])} />
