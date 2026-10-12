@@ -4,6 +4,21 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isLockedStatus, levelDifference } from "./evaluations";
 import { staffTier } from "./roles";
+import {
+  APPROVED_RESULT,
+  DEFAULT_GOALS,
+  attended,
+  experienceProfile,
+  interviewSource,
+  isNoShow,
+  isScheduled,
+  pct,
+  pickAppointment,
+  scoreBand,
+  type ApptLite,
+  type Goals,
+  type InterviewSource,
+} from "./scorecard-metrics";
 
 /** Embedded Supabase relations arrive as a row or an array depending on the relationship. */
 function one<T>(value: T | T[] | null | undefined): T | null {
