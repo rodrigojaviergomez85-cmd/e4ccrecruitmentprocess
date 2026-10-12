@@ -159,15 +159,14 @@ export function buildScorecardWorkbook(
     ["Approved for Training", s.training],
     [],
     ["Recruitment funnel", "Candidates", "% of previous"],
-    ...data.funnel.map((f, i) => [
-      f.label,
-      f.value,
-      i === 0
-        ? "—"
-        : data.funnel[i - 1].value
-          ? `${Math.round((f.value / data.funnel[i - 1].value) * 100)}%`
-          : "—",
-    ]),
+    ...data.funnel.map((f, i) => {
+      const prev = i > 0 ? data.funnel[i - 1]?.value : undefined;
+      return [
+        f.label,
+        f.value,
+        prev ? `${Math.round((f.value / prev) * 100)}%` : "—",
+      ];
+    }),
     [],
     ["Profile of all interviews", "Value"],
     ["Teaching experience", s.teachingExperienceRate],
