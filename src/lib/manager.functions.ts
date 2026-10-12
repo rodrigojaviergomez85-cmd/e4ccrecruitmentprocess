@@ -166,15 +166,16 @@ export const listManagerDecisions = createServerFn({ method: "POST" })
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     const managers = await managerNames(ctx.db);
+    type EmbeddedApp = { id: string; full_name: string; country: string; country_code: string | null; recruitment_progress: { work_modality: string | null }[] | null } | null;
     const rows: ManagerDecisionRow[] = (data ?? []).map((r) => {
-      const app = one(r.applications as never);
+      const app = (Array.isArray(r.applications) ? r.applications[0] : r.applications) as EmbeddedApp;
       return {
         applicationId: r.application_id,
         attemptNumber: r.attempt_number,
         fullName: app?.full_name ?? "—",
         country: app?.country ?? "—",
         countryCode: app?.country_code ?? null,
-        modality: one(app?.recruitment_progress as never)?.work_modality ?? null,
+        modality: app?.recruitment_progress?.[0]?.work_modality ?? null,
         decision: r.final_decision,
         decidedAt: r.decided_at ?? r.submitted_at,
         submittedAt: r.submitted_at,
