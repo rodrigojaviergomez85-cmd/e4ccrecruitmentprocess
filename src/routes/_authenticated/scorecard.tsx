@@ -380,7 +380,10 @@ function ScorecardPage() {
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={exportExcel} disabled={!data}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel
+          </Button>
           <Button size="sm" onClick={() => void exportCsv()}>
             <Download className="mr-2 h-4 w-4" /> Export CSV
           </Button>
