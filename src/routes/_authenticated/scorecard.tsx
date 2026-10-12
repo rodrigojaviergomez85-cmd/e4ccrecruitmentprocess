@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import { resultLabel } from "@/lib/roles";
 import { exportScorecardCsv, getScorecard, updateScorecardGoals } from "@/lib/scorecard.functions";
 import { goalTone, type Goals } from "@/lib/scorecard-metrics";
 import { formatDuration } from "@/components/InterviewTimer";
+import { buildScorecardWorkbook } from "@/lib/scorecard-excel";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/scorecard")({
@@ -339,6 +340,25 @@ function ScorecardPage() {
     }
   }
 
+  function exportExcel() {
+    if (!data) return;
+    try {
+      const bytes = buildScorecardWorkbook(data, { from: dates.from, to: dates.to });
+      const blob = new Blob([bytes], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `e4cc-scorecard-metrics_${dates.from || "all"}_${dates.to || "all"}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Excel metrics downloaded.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not build the Excel report.");
+    }
+  }
+
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-secondary/30 px-5">
@@ -360,7 +380,10 @@ function ScorecardPage() {
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={exportExcel} disabled={!data}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel
+          </Button>
           <Button size="sm" onClick={() => void exportCsv()}>
             <Download className="mr-2 h-4 w-4" /> Export CSV
           </Button>
