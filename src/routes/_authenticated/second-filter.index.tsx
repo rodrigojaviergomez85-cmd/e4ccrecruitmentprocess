@@ -30,9 +30,16 @@ const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : 
 
 function QueuePage() {
   const list = useServerFn(listSecondFilterQueue);
+  const decisions = useServerFn(listManagerDecisions);
   const assign = useServerFn(assignManager);
   const qc = useQueryClient();
+  const [tab, setTab] = useState<"pending" | "done">("pending");
   const { data, isLoading, error } = useQuery({ queryKey: ["second-filter"], queryFn: () => list() });
+  const { data: doneData, isLoading: doneLoading, error: doneError } = useQuery({
+    queryKey: ["second-filter-done"],
+    queryFn: () => decisions(),
+    enabled: tab === "done",
+  });
   const [country, setCountry] = useState(ALL);
   const [lob, setLob] = useState(ALL);
   const [modality, setModality] = useState(ALL);
@@ -40,6 +47,8 @@ function QueuePage() {
   const [type, setType] = useState(ALL);
   const [sched, setSched] = useState(ALL);
   const [from, setFrom] = useState("");
+  const [doneSearch, setDoneSearch] = useState("");
+  const [doneDecision, setDoneDecision] = useState(ALL);
 
   const lobOf = (r: { modality: string | null; countryCode: string | null }) =>
     r.modality === "online" ? "online" : r.modality === "onsite" ? `onsite-${r.countryCode ?? ""}` : "";
