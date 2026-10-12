@@ -271,41 +271,59 @@ const avg = (values: Array<number | null>) => {
   return nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
 };
 
+type Rate = { label: string; total: number; completed: number; approved: number; rate: number };
+
 export const getScorecard = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filters.parse(d ?? {}))
   .handler(async ({ context, data }) => {
     const { rows, evaluators } = await buildRows(context.userId, data);
+    const goals = await readGoals(await getAdmin());
 
-    const scheduled = rows.filter((r) => r.appointmentAt).length;
-    const completed = rows.filter((r) => isLockedStatus(r.evaluationStatus)).length;
-    const approved = rows.filter((r) => r.finalResult === "Approved for last step").length;
+    const done = (r: ScorecardRow) => isLockedStatus(r.evaluationStatus);
+    const isApproved = (r: ScorecardRow) => r.finalResult === APPROVED_RESULT;
+    const scheduled = rows.filter((r) => r.scheduled).length;
+    const scheduledAttended = rows.filter((r) => r.scheduled && r.attended).length;
+    const connected = rows.filter((r) => r.attended).length;
+    const completedRows = rows.filter(done);
+    const completed = completedRows.length;
+    const approvedRows = rows.filter(isApproved);
+    const approved = approvedRows.length;
     const retakes = rows.filter((r) => r.finalResult === "Retake required").length;
     const notApproved = rows.filter((r) => r.finalResult === "Not approved").length;
+    const managerApproved = rows.filter((r) => (r.managerDecision ?? "").startsWith("Approved")).length;
+    const training = rows.filter((r) => r.applicationStatus.startsWith("Approved for Training")).length;
     const online = rows.filter((r) => r.lob === "online");
 
-    const group = (key: (r: ScorecardRow) => string) => {
+    const group = (list: ScorecardRow[], key: (r: ScorecardRow) => string) => {
       const map = new Map<string, number>();
-      for (const r of rows) {
+      for (const r of list) {
         const k = key(r) || "—";
         map.set(k, (map.get(k) ?? 0) + 1);
       }
       return Array.from(map, ([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
     };
+    const rateBy = (key: (r: ScorecardRow) => string): Rate[] => {
+      const map = new Map<string, ScorecardRow[]>();
+      for (const r of rows) {
+        const k = key(r) || "—";
+        map.set(k, [...(map.get(k) ?? []), r]);
+      }
+      return Array.from(map, ([label, list]) => {
+        const c = list.filter(done).length;
+        const a = list.filter(isApproved).length;
+        return { label, total: list.length, completed: c, approved: a, rate: pct(a, c) };
+      }).sort((x, y) => y.total - x.total);
+    };
 
-    const byWeek = new Map<string, number>();
-    const byMonth = new Map<string, number>();
-    for (const r of rows) {
-      const iso = r.appointmentAt ?? (r.interviewDate ? `${r.interviewDate}T00:00:00Z` : null);
-      if (!iso) continue;
+    const weekOf = (r: ScorecardRow) => {
+      const iso = r.appointmentAt ?? (r.interviewDate ? `${r.interviewDate}T12:00:00Z` : null);
+      if (!iso) return "";
       const d = new Date(iso);
-      const monday = new Date(d);
-      monday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
-      const wk = monday.toISOString().slice(0, 10);
-      const mo = iso.slice(0, 7);
-      byWeek.set(wk, (byWeek.get(wk) ?? 0) + 1);
-      byMonth.set(mo, (byMonth.get(mo) ?? 0) + 1);
-    }
+      d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      return d.toISOString().slice(0, 10);
+    };
+    const monthOf = (r: ScorecardRow) => (r.appointmentAt ?? r.interviewDate ?? "").slice(0, 7);
 
     const rejectionCounts = new Map<string, number>();
     for (const r of rows) for (const reason of r.rejectionReasons)
@@ -314,64 +332,96 @@ export const getScorecard = createServerFn({ method: "POST" })
     const evaluatorRows = evaluators
       .map((e) => {
         const mine = rows.filter((r) => r.evaluatorId === e.id);
-        const done = mine.filter((r) => isLockedStatus(r.evaluationStatus));
+        const fin = mine.filter(done);
+        const sched = mine.filter((r) => r.scheduled);
+        const ahts = fin.map((r) => r.handleSeconds).filter((v): v is number => typeof v === "number" && v > 0);
+        const ap = mine.filter(isApproved).length;
         return {
           evaluator: e.name,
           assigned: mine.length,
-          completed: done.length,
-          onInterviewDate: done.filter((r) => r.submittedOnInterviewDate).length,
-          avgCompletionMinutes: avg(done.map((r) => r.completionMinutes)),
-          avgCompliance: avg(done.map((r) => r.complianceScore)),
-          missingDocumentation: done.filter((r) => (r.complianceScore ?? 0) < 100).length,
-          approved: mine.filter((r) => r.finalResult === "Approved for last step").length,
+          scheduled: sched.length,
+          connected: mine.filter((r) => r.attended).length,
+          attendanceRate: pct(sched.filter((r) => r.attended).length, sched.length),
+          completed: fin.length,
+          onInterviewDate: fin.filter((r) => r.submittedOnInterviewDate).length,
+          avgCompletionMinutes: avg(fin.map((r) => r.completionMinutes)),
+          avgAhtSeconds: ahts.length ? Math.round(ahts.reduce((a, b) => a + b, 0) / ahts.length) : 0,
+          avgScore: avg(fin.map((r) => r.totalScore)),
+          avgCompliance: avg(fin.map((r) => r.complianceScore)),
+          missingDocumentation: fin.filter((r) => (r.complianceScore ?? 0) < 100).length,
+          approved: ap,
+          approvalRate: pct(ap, fin.length),
           retake: mine.filter((r) => r.finalResult === "Retake required").length,
           notApproved: mine.filter((r) => r.finalResult === "Not approved").length,
         };
       })
-      .filter((e) => e.assigned > 0);
+      .filter((e) => e.assigned > 0)
+      .sort((a, b) => b.completed - a.completed);
 
     return {
+      goals,
       summary: {
+        total: rows.length,
         scheduled,
+        connected,
+        attendanceRate: pct(scheduledAttended, scheduled),
+        noShows: rows.filter((r) => r.noShow).length,
+        waitingList: rows.filter((r) => r.waitingList).length,
+        canceled: rows.filter((r) => r.canceled).length,
+        calendly: rows.filter((r) => r.source === "Calendly").length,
+        manual: rows.filter((r) => r.source !== "Calendly").length,
         completed,
-        completionRate: scheduled ? Math.round((completed / scheduled) * 100) : 0,
+        completionRate: pct(completed, connected),
         approved,
         retakes,
         notApproved,
-        approvalRate: completed ? Math.round((approved / completed) * 100) : 0,
+        approvalRate: pct(approved, completed),
+        retakeRate: pct(retakes, completed),
+        notApprovedRate: pct(notApproved, completed),
+        managerApproved,
+        training,
         avgScore: avg(rows.map((r) => r.totalScore)),
         avgCompliance: avg(rows.map((r) => r.complianceScore)),
         avgGrammarTest: avg(rows.map((r) => r.grammarTestScore)),
-        pendingFinalInterview: rows.filter(
-          (r) => r.finalResult === "Approved for last step" && isLockedStatus(r.evaluationStatus),
-        ).length,
+        pendingFinalInterview: rows.filter((r) => isApproved(r) && done(r) && !r.managerDecision).length,
         pendingRetake: retakes,
-        teachingExperienceRate: rows.length
-          ? Math.round((rows.filter((r) => r.teachingExperience).length / rows.length) * 100)
-          : 0,
-        callcenterExperienceRate: rows.length
-          ? Math.round((rows.filter((r) => r.callcenterExperience).length / rows.length) * 100)
-          : 0,
-        equipmentComplianceRate: online.length
-          ? Math.round((online.filter((r) => r.equipmentOk).length / online.length) * 100)
-          : 0,
-        grammarTestCompletionRate: rows.length
-          ? Math.round((rows.filter((r) => r.grammarTestCompleted).length / rows.length) * 100)
-          : 0,
+        teachingExperienceRate: pct(rows.filter((r) => r.teachingExperience).length, rows.length),
+        callcenterExperienceRate: pct(rows.filter((r) => r.callcenterExperience).length, rows.length),
+        equipmentComplianceRate: pct(online.filter((r) => r.equipmentOk).length, online.length),
+        grammarTestCompletionRate: pct(rows.filter((r) => r.grammarTestCompleted).length, rows.length),
+      },
+      funnel: [
+        { label: "Scheduled", value: scheduled },
+        { label: "Connected", value: connected },
+        { label: "Interview finished", value: completed },
+        { label: "Approved in Recruitment", value: approved },
+        { label: "Approved by Manager", value: managerApproved },
+        { label: "Approved for Training", value: training },
+      ],
+      approvalBy: {
+        evaluator: rateBy((r) => r.evaluator),
+        country: rateBy((r) => r.country),
+        lob: rateBy((r) => r.lob),
+        week: rateBy(weekOf).sort((a, b) => (a.label < b.label ? -1 : 1)),
+        month: rateBy(monthOf).sort((a, b) => (a.label < b.label ? -1 : 1)),
+      },
+      approvedProfile: {
+        lob: group(approvedRows, (r) => r.lob),
+        country: group(approvedRows, (r) => r.country),
+        level: group(approvedRows, (r) => r.liveCefr ?? ""),
+        experience: group(approvedRows, (r) => experienceProfile(r.teachingExperience, r.callcenterExperience)),
+        children: group(approvedRows, (r) => (r.taughtChildren === null ? "" : r.taughtChildren ? "Taught children" : "Has not taught children")),
+        referral: group(approvedRows, (r) => r.referral),
+        score: group(approvedRows, (r) => scoreBand(r.totalScore)),
       },
       charts: {
-        byWeek: Array.from(byWeek, ([label, value]) => ({ label, value })).sort((a, b) =>
-          a.label < b.label ? -1 : 1,
+        bySource: group(rows, (r) => r.source),
+        byLiveLevel: group(rows, (r) => r.liveCefr ?? ""),
+        byReferral: group(rows, (r) => r.referral),
+        byCity: group(rows, (r) => r.city),
+        topRejectionReasons: Array.from(rejectionCounts, ([label, value]) => ({ label, value })).sort(
+          (a, b) => b.value - a.value,
         ),
-        byMonth: Array.from(byMonth, ([label, value]) => ({ label, value })).sort((a, b) =>
-          a.label < b.label ? -1 : 1,
-        ),
-        byEvaluator: group((r) => r.evaluator),
-        byCountry: group((r) => r.country),
-        byCity: group((r) => r.city),
-        byLob: group((r) => r.lob),
-        byLiveLevel: group((r) => r.liveCefr ?? ""),
-        byReferral: group((r) => r.referral),
         levelComparison: rows
           .filter((r) => r.liveCefr)
           .map((r) => ({
@@ -380,9 +430,6 @@ export const getScorecard = createServerFn({ method: "POST" })
             live: r.liveCefr ?? "—",
             delta: r.levelDelta,
           })),
-        topRejectionReasons: Array.from(rejectionCounts, ([label, value]) => ({ label, value })).sort(
-          (a, b) => b.value - a.value,
-        ),
       },
       evaluatorCompliance: evaluatorRows,
       evaluators,
@@ -398,6 +445,15 @@ const CSV_COLUMNS: Array<[string, (r: ScorecardRow) => string | number]> = [
   ["LOB", (r) => r.lob],
   ["Referral source", (r) => r.referral],
   ["Evaluator", (r) => r.evaluator],
+  ["Source", (r) => r.source],
+  ["Appointment", (r) => r.appointmentAt ?? ""],
+  ["Appointment status", (r) => r.appointmentStatus ?? ""],
+  ["Connected", (r) => (r.attended ? "Yes" : "No")],
+  ["Manager decision", (r) => r.managerDecision ?? ""],
+  ["Candidate status", (r) => r.applicationStatus],
+  ["Experience profile", (r) => experienceProfile(r.teachingExperience, r.callcenterExperience)],
+  ["Taught children", (r) => (r.taughtChildren === null ? "" : r.taughtChildren ? "Yes" : "No")],
+  ["AHT seconds", (r) => r.handleSeconds ?? ""],
   ["Interview date", (r) => r.interviewDate ?? ""],
   ["Evaluation status", (r) => r.evaluationStatus],
   ["Final result", (r) => r.finalResult ?? ""],
