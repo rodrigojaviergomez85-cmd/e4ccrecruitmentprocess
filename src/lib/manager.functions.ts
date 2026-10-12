@@ -134,6 +134,58 @@ export const listSecondFilterQueue = createServerFn({ method: "POST" })
     };
   });
 
+export type ManagerDecisionRow = {
+  applicationId: string;
+  attemptNumber: number;
+  fullName: string;
+  country: string;
+  countryCode: string | null;
+  modality: string | null;
+  decision: string | null;
+  decidedAt: string | null;
+  submittedAt: string;
+  managerName: string | null;
+  isRetake: boolean;
+};
+
+/** Completed Manager Final Interviews (second filters), newest first, scoped to the caller's countries. */
+export const listManagerDecisions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await managerCtx(context.userId);
+    let query = ctx.db
+      .from("manager_evaluations")
+      .select(
+        "id, application_id, attempt_number, final_decision, decided_at, submitted_at, manager_id, applications(id, full_name, country, country_code, recruitment_progress(work_modality))",
+      )
+      .not("submitted_at", "is", null)
+      .order("submitted_at", { ascending: false })
+      .limit(300);
+    if (ctx.allowedCountries)
+      query = query.in("applications.country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const managers = await managerNames(ctx.db);
+    type EmbeddedApp = { id: string; full_name: string; country: string; country_code: string | null; recruitment_progress: { work_modality: string | null }[] | null } | null;
+    const rows: ManagerDecisionRow[] = (data ?? []).map((r) => {
+      const app = (Array.isArray(r.applications) ? r.applications[0] : r.applications) as EmbeddedApp;
+      return {
+        applicationId: r.application_id,
+        attemptNumber: r.attempt_number,
+        fullName: app?.full_name ?? "—",
+        country: app?.country ?? "—",
+        countryCode: app?.country_code ?? null,
+        modality: app?.recruitment_progress?.[0]?.work_modality ?? null,
+        decision: r.final_decision,
+        decidedAt: r.decided_at ?? r.submitted_at,
+        submittedAt: r.submitted_at,
+        managerName: managers.find((m) => m.id === r.manager_id)?.name ?? null,
+        isRetake: r.attempt_number > 1,
+      };
+    });
+    return { rows, canDecide: ctx.canDecide };
+  });
+
 /** Marks a pending second filter as No Show from the agenda list, without opening the full interview. */
 export const markSecondFilterNoShow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
