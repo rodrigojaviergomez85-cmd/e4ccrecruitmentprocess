@@ -61,6 +61,15 @@ export type ScorecardRow = {
   evaluatorId: string | null;
   interviewDate: string | null;
   appointmentAt: string | null;
+  appointmentStatus: string | null;
+  source: InterviewSource;
+  scheduled: boolean;
+  attended: boolean;
+  noShow: boolean;
+  canceled: boolean;
+  waitingList: boolean;
+  applicationStatus: string;
+  managerDecision: string | null;
   evaluationStatus: string;
   finalResult: string | null;
   rejectionReasons: string[];
@@ -70,92 +79,120 @@ export type ScorecardRow = {
   totalScore: number | null;
   complianceScore: number | null;
   grammarTestScore: number | null;
+  handleSeconds: number | null;
   teachingExperience: boolean;
   callcenterExperience: boolean;
+  taughtChildren: boolean | null;
   equipmentOk: boolean | null;
   grammarTestCompleted: boolean;
   submittedOnInterviewDate: boolean;
   completionMinutes: number | null;
 };
 
+const APP_SELECT =
+  "id, full_name, email, country, country_code, city, city_other, status, teaching_experience, taught_children, callcenter_experience, archived_at, cities(name), ai_evaluations(cefr), appointments(id, starts_at, status, calendly_invitee_uri), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(*), manager_evaluations(final_decision, attempt_number, decided_at)";
+
 async function buildRows(userId: string, data: z.infer<typeof filters>) {
   const { db, allowedCountries } = await staffCtx(userId);
+  if (allowedCountries && !allowedCountries.length) return { rows: [] as ScorecardRow[], evaluators: [] };
 
-  let appQuery = db
-    .from("applications")
-    .select(
-      "id, full_name, email, country, country_code, city, city_other, teaching_experience, callcenter_experience, cities(name), ai_evaluations(cefr), appointments(id, starts_at, status), recruitment_progress(work_modality, grammar_test_score, grammar_test_status), interview_evaluations(*)",
-    )
-    .not("submitted_at", "is", null)
-    .limit(1000);
-  if (allowedCountries) {
-    if (!allowedCountries.length) return { rows: [] as ScorecardRow[], evaluators: [] };
-    appQuery = appQuery.in("country_code", allowedCountries);
-  }
-  if (data.country) appQuery = appQuery.eq("country_code", data.country);
-
-  const [{ data: apps, error }, { data: staff }] = await Promise.all([
-    appQuery,
+  // Every application with an interview: a booked appointment or an evaluation (manual included).
+  let apptIdsQuery = db.from("appointments").select("application_id").neq("status", "Rescheduled").limit(10000);
+  if (data.from) apptIdsQuery = apptIdsQuery.gte("starts_at", `${data.from}T00:00:00Z`);
+  if (data.to) apptIdsQuery = apptIdsQuery.lte("starts_at", `${data.to}T23:59:59Z`);
+  const [{ data: apptIds, error: e1 }, { data: evIds, error: e2 }, { data: staff }] = await Promise.all([
+    apptIdsQuery,
+    db.from("interview_evaluations").select("application_id").limit(10000),
     db.from("staff_profiles").select("user_id, full_name, email"),
   ]);
-  if (error) throw new Error(error.message);
+  if (e1) throw new Error(e1.message);
+  if (e2) throw new Error(e2.message);
+  const ids = Array.from(new Set([...(apptIds ?? []), ...(evIds ?? [])].map((r) => r.application_id)));
+
+  const apps: any[] = [];
+  for (let i = 0; i < ids.length; i += 150) {
+    let q = db.from("applications").select(APP_SELECT).in("id", ids.slice(i, i + 150));
+    if (data.country) q = q.eq("country_code", data.country);
+    const { data: chunk, error } = await q;
+    if (error) throw new Error(error.message);
+    apps.push(...(chunk ?? []));
+  }
   const staffById = new Map((staff ?? []).map((s) => [s.user_id, s.full_name || s.email]));
 
-  const rows: ScorecardRow[] = (apps ?? []).map((a) => {
-    const appt = (a.appointments ?? [])
-      .filter((x) => x.status !== "Rescheduled" && x.status !== "Canceled")
-      .sort((x, y) => (x.starts_at < y.starts_at ? 1 : -1))[0];
-    const ev = (a.interview_evaluations ?? [])[0];
-    const progress = one(a.recruitment_progress);
-    const sections = (ev?.sections ?? {}) as Record<string, Record<string, unknown>>;
-    const previousCefr = one(a.ai_evaluations)?.cefr ?? null;
-    const liveCefr = ev?.live_cefr ?? null;
-    const submittedAt = ev?.submitted_at ?? null;
-    const interviewDate = ev?.interview_date ?? (appt?.starts_at ? appt.starts_at.slice(0, 10) : null);
-    return {
-      applicationId: a.id,
-      candidate: a.full_name,
-      email: a.email,
-      country: a.country,
-      city: a.cities?.name ?? a.city_other ?? a.city,
-      lob: String(sections["candidate"]?.["lob"] ?? progress?.work_modality ?? ""),
-      referral: String(sections["candidate"]?.["referral_source"] ?? ""),
-      evaluator: ev?.evaluator_id ? (staffById.get(ev.evaluator_id) ?? "") : "",
-      evaluatorId: ev?.evaluator_id ?? null,
-      interviewDate,
-      appointmentAt: appt?.starts_at ?? null,
-      evaluationStatus: (ev?.status as string) ?? "Not started",
-      finalResult: ev?.final_result ?? null,
-      rejectionReasons: (ev?.not_approved_reasons as string[] | null) ?? [],
-      previousCefr,
-      liveCefr,
-      levelDelta: levelDifference(previousCefr, liveCefr),
-      totalScore: ev?.total_score ?? null,
-      complianceScore: ev?.compliance_score ?? null,
-      grammarTestScore: progress?.grammar_test_score ?? null,
-      teachingExperience: a.teaching_experience !== "None",
-      callcenterExperience: Boolean(a.callcenter_experience),
-      equipmentOk:
-        sections["equipment"]?.["meets_requirements"] === undefined
-          ? null
-          : String(sections["equipment"]?.["meets_requirements"]) === "Yes",
-      grammarTestCompleted: String(sections["grammar_test"]?.["completed"] ?? "") === "Yes",
-      submittedOnInterviewDate: Boolean(
-        submittedAt && interviewDate && submittedAt.slice(0, 10) === interviewDate,
-      ),
-      completionMinutes:
-        ev?.started_at && submittedAt
-          ? Math.max(
-              0,
-              Math.round(
-                (new Date(submittedAt).getTime() - new Date(ev.started_at).getTime()) / 60000,
-              ),
-            )
-          : null,
-    };
-  });
+  const rows: ScorecardRow[] = apps
+    .filter((a) => !allowedCountries || !a.country_code || allowedCountries.includes(a.country_code))
+    .map((a) => {
+      const appt = pickAppointment((a.appointments ?? []) as ApptLite[]) as
+        | (ApptLite & { id: string })
+        | null;
+      const ev = [...(a.interview_evaluations ?? [])].sort(
+        (x: any, y: any) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0),
+      )[0];
+      const mgr = [...(a.manager_evaluations ?? [])].sort(
+        (x: any, y: any) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0),
+      )[0];
+      const progress = one(a.recruitment_progress) as any;
+      const sections = (ev?.sections ?? {}) as Record<string, Record<string, unknown>>;
+      const previousCefr = (one(a.ai_evaluations) as any)?.cefr ?? null;
+      const liveCefr = ev?.live_cefr ?? null;
+      const submittedAt = ev?.submitted_at ?? null;
+      const interviewDate =
+        ev?.interview_date ??
+        (appt?.starts_at ? appt.starts_at.slice(0, 10) : ev?.started_at ? ev.started_at.slice(0, 10) : null);
+      const appStatus = String(a.status ?? "");
+      return {
+        applicationId: a.id,
+        candidate: a.full_name,
+        email: a.email,
+        country: a.country || "No country",
+        city: a.cities?.name ?? a.city_other ?? a.city ?? "",
+        lob: String(sections["candidate"]?.["lob"] ?? progress?.work_modality ?? ""),
+        referral: String(sections["candidate"]?.["referral_source"] ?? ""),
+        evaluator: ev?.evaluator_id ? (staffById.get(ev.evaluator_id) ?? "") : "",
+        evaluatorId: ev?.evaluator_id ?? null,
+        interviewDate,
+        appointmentAt: appt?.starts_at ?? null,
+        appointmentStatus: appt?.status ?? null,
+        source: interviewSource(appt),
+        scheduled: isScheduled(appt),
+        attended: attended(Boolean(ev), appt),
+        noShow: isNoShow(appt?.status),
+        canceled: appt?.status === "Canceled" && !ev,
+        waitingList: appStatus === "Waiting List",
+        applicationStatus: appStatus,
+        managerDecision: mgr?.final_decision ?? null,
+        evaluationStatus: (ev?.status as string) ?? "Not started",
+        finalResult: ev?.final_result ?? null,
+        rejectionReasons: (ev?.not_approved_reasons as string[] | null) ?? [],
+        previousCefr,
+        liveCefr,
+        levelDelta: levelDifference(previousCefr, liveCefr),
+        totalScore: ev?.total_score || null,
+        complianceScore: ev?.compliance_score ?? null,
+        grammarTestScore: progress?.grammar_test_score ?? null,
+        handleSeconds: ev?.handle_seconds ?? null,
+        teachingExperience: Boolean(a.teaching_experience) && a.teaching_experience !== "None",
+        callcenterExperience: Boolean(a.callcenter_experience),
+        taughtChildren: a.taught_children ?? null,
+        equipmentOk:
+          sections["equipment"]?.["meets_requirements"] === undefined
+            ? null
+            : String(sections["equipment"]?.["meets_requirements"]) === "Yes",
+        grammarTestCompleted: String(sections["grammar_test"]?.["completed"] ?? "") === "Yes",
+        submittedOnInterviewDate: Boolean(
+          submittedAt && interviewDate && submittedAt.slice(0, 10) === interviewDate,
+        ),
+        completionMinutes:
+          ev?.started_at && submittedAt
+            ? Math.max(
+                0,
+                Math.round((new Date(submittedAt).getTime() - new Date(ev.started_at).getTime()) / 60000),
+              )
+            : null,
+      };
+    });
 
-  const ref = (r: ScorecardRow) => r.appointmentAt ?? (r.interviewDate ? `${r.interviewDate}T00:00:00Z` : null);
+  const ref = (r: ScorecardRow) => r.appointmentAt ?? (r.interviewDate ? `${r.interviewDate}T12:00:00Z` : null);
   const filtered = rows.filter((r) => {
     if (data.from && (!ref(r) || ref(r)! < data.from)) return false;
     if (data.to && (!ref(r) || ref(r)! > `${data.to}T23:59:59Z`)) return false;
@@ -174,6 +211,45 @@ async function buildRows(userId: string, data: z.infer<typeof filters>) {
     evaluators: (staff ?? []).map((s) => ({ id: s.user_id, name: s.full_name || s.email })),
   };
 }
+
+async function readGoals(db: Awaited<ReturnType<typeof getAdmin>>): Promise<Goals> {
+  const { data } = await db.from("scorecard_weights").select("thresholds").eq("id", true).maybeSingle();
+  const t = (data?.thresholds ?? {}) as Record<string, number>;
+  return {
+    attendance: t["goal_attendance"] ?? DEFAULT_GOALS.attendance,
+    approval: t["goal_approval"] ?? DEFAULT_GOALS.approval,
+    compliance: t["goal_compliance"] ?? DEFAULT_GOALS.compliance,
+  };
+}
+
+export const updateScorecardGoals = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        attendance: z.number().min(0).max(100),
+        approval: z.number().min(0).max(100),
+        compliance: z.number().min(0).max(100),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db, isAdmin } = await staffCtx(context.userId);
+    if (!isAdmin) throw new Error("Admin access required.");
+    const { data: row } = await db.from("scorecard_weights").select("thresholds").eq("id", true).maybeSingle();
+    const thresholds = {
+      ...((row?.thresholds ?? {}) as Record<string, number>),
+      goal_attendance: data.attendance,
+      goal_approval: data.approval,
+      goal_compliance: data.compliance,
+    };
+    const { error } = await db
+      .from("scorecard_weights")
+      .update({ thresholds: thresholds as never, updated_at: new Date().toISOString() })
+      .eq("id", true);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 const avg = (values: Array<number | null>) => {
   const nums = values.filter((v): v is number => typeof v === "number");
