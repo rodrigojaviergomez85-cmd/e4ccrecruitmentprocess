@@ -295,6 +295,9 @@ export function buildScorecardWorkbook(
   setColWidths(chWs, [30, 14, 14, 12]);
   XLSX.utils.book_append_sheet(wb, chWs, "Charts data");
 
-  const out = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as Uint8Array;
-  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+  const b64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer as ArrayBuffer;
 }
