@@ -14,8 +14,11 @@
    - Después confirmas la importación. Sirve también para traer las respuestas nuevas del formulario.
 5. **Ejecutar la primera importación** y darte el resumen: cuántas filas entraron, cuántas se conectaron con una candidatura y cuáles tuvieron error.
 
-## Qué queda igual
-- Las filas antiguas no traen el correo del colaborador. Esos colaboradores aparecen como "sin validar" y no pueden entrar a Mis referidos hasta que valides su correo.
+## Correos agregados después
+- Si después pones los correos en la hoja, solo tienes que volver a pulsar "Importar". Esas mismas filas se actualizan con su correo, sin crear duplicados.
+- Al volver a importar, solo se rellenan los correos que estén vacíos. Nunca se reemplaza un correo que ya validaste.
+- Con el correo del referido, la persona se conecta sola con su candidatura.
+- El correo del colaborador queda "sin validar" hasta que lo confirmes en Referrals. Después de confirmarlo, el colaborador ya puede entrar a Mis referidos.
 
 ## Detalles técnicos
 - Conector Google Sheets; el servidor lee el rango `A599:Z` con `values:batchGet`. El navegador no consulta la hoja.
