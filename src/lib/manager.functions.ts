@@ -156,7 +156,7 @@ export const listManagerDecisions = createServerFn({ method: "POST" })
     let query = ctx.db
       .from("manager_evaluations")
       .select(
-        "id, application_id, attempt_number, final_decision, decided_at, submitted_at, manager_id, applications(id, full_name, country, country_code, recruitment_progress(work_modality))",
+        "id, application_id, attempt_number, final_decision, decided_at, submitted_at, manager_id, applications!inner(id, full_name, country, country_code, recruitment_progress(work_modality))",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
