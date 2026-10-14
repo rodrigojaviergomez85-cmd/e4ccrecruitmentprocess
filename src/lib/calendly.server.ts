@@ -246,6 +246,21 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
           if (error) throw new Error(error.message);
           result.updated += 1;
         }
+        // A staff sync recorded this booking first: run the candidate side effects exactly once now.
+        if (options.sendEmails && !canceled && existing.notes?.endsWith(PENDING_SUFFIX)) {
+          const { data: claimed } = await db
+            .from("appointments")
+            .update({ notes: existing.notes.slice(0, -PENDING_SUFFIX.length) })
+            .eq("id", existing.id)
+            .eq("notes", existing.notes)
+            .select("id");
+          if (claimed?.length) {
+            const { data: app } = await db.from("applications").select("status").eq("id", existing.application_id).maybeSingle();
+            const currentStatus = app?.status ?? "";
+            const managerStage = MANAGER_STAGE_STATUSES.includes(currentStatus);
+            await applyBookingEffects(db, { applicationId: existing.application_id, appointmentId: existing.id, currentStatus, managerStage, event, invitee });
+          }
+        }
         continue;
       }
 
@@ -288,17 +303,13 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
 
       // Candidates approved for (or returning to) the Manager final filter book that stage.
       const currentStatus = application.status ?? "";
-      const managerStage = [
-        "Pending Second Filter",
-        "No Show – Manager Final Filter",
-        "Manager Retake – Email Sent",
-      ].includes(currentStatus);
+      const managerStage = MANAGER_STAGE_STATUSES.includes(currentStatus);
       const { data: appointment, error } = await db
         .from("appointments")
         .insert({
           ...payloadBase,
           application_id: application.id,
-          notes: marker,
+          notes: options.sendEmails || createdFromCalendly || canceled ? marker : `${marker}${PENDING_SUFFIX}`,
           canceled_at: canceled ? new Date().toISOString() : null,
           stage: managerStage ? "manager_final_filter" : "recruitment",
         })
@@ -313,7 +324,7 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
         application_id: application.id,
         status: payloadBase.status,
         starts_at: payloadBase.starts_at,
-        notes: marker,
+        notes: options.sendEmails || createdFromCalendly || canceled ? marker : `${marker}${PENDING_SUFFIX}`,
         meeting_link: payloadBase.meeting_link,
         calendly_event_name: payloadBase.calendly_event_name,
       });
@@ -326,53 +337,66 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
           .eq("application_id", application.id);
       }
 
-      // Pipeline changes and emails only happen for webhook-driven syncs.
+      // Pipeline changes and emails only happen for candidate/webhook-driven syncs.
+      // Staff syncs leave a pending marker so a later candidate sync still runs them once.
       if (!options.sendEmails) continue;
-      if (managerStage) {
-        if (currentStatus !== "Pending Second Filter") {
-          await db.from("applications").update({ status: "Pending Second Filter", last_contact_at: new Date().toISOString() }).eq("id", application.id);
+      await applyBookingEffects(db, { applicationId: application.id, appointmentId: appointment.id, currentStatus, managerStage, event, invitee });
+    }
+  }
+
+  return result;
+}
+
+const PENDING_SUFFIX = "|pending-effects";
+const MANAGER_STAGE_STATUSES = ["Pending Second Filter", "No Show – Manager Final Filter", "Manager Retake – Email Sent"];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function applyBookingEffects(db: any, p: { applicationId: string; appointmentId: string; currentStatus: string; managerStage: boolean; event: { start_time: string }; invitee: { timezone?: string | null } }) {
+      if (p.managerStage) {
+        if (p.currentStatus !== "Pending Second Filter") {
+          await db.from("applications").update({ status: "Pending Second Filter", last_contact_at: new Date().toISOString() }).eq("id", p.applicationId);
           const { writeAudit } = await import("./audit.server");
           await writeAudit(db as never, {
             actorId: null,
             actorEmail: "calendly",
             action: "application.manager_interview_rescheduled",
             entityType: "appointment",
-            entityId: appointment.id,
-            applicationId: application.id,
-            oldValue: { status: currentStatus },
-            newValue: { status: "Pending Second Filter", stage: "manager_final_filter", starts_at: event.start_time },
+            entityId: p.appointmentId,
+            applicationId: p.applicationId,
+            oldValue: { status: p.currentStatus },
+            newValue: { status: "Pending Second Filter", stage: "manager_final_filter", starts_at: p.event.start_time },
           });
         }
-        continue;
+        return;
       }
       const { data: progress } = await db
         .from("recruitment_progress")
         .select("work_modality")
-        .eq("application_id", application.id)
+        .eq("application_id", p.applicationId)
         .maybeSingle();
       const { data: candidate } = await db
         .from("applications")
         .select("full_name, email, status")
-        .eq("id", application.id)
+        .eq("id", p.applicationId)
         .single();
       if (candidate && (candidate.status ?? "").startsWith("Retake")) {
-        await db.from("applications").update({ status: "Scheduled – Retake" }).eq("id", application.id);
+        await db.from("applications").update({ status: "Scheduled – Retake" }).eq("id", p.applicationId);
       }
       if (candidate) {
         const formatter = (o: Intl.DateTimeFormatOptions) =>
-          new Intl.DateTimeFormat("en-US", { timeZone: invitee.timezone ?? "UTC", ...o }).format(new Date(event.start_time));
+          new Intl.DateTimeFormat("en-US", { timeZone: p.invitee.timezone ?? "UTC", ...o }).format(new Date(p.event.start_time));
         const { buildPreparationEmail } = await import("./candidate-emails");
         const { sendEmail } = await import("./notify.server");
         const message = buildPreparationEmail({
           fullName: candidate.full_name,
           interviewDate: formatter({ weekday: "long", year: "numeric", month: "long", day: "numeric" }),
           interviewTime: formatter({ hour: "numeric", minute: "2-digit" }),
-          timezone: invitee.timezone ?? "UTC",
+          timezone: p.invitee.timezone ?? "UTC",
           modality: progress?.work_modality === "onsite" ? "onsite" : "online",
         });
         const delivery = await sendEmail({ to: candidate.email, ...message, candidateName: candidate.full_name, result: "preparation" });
         await db.from("candidate_emails").insert({
-          application_id: application.id,
+          application_id: p.applicationId,
           kind: "preparation",
           to_email: candidate.email,
           subject: message.subject,
@@ -382,10 +406,6 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
           http_status: delivery.httpStatus ?? null,
           response_message: delivery.detail,
         });
-        if (!delivery.ok) console.error(`Preparation email failed for appointment ${appointment.id}: ${delivery.detail}`);
+        if (!delivery.ok) console.error(`Preparation email failed for appointment ${p.appointmentId}: ${delivery.detail}`);
       }
-    }
-  }
-
-  return result;
 }
