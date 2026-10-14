@@ -70,12 +70,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
 
   const noCountries = !data.isAdmin && (data.countries?.length ?? 0) === 0;
   return (
-    <>
-      {noCountries && (
-        <div className="border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-center text-sm font-medium text-destructive">
-          Your account has no countries assigned, so no candidates can be shown. Ask an Admin to assign them in Staff.
-        </div>
-      )}
+    <div className="min-h-screen bg-secondary/30 lg:flex">
       <InternalNavigation
         access={{
           isAdmin: data.isAdmin,
@@ -83,8 +78,15 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
           isTrainerOnly: data.isTrainerOnly,
         }}
       />
+      <div className="min-w-0 flex-1">
+      {noCountries && (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-5 py-3 text-center text-sm font-medium text-destructive">
+          Your account has no countries assigned, so no candidates can be shown. Ask an Admin to assign them in Staff.
+        </div>
+      )}
       {children}
-    </>
+      </div>
+    </div>
   );
 }
 
