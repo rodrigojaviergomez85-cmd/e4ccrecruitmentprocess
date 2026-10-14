@@ -565,7 +565,7 @@ function ReviewPage() {
           </div>
         </div>
       </div>
-      <div className="sticky top-16 z-20 border-b border-border bg-background/95 backdrop-blur">
+      <div className="sticky top-14 lg:top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
           <nav className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-5 py-2">
             {NAV.map(([id, label]) => (
               <a
