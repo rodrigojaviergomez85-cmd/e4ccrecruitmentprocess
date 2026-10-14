@@ -5,9 +5,13 @@ export async function stopInterviewTimer(
   id: string,
 ) {
   const { data } = await db.from(table).select("timer_started_at, timer_ended_at, handle_seconds").eq("id", id).maybeSingle();
-  if (!data?.timer_started_at || data.timer_ended_at) return;
+  if (!data || data.timer_ended_at) return;
+  // A paused timer (no timer_started_at) still finishes with its accumulated time.
+  if (!data.timer_started_at && data.handle_seconds == null) return;
   const end = new Date();
-  const elapsed = Math.max(0, Math.round((end.getTime() - new Date(data.timer_started_at).getTime()) / 1000));
+  const elapsed = data.timer_started_at
+    ? Math.max(0, Math.round((end.getTime() - new Date(data.timer_started_at).getTime()) / 1000))
+    : 0;
   const seconds = (data.handle_seconds ?? 0) + elapsed;
   await db.from(table).update({ timer_ended_at: end.toISOString(), handle_seconds: seconds }).eq("id", id);
 }

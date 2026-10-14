@@ -42,37 +42,45 @@ export function InterviewTimer(props: {
     return () => clearInterval(t);
   }, [running]);
 
-  // Auto-start / resume: opening an unfinished interview starts the clock, no button needed.
-  useEffect(() => {
-    if (autoStarted.current || startedAt || finished) return;
-    if (!props.canStart || !props.evaluationId) return;
-    autoStarted.current = true;
-    start({ data: { kind: props.kind, evaluationId: props.evaluationId } })
-      .then((r) => {
-        setStartedAt(r.startedAt);
-        setNow(Date.now());
-      })
-      .catch(() => {
-        autoStarted.current = false;
-      });
-  }, [start, startedAt, finished, props.canStart, props.evaluationId, props.kind]);
+  // Serialize start/pause requests so they never race on the server.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const startedRef = useRef<string | null>(startedAt);
+  startedRef.current = startedAt;
 
-  // Pause when leaving the page or hiding the tab so the AHT is not inflated.
+  // Auto-start / resume only while the tab is visible; pause when hidden or leaving.
   useEffect(() => {
-    if (!props.evaluationId || finished) return;
+    if (finished || !props.canStart || !props.evaluationId) return;
     const id = props.evaluationId;
     const kind = props.kind;
+    const doStart = () => {
+      if (document.visibilityState !== "visible" || startedRef.current || autoStarted.current) return;
+      autoStarted.current = true;
+      queue.current = queue.current
+        .then(() => start({ data: { kind, evaluationId: id } }))
+        .then((r) => {
+          if (!autoStarted.current) return; // paused again meanwhile
+          startedRef.current = r.startedAt;
+          setStartedAt(r.startedAt);
+          setNow(Date.now());
+        })
+        .catch(() => {
+          autoStarted.current = false;
+        });
+    };
     const doPause = () => {
-      if (!startedAt) return;
-      const elapsed = Math.max(0, Math.round((Date.now() - new Date(startedAt).getTime()) / 1000));
-      setAccumulated((a) => a + elapsed);
-      setStartedAt(null);
+      const s = startedRef.current;
+      if (!autoStarted.current && !s) return;
       autoStarted.current = false;
-      pause({ data: { kind, evaluationId: id } }).catch(() => {});
+      if (s) {
+        const elapsed = Math.max(0, Math.round((Date.now() - new Date(s).getTime()) / 1000));
+        setAccumulated((a) => a + elapsed);
+      }
+      startedRef.current = null;
+      setStartedAt(null);
+      queue.current = queue.current.then(() => pause({ data: { kind, evaluationId: id } })).catch(() => {});
     };
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") doPause();
-    };
+    const onVisibility = () => (document.visibilityState === "hidden" ? doPause() : doStart());
+    doStart();
     window.addEventListener("pagehide", doPause);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -81,7 +89,7 @@ export function InterviewTimer(props: {
       doPause();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.evaluationId, props.kind, finished, startedAt != null]);
+  }, [props.evaluationId, props.kind, props.canStart, finished]);
 
   if (finished) {
     return (
