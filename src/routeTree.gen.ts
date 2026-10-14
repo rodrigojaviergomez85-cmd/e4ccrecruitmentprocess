@@ -15,11 +15,13 @@ import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as InterviewConfirmedRouteImport } from './routes/interview-confirmed'
+import { Route as MisReferidosRouteImport } from './routes/mis-referidos'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as SpeedTestRouteImport } from './routes/speed-test'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
+import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
 import { Route as AuthenticatedScorecardRouteImport } from './routes/_authenticated/scorecard'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
@@ -67,6 +69,11 @@ const InterviewConfirmedRoute = InterviewConfirmedRouteImport.update({
   path: '/interview-confirmed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MisReferidosRoute = MisReferidosRouteImport.update({
+  id: '/mis-referidos',
+  path: '/mis-referidos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -90,6 +97,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedInterviewsRoute = AuthenticatedInterviewsRouteImport.update({
   id: '/interviews',
   path: '/interviews',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReferralsRoute = AuthenticatedReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedScorecardRoute = AuthenticatedScorecardRouteImport.update({
@@ -191,11 +203,13 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/interview-confirmed': typeof InterviewConfirmedRoute
+  '/mis-referidos': typeof MisReferidosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
@@ -220,11 +234,13 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/interview-confirmed': typeof InterviewConfirmedRoute
+  '/mis-referidos': typeof MisReferidosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
+  '/referrals': typeof AuthenticatedReferralsRoute
   '/scorecard': typeof AuthenticatedScorecardRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/staff': typeof AuthenticatedStaffRoute
@@ -251,11 +267,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/interview-confirmed': typeof InterviewConfirmedRoute
+  '/mis-referidos': typeof MisReferidosRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
+  '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
   '/_authenticated/scorecard': typeof AuthenticatedScorecardRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
@@ -282,11 +300,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/interview-confirmed'
+    | '/mis-referidos'
     | '/reset-password'
     | '/retake'
     | '/speed-test'
     | '/dashboard'
     | '/interviews'
+    | '/referrals'
     | '/scorecard'
     | '/settings'
     | '/staff'
@@ -311,11 +331,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/interview-confirmed'
+    | '/mis-referidos'
     | '/reset-password'
     | '/retake'
     | '/speed-test'
     | '/dashboard'
     | '/interviews'
+    | '/referrals'
     | '/scorecard'
     | '/settings'
     | '/staff'
@@ -341,11 +363,13 @@ export interface FileRouteTypes {
     | '/auth'
     | '/change-password'
     | '/interview-confirmed'
+    | '/mis-referidos'
     | '/reset-password'
     | '/retake'
     | '/speed-test'
     | '/_authenticated/dashboard'
     | '/_authenticated/interviews'
+    | '/_authenticated/referrals'
     | '/_authenticated/scorecard'
     | '/_authenticated/settings'
     | '/_authenticated/staff'
@@ -372,6 +396,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   InterviewConfirmedRoute: typeof InterviewConfirmedRoute
+  MisReferidosRoute: typeof MisReferidosRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RetakeRoute: typeof RetakeRoute
   SpeedTestRoute: typeof SpeedTestRoute
@@ -427,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InterviewConfirmedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mis-referidos': {
+      id: '/mis-referidos'
+      path: '/mis-referidos'
+      fullPath: '/mis-referidos'
+      preLoaderRoute: typeof MisReferidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -460,6 +492,13 @@ declare module '@tanstack/react-router' {
       path: '/interviews'
       fullPath: '/interviews'
       preLoaderRoute: typeof AuthenticatedInterviewsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/referrals': {
+      id: '/_authenticated/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof AuthenticatedReferralsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/scorecard': {
@@ -587,6 +626,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedInterviewsRoute: typeof AuthenticatedInterviewsRoute
+  AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
   AuthenticatedScorecardRoute: typeof AuthenticatedScorecardRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
@@ -602,6 +642,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedInterviewsRoute: AuthenticatedInterviewsRoute,
+  AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,
   AuthenticatedScorecardRoute: AuthenticatedScorecardRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
@@ -636,6 +677,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   InterviewConfirmedRoute: InterviewConfirmedRoute,
+  MisReferidosRoute: MisReferidosRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RetakeRoute: RetakeRoute,
   SpeedTestRoute: SpeedTestRoute,

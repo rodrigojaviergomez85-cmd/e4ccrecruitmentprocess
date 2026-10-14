@@ -34,7 +34,7 @@ type StaffNavigationAccess = {
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/second-filter" | "/evaluations" | "/scorecard" | "/training" | "/settings" | "/staff";
+  to: "/dashboard" | "/second-filter" | "/evaluations" | "/scorecard" | "/training" | "/referrals" | "/settings" | "/staff";
   icon: typeof ClipboardList;
   active: (pathname: string) => boolean;
   show: (access: StaffNavigationAccess) => boolean;
@@ -78,6 +78,13 @@ const ITEMS: NavItem[] = [
     icon: UsersRound,
     active: (path) => path === "/training",
     show: () => true,
+  },
+  {
+    label: "Referrals",
+    to: "/referrals",
+    icon: UsersRound,
+    active: (path) => path === "/referrals",
+    show: fullStaff,
   },
   {
     label: "Settings",

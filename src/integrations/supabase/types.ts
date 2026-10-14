@@ -1270,6 +1270,188 @@ export type Database = {
           },
         ]
       }
+      referral_access_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
+      referral_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          referrer_id: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          referrer_id: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          referrer_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_sessions_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "referrers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          application_id: string | null
+          bonus_status: string
+          branch: string
+          comments: string
+          confirmation_sent_at: string | null
+          created_at: string
+          created_by: string | null
+          disputed: boolean
+          id: string
+          lob: string
+          raw: Json
+          referred_email: string | null
+          referred_name: string
+          referred_phone: string
+          referrer_id: string | null
+          source: string
+          source_row: number | null
+          source_sheet: string | null
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          bonus_status?: string
+          branch?: string
+          comments?: string
+          confirmation_sent_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          disputed?: boolean
+          id?: string
+          lob?: string
+          raw?: Json
+          referred_email?: string | null
+          referred_name?: string
+          referred_phone?: string
+          referrer_id?: string | null
+          source?: string
+          source_row?: number | null
+          source_sheet?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          bonus_status?: string
+          branch?: string
+          comments?: string
+          confirmation_sent_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          disputed?: boolean
+          id?: string
+          lob?: string
+          raw?: Json
+          referred_email?: string | null
+          referred_name?: string
+          referred_phone?: string
+          referrer_id?: string | null
+          source?: string
+          source_row?: number | null
+          source_sheet?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "referrers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrers: {
+        Row: {
+          created_at: string
+          email: string | null
+          email_validated_at: string | null
+          email_validated_by: string | null
+          full_name: string
+          id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          email_validated_at?: string | null
+          email_validated_by?: string | null
+          full_name?: string
+          id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          email_validated_at?: string | null
+          email_validated_by?: string | null
+          full_name?: string
+          id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reminder_logs: {
         Row: {
           appointment_id: string
