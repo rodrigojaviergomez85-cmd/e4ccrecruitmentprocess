@@ -78,7 +78,7 @@ export const listCandidates = createServerFn({ method: "POST" })
     let query = db
       .from("applications")
       .select(
-        "id, full_name, email, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(starts_at, status, interviewers(full_name)), recruitment_progress(work_modality, internet_test_passed, internet_override, grammar_test_verified, resume_path), candidate_emails(kind, status)",
+        "id, full_name, email, phone, assigned_manager_id, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(id, starts_at, status, stage, calendly_host_name, interviewers(full_name)), recruitment_progress(work_modality, internet_test_passed, internet_override, grammar_test_verified, resume_path), candidate_emails(kind, status)",
       )
       .not("submitted_at", "is", null)
       .order("submitted_at", { ascending: false })
@@ -95,7 +95,7 @@ export const listCandidates = createServerFn({ method: "POST" })
 
     if (data.search) {
       const s = data.search.replace(/[%,]/g, "");
-      query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%`);
+      query = query.or(`full_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`);
     }
     if (data.country) {
       if (allowedCountries && !allowedCountries.includes(data.country)) return [];
@@ -108,8 +108,12 @@ export const listCandidates = createServerFn({ method: "POST" })
     if (data.from) query = query.gte("submitted_at", data.from);
     if (data.to) query = query.lte("submitted_at", data.to);
 
-    const { data: rows, error } = await query;
+    const [{ data: rows, error }, { data: staff }] = await Promise.all([
+      query,
+      db.from("staff_profiles").select("user_id, full_name, email"),
+    ]);
     if (error) throw new Error(error.message);
+    const staffName = new Map((staff ?? []).map((p) => [p.user_id, p.full_name || p.email]));
 
     return (rows ?? [])
       .map((row) => {
@@ -158,11 +162,41 @@ export const listCandidates = createServerFn({ method: "POST" })
           grammar_pending: !progress?.grammar_test_verified,
           resume_uploaded: Boolean(progress?.resume_path),
           preparation_email_status: preparationEmail?.status ?? null,
+          phone: row.phone,
+          owner: row.assigned_manager_id ? (staffName.get(row.assigned_manager_id) ?? null) : null,
+          appointments: [...(row.appointments ?? [])]
+            .sort((a, b) => b.starts_at.localeCompare(a.starts_at))
+            .map((a) => ({
+              id: a.id,
+              starts_at: a.starts_at,
+              status: a.status,
+              stage: a.stage,
+              host: (Array.isArray(a.interviewers) ? a.interviewers[0] : a.interviewers)?.full_name ?? a.calendly_host_name ?? null,
+            })),
         };
       })
 
       .filter((r) => (data.cefr ? r.cefr === data.cefr : true))
       .filter((r) => (data.minScore != null ? (r.overall_score ?? -1) >= data.minScore : true));
+  });
+
+/** Recorded history (audit log) for one applicant, scoped to the caller's countries. */
+export const getApplicantActivity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { db, allowedCountries } = await staffContext(context.userId);
+    const { data: app } = await db.from("applications").select("country_code").eq("id", data.id).maybeSingle();
+    if (!app) throw new Error("Candidate not found.");
+    if (allowedCountries && !allowedCountries.includes(app.country_code ?? "")) throw new Error("You do not have access to this candidate.");
+    const { data: rows, error } = await db
+      .from("audit_logs")
+      .select("id, action, actor_email, actor_role, created_at")
+      .eq("application_id", data.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 export const getCandidate = createServerFn({ method: "POST" })
