@@ -24,9 +24,9 @@ export const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
  */
 export function publicStatus(input: {
   linked: boolean;
-  appStatus?: string | null;
-  hasActiveAppointment?: boolean;
-  trainingStatus?: string | null;
+  appStatus?: string | null | undefined;
+  hasActiveAppointment?: boolean | undefined;
+  trainingStatus?: string | null | undefined;
 }): PublicStatus {
   if (!input.linked) return "Recibido";
   const t = (input.trainingStatus ?? "").toUpperCase();

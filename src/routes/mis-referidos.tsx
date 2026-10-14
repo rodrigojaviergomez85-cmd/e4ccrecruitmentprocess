@@ -40,11 +40,11 @@ function MyReferrals() {
   const [busy, setBusy] = useState(false);
 
   const send = async () => {
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return toast.error("Escribe un correo válido.");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) { toast.error("Escribe un correo válido."); return; }
     setBusy(true);
     try {
       const r = await requestCode({ data: { email } });
-      if (!r.ok) return toast.error("No pudimos enviar el código. Intenta de nuevo.");
+      if (!r.ok) { toast.error("No pudimos enviar el código. Intenta de nuevo."); return; }
       setStep("code");
       toast.success("Si tu correo está registrado, recibirás un código de 6 dígitos.");
     } catch { toast.error("No pudimos enviar el código. Intenta de nuevo."); } finally { setBusy(false); }
@@ -53,7 +53,7 @@ function MyReferrals() {
     setBusy(true);
     try {
       const r = await verify({ data: { email, code: code.trim() } });
-      if (!r.ok) return toast.error("Código incorrecto o vencido.");
+      if (!r.ok) { toast.error("Código incorrecto o vencido."); return; }
       await qc.invalidateQueries({ queryKey: ["my-referrals"] });
     } catch { toast.error("Código incorrecto o vencido."); } finally { setBusy(false); }
   };
