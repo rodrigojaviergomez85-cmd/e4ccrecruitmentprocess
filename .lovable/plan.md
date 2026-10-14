@@ -28,8 +28,15 @@ Estado del bono: En validación, En espera, En revisión, Reportado, Pagado. Por
 ## Fase 2 (siguiente entrega, no incluida aquí)
 Bonos de contratación y por referido con cuotas $500 / $200 / $100 contadas desde la certificación real (mes calendario), estados de reporte y pago, y recordatorios los días 12 y 25 a las 9:00 AM para Admin y Recruitment. Tomo como confirmado que el bono por referido usa la misma tabla de cuotas.
 
+## Cambios al formulario "REFER A FRIEND"
+El formulario actual pide nombre y teléfono, pero no correos. Agregar dos preguntas obligatorias:
+- **Tu correo electrónico** (para enviarte el código y ver tus referidos).
+- **Correo electrónico de tu referido/a** (para enlazarlo con su candidatura sin confundir personas).
+Los referidos antiguos sin correo quedan internos hasta que Recruitment valide el correo del referidor.
+
 ## Pendiente de ti
-- Enlace de la hoja de Google con las respuestas del formulario y qué columna tiene el correo del referidor (si no lo tiene, Recruitment lo valida a mano).
+- Agregar esas dos preguntas al formulario.
+- Enlace de la hoja de Google donde caen las respuestas (Respuestas > Ver en Hojas de cálculo).
 
 ## Detalles técnicos
 - Conector Google Sheets (cuenta del equipo); lectura con batchGet en servidor, sin sondeo desde el navegador.
