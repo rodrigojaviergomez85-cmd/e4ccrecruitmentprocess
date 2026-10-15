@@ -65,7 +65,7 @@ function ReferralsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Referrals</h1>
-          <p className="text-sm text-muted-foreground">Los colaboradores consultan en <span className="font-medium">/mis-referidos</span> solo si su correo está validado.</p>
+          <p className="text-sm text-muted-foreground">Guarda el correo del colaborador y podrá entrar a <span className="font-medium">/mis-referidos</span> con el código que le llega a ese correo.</p>
         </div>
         <div className="flex gap-2">
           <Input placeholder="Buscar nombre o correo" value={q} onChange={(e) => setQ(e.target.value)} className="w-64" />
@@ -125,11 +125,9 @@ function ReferralRow({ r, run, update, validate }: {
         <p className="font-medium">{r.referrerName}</p>
         <div className="mt-1 flex items-center gap-1">
           <Input className="h-8 w-52" value={refEmail} onChange={(e) => setRefEmail(e.target.value)} placeholder="correo" />
-          {r.referrerId && (r.referrerValidated && refEmail === r.referrerEmail ? (
-            <Button size="sm" variant="outline" onClick={() => run(() => validate({ data: { id: r.referrerId!, email: refEmail, validated: false } }), "Validación retirada")}><Check /> Validado</Button>
-          ) : (
-            <Button size="sm" onClick={() => run(() => validate({ data: { id: r.referrerId!, email: refEmail, validated: true } }), "Correo validado")}>Validar</Button>
-          ))}
+          {r.referrerId && (refEmail.trim() && refEmail !== (r.referrerEmail ?? "") ? (
+            <Button size="sm" onClick={() => run(() => validate({ data: { id: r.referrerId!, email: refEmail, validated: true } }), "Correo guardado")}>Guardar</Button>
+          ) : r.referrerEmail ? <Check className="h-4 w-4 text-muted-foreground" aria-label="Correo guardado" /> : null)}
         </div>
       </td>
       <td className="p-3"><p className="font-medium">{r.referredName}</p><p className="text-xs text-muted-foreground">{r.lob}{r.branch ? ` · ${r.branch}` : ""}</p></td>
