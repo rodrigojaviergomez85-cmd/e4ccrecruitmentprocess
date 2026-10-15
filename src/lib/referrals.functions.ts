@@ -199,7 +199,7 @@ export const updateReferral = createServerFn({ method: "POST" })
 
 const referrerSchema = z.object({ id: z.string().uuid(), email: z.string().trim().max(255), validated: z.boolean() });
 
-/** Recruitment confirms which email belongs to the referrer; only validated emails can open the portal. */
+/** Saves the referrer email; the portal code sent to it proves ownership. */
 export const validateReferrer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((v: unknown) => referrerSchema.parse(v))
@@ -232,7 +232,7 @@ export const requestReferralCode = createServerFn({ method: "POST" })
     const since = new Date(Date.now() - 15 * 60_000).toISOString();
     const { count } = await db.from("referral_access_codes").select("id", { count: "exact", head: true }).eq("email", data.email).gte("created_at", since);
     if ((count ?? 0) >= 3) return { ok: true as const };
-    const { data: referrer } = await db.from("referrers").select("id, full_name").eq("email", data.email).not("email_validated_at", "is", null).maybeSingle();
+    const { data: referrer } = await db.from("referrers").select("id, full_name").eq("email", data.email).maybeSingle();
     if (!referrer) return { ok: true as const };
 
     await db.from("referral_access_codes").update({ used_at: new Date().toISOString() }).eq("email", data.email).is("used_at", null);
@@ -266,7 +266,7 @@ export const verifyReferralCode = createServerFn({ method: "POST" })
     }
     const { data: used } = await db.from("referral_access_codes").update({ used_at: new Date().toISOString() }).eq("id", row.id).is("used_at", null).select("id");
     if (!used?.length) return { ok: false as const };
-    const { data: referrer } = await db.from("referrers").select("id").eq("email", data.email).not("email_validated_at", "is", null).maybeSingle();
+    const { data: referrer } = await db.from("referrers").select("id").eq("email", data.email).maybeSingle();
     if (!referrer) return { ok: false as const };
     const token = randomBytes(32).toString("hex");
     await db.from("referral_sessions").insert({ referrer_id: referrer.id, token_hash: hash(token), expires_at: new Date(Date.now() + 2 * 3600_000).toISOString() });
@@ -283,8 +283,8 @@ export const getMyReferrals = createServerFn({ method: "GET" }).handler(async ()
   const db = await admin();
   const { data: session } = await db.from("referral_sessions").select("referrer_id, expires_at, revoked_at").eq("token_hash", hash(token)).maybeSingle();
   if (!session || session.revoked_at || new Date(session.expires_at).getTime() < Date.now()) return { signedIn: false as const };
-  const { data: referrer } = await db.from("referrers").select("full_name, email_validated_at").eq("id", session.referrer_id).maybeSingle();
-  if (!referrer?.email_validated_at) return { signedIn: false as const };
+  const { data: referrer } = await db.from("referrers").select("full_name").eq("id", session.referrer_id).maybeSingle();
+  if (!referrer) return { signedIn: false as const };
   const { data: rows } = await db.from("referrals").select("id, referred_name, application_id, bonus_status, updated_at, created_at").eq("referrer_id", session.referrer_id).order("created_at", { ascending: false });
   const st = await statusesFor(db, (rows ?? []).flatMap((r) => (r.application_id ? [r.application_id] : [])));
   return {
