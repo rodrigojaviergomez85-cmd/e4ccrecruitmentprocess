@@ -1,4 +1,5 @@
 import { ONLINE_FIXED, ONSITE_TRAINING_HOURS } from "@/lib/agreements/constants";
+import { ProfileTierPicker } from "@/components/ProfileTierPicker";
 import { readFinalFilter } from "@/lib/evaluations";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -543,6 +544,7 @@ function ReviewPage() {
                   handleSeconds={current?.handle_seconds}
                   canStart={editable}
                 />
+                <ProfileTierPicker stage="manager" evaluationId={current?.id} />
                 {app.withdrawn_at && (
                   <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                     Withdrawn by applicant
