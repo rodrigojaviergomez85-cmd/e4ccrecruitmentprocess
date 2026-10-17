@@ -24,6 +24,7 @@ import { goalTone, type Goals } from "@/lib/scorecard-metrics";
 import { formatDuration } from "@/components/InterviewTimer";
 import { buildScorecardWorkbook } from "@/lib/scorecard-excel";
 import { useQueryClient } from "@tanstack/react-query";
+import { RecruitmentMetrics } from "@/components/RecruitmentMetrics";
 
 export const Route = createFileRoute("/_authenticated/scorecard")({
   head: () => ({
@@ -380,6 +381,8 @@ function ScorecardPage() {
   return (
     <main className="min-h-screen bg-secondary/30 pb-16">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
+        <RecruitmentMetrics />
+        <h2 className="pt-6 text-lg font-semibold">Detailed scorecard report</h2>
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={!data}>
             <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel

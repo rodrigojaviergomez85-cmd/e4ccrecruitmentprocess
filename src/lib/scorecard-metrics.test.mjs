@@ -37,3 +37,43 @@ describe("scorecard metrics", () => {
     expect(pct(1, 0)).toBe(0);
   });
 });
+
+import { connectionEligible, recruitmentDecision, isClosedRecruitment, managerDecision, isClosedManager, trainingBucket, trainingStarted, trainingExpected, lobOf, ratio, ratioLabel } from "./scorecard-metrics.ts";
+describe("recruitment → training metrics", () => {
+  const now = new Date("2026-10-17T16:00:00Z");
+  it("future appointment does not reduce connection", () => {
+    assert.equal(connectionEligible({ status: "Scheduled", starts_at: "2026-10-20T14:00:00Z" }, false, now), false);
+  });
+  it("canceled or rescheduled is not eligible", () => {
+    assert.equal(connectionEligible({ status: "Canceled", starts_at: "2026-10-10T14:00:00Z" }, false, now), false);
+    assert.equal(connectionEligible({ status: "Rescheduled", starts_at: "2026-10-10T14:00:00Z" }, false, now), false);
+  });
+  it("connected but unfinished interview is pending, not decided", () => {
+    assert.equal(recruitmentDecision("Approved for last step", false), "Pendiente");
+  });
+  it("pending decision does not reduce approval rate", () => {
+    const ds = ["Aprobado", "No aprobado", "Pendiente"].filter(isClosedRecruitment);
+    assert.equal(ratio(ds.filter((d) => d === "Aprobado").length, ds.length).pct, 50);
+  });
+  it("manager approval is separate and No Show is not a closed decision", () => {
+    assert.equal(managerDecision("Approved for Training", true), "Aprobado");
+    assert.equal(isClosedManager(managerDecision("No Show", true)), false);
+  });
+  it("training no show never counts as dropout or started", () => {
+    const b = trainingBucket({ status: "NO SHOW", incorporationConfirmed: true, canceledBeforeStart: false, waveStart: "2026-10-01", startedAt: null }, "2026-10-17");
+    assert.equal(b, "No show");
+    assert.equal(trainingStarted(b), false);
+    assert.equal(trainingExpected(b), true);
+  });
+  it("unconfirmed incorporation is not recruited", () => {
+    assert.equal(trainingBucket({ status: "RECLUTADO", incorporationConfirmed: false, canceledBeforeStart: false, waveStart: "2026-10-01", startedAt: null }, "2026-10-17"), "No reclutado");
+  });
+  it("Online LOB wins over country", () => {
+    assert.equal(lobOf("online", "GT"), "ONLINE");
+    assert.equal(lobOf("onsite", "GT"), "GUATEMALA");
+  });
+  it("zero denominator shows Sin base", () => {
+    assert.equal(ratioLabel(ratio(0, 0)), "— / Sin base");
+    assert.equal(ratioLabel(ratio(18, 100), "citas elegibles"), "18 de 100 citas elegibles = 18%");
+  });
+});
