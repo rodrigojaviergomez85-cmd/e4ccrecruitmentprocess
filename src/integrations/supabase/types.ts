@@ -1714,6 +1714,41 @@ export type Database = {
         }
         Relationships: []
       }
+      training_cohort_changes: {
+        Row: {
+          application_id: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          new_wave_start: string | null
+          old_wave_start: string | null
+        }
+        Insert: {
+          application_id: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_wave_start?: string | null
+          old_wave_start?: string | null
+        }
+        Update: {
+          application_id?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          new_wave_start?: string | null
+          old_wave_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_cohort_changes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_requisitions: {
         Row: {
           agreed_schedule: string
@@ -1777,15 +1812,20 @@ export type Database = {
         Row: {
           agreed_schedule: string
           application_id: string
+          canceled_before_start: boolean
           comments: string
           created_at: string
           documents: Json
           hiring_date: string | null
+          incorporation_confirmed: boolean
+          outcome_at: string | null
+          outcome_reason: string | null
           reference_call: string
           reference_called_at: string | null
           reference_called_by: string | null
           reference_details: string
           request_date: string | null
+          started_at: string | null
           status: string
           updated_at: string
           updated_by: string | null
@@ -1794,15 +1834,20 @@ export type Database = {
         Insert: {
           agreed_schedule?: string
           application_id: string
+          canceled_before_start?: boolean
           comments?: string
           created_at?: string
           documents?: Json
           hiring_date?: string | null
+          incorporation_confirmed?: boolean
+          outcome_at?: string | null
+          outcome_reason?: string | null
           reference_call?: string
           reference_called_at?: string | null
           reference_called_by?: string | null
           reference_details?: string
           request_date?: string | null
+          started_at?: string | null
           status?: string
           updated_at?: string
           updated_by?: string | null
@@ -1811,15 +1856,20 @@ export type Database = {
         Update: {
           agreed_schedule?: string
           application_id?: string
+          canceled_before_start?: boolean
           comments?: string
           created_at?: string
           documents?: Json
           hiring_date?: string | null
+          incorporation_confirmed?: boolean
+          outcome_at?: string | null
+          outcome_reason?: string | null
           reference_call?: string
           reference_called_at?: string | null
           reference_called_by?: string | null
           reference_details?: string
           request_date?: string | null
+          started_at?: string | null
           status?: string
           updated_at?: string
           updated_by?: string | null
