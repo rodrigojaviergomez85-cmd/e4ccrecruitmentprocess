@@ -199,8 +199,10 @@ export function attentionPoints(i: AttentionInput): string[] {
   if (reasons.length) {
     const m = new Map<string, number>();
     for (const r of reasons) m.set(r, (m.get(r) ?? 0) + 1);
-    const [top, n] = [...m].sort((a, b) => b[1] - a[1])[0];
-    if (n >= 2) out.push(`Motivo de pérdida más frecuente: "${top}" (${n} casos).`);
+    const best = [...m].sort((a, b) => b[1] - a[1])[0];
+    if (best && best[1] >= 2) {
+      const [top, n] = best; out.push(`Motivo de pérdida más frecuente: "${top}" (${n} casos).`);
+    }
   }
   return out.slice(0, 3);
 }

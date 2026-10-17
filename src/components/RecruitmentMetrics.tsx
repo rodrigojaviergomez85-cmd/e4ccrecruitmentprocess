@@ -216,7 +216,7 @@ export function RecruitmentMetrics() {
               <Input type="date" className="h-9" value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} aria-label="Hasta" />
             </div>
           )}
-          <div className="w-44">{sel("LOB", lob, setLob, LOBS.map((l) => ({ v: l, l: lobLabel[l] })))}</div>
+          <div className="w-44">{sel("LOB", lob, setLob, LOBS.map((l) => ({ v: l, l: lobLabel[l] ?? l })))}</div>
           <Button variant="outline" size="sm" className="h-9" onClick={() => setMore((m) => !m)}>
             <SlidersHorizontal className="mr-2 h-4 w-4" /> Más filtros{moreActive ? ` (${moreActive})` : ""}
           </Button>
@@ -578,7 +578,7 @@ function TrainingTab({ rows, tb, today, open, lobLabel }: { rows: MetricRow[]; t
         <thead><tr>{["LOB / Cohorte", "Confirmados", "Iniciaron", "Activos", "Completaron", "No show", "Dropout"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
         <tbody>
           {[...groups].sort((a, b) => a[0].localeCompare(b[0])).map(([k, list]) => {
-            const [l, w] = k.split("|");
+            const [l = "", w = ""] = k.split("|");
             const c = calc(list);
             const has = c.conf.length > 0;
             return (
