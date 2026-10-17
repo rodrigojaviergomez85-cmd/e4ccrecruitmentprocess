@@ -78,7 +78,7 @@ function TrainingPage() {
             <div className="max-h-[65vh] overflow-auto border border-border">
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
-                  <tr>{["Candidato", "Estado", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 14 && i < 14 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 14 && i < 14 + docs.length ? docs[i - 14] : undefined}>{h}</th>)}</tr>
+                  <tr>{["Candidato", "Estado", "Incorporación", "Inicio real", "Fecha salida / no show", "Motivo", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 18 && i < 18 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 18 && i < 18 + docs.length ? docs[i - 18] : undefined}>{h}</th>)}</tr>
                 </thead>
                 <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}</tbody>
               </table>
@@ -105,7 +105,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       const changed = <K extends keyof Row>(key: K) => f[key] !== baseline[key] ? f[key] : undefined;
       await update({ data: {
         applicationId: row.id,
-        ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments") } : {}),
+        ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments"), incorporationConfirmed: changed("incorporationConfirmed"), startedAt: changed("startedAt"), outcomeAt: changed("outcomeAt"), outcomeReason: changed("outcomeReason"), canceledBeforeStart: changed("canceledBeforeStart") } : {}),
         ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: f.documents } : {}),
         ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails") } : {}),
       } });
@@ -115,11 +115,15 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
   const cell = "border-b border-r border-border px-3 py-3 align-top";
-  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
+  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate" | "startedAt" | "outcomeAt", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
     <td className={`${cell} sticky left-0 z-10 bg-card`}><p className="max-w-56 font-semibold">{row.fullName}</p><p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
     <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
+    <td className={cell}><label className="flex items-center gap-2 text-xs"><Checkbox aria-label={`Incorporación confirmada — ${row.fullName}`} checked={f.incorporationConfirmed} disabled={!p.canEditTraining} onCheckedChange={(v) => setF({ ...f, incorporationConfirmed: v === true })} />Confirmada</label><label className="mt-2 flex items-center gap-2 text-xs"><Checkbox aria-label={`Canceló antes de iniciar — ${row.fullName}`} checked={f.canceledBeforeStart} disabled={!p.canEditTraining} onCheckedChange={(v) => setF({ ...f, canceledBeforeStart: v === true })} />Canceló antes de iniciar</label></td>
+    <td className={cell}>{dateInput("startedAt", "Inicio real")}</td>
+    <td className={cell}>{dateInput("outcomeAt", "Fecha de salida o no show")}</td>
+    <td className={cell}><Input aria-label={`Motivo — ${row.fullName}`} placeholder="Sin motivo registrado" value={f.outcomeReason} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, outcomeReason: e.target.value })} className="w-56" /></td>
     <td className={cell}>{row.branch || "—"}</td>
     <td className={cell}>{f.waveStart ? `${f.waveStart.slice(0, 4)} / ${f.waveStart.slice(5, 7)}` : "—"}</td>
     <td className={cell}>{dateInput("waveStart", "Inicio de wave")}</td>

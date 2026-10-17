@@ -73,6 +73,11 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         status: r?.status ?? "RECLUTADO",
         agreedSchedule: r?.agreed_schedule || t[TRAINING_KEYS.schedule] || "",
         comments: r?.comments ?? "",
+        incorporationConfirmed: r?.incorporation_confirmed ?? false,
+        startedAt: r?.started_at ?? null,
+        outcomeAt: r?.outcome_at ?? null,
+        outcomeReason: r?.outcome_reason ?? "",
+        canceledBeforeStart: r?.canceled_before_start ?? false,
         documentList: docs,
         documents: (r?.documents as Record<string, boolean> | null) ?? {},
         referenceCall: r?.reference_call ?? "pending",
@@ -97,6 +102,11 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
         status: z.enum(TRAINING_STATUSES).optional(),
         agreedSchedule: z.string().max(300).optional(),
         comments: z.string().max(4000).optional(),
+        incorporationConfirmed: z.boolean().optional(),
+        startedAt: z.string().max(20).nullable().optional(),
+        outcomeAt: z.string().max(20).nullable().optional(),
+        outcomeReason: z.string().max(500).optional(),
+        canceledBeforeStart: z.boolean().optional(),
         documents: z.record(z.string().max(200), z.boolean()).optional(),
         referenceCall: z.enum(REFERENCE_CALL_VALUES).optional(),
         referenceDetails: z.string().max(4000).optional(),
@@ -112,7 +122,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     const touchesRefs = data.referenceCall !== undefined || data.referenceDetails !== undefined;
     if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
     if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
-    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments].some((v) => v !== undefined);
+    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
     if (data.documents) {
       const allowed = trainingDocsFor(app.country_code)?.items ?? [];
@@ -128,6 +138,11 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       status: data.status,
       agreed_schedule: data.agreedSchedule,
       comments: data.comments,
+      incorporation_confirmed: data.incorporationConfirmed,
+      started_at: nd(data.startedAt),
+      outcome_at: nd(data.outcomeAt),
+      outcome_reason: data.outcomeReason,
+      canceled_before_start: data.canceledBeforeStart,
       documents: data.documents,
       reference_call: data.referenceCall,
       reference_details: data.referenceDetails,
@@ -137,6 +152,12 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       patch["reference_called_at"] = new Date().toISOString();
     }
     for (const k of Object.keys(patch)) if (patch[k] === undefined) delete patch[k];
+    if (data.waveStart !== undefined) {
+      const { data: prev } = await ctx.db.from("training_roster").select("wave_start").eq("application_id", app.id).maybeSingle();
+      const next = data.waveStart || null;
+      if (prev?.wave_start && prev.wave_start !== next)
+        await ctx.db.from("training_cohort_changes").insert({ application_id: app.id, old_wave_start: prev.wave_start, new_wave_start: next, changed_by: context.userId });
+    }
     const { error } = await ctx.db.from("training_roster").upsert(patch as never, { onConflict: "application_id" });
     if (error) throw new Error(error.message);
     await writeAudit(ctx.db as never, {
