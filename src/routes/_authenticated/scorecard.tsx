@@ -382,7 +382,9 @@ function ScorecardPage() {
     <main className="min-h-screen bg-secondary/30 pb-16">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
         <RecruitmentMetrics />
-        <h2 className="pt-6 text-lg font-semibold">Detailed scorecard report</h2>
+        <details className="pt-6">
+        <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">Reporte operativo detallado y exportación Excel</summary>
+        <div className="mt-4 space-y-5">
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="outline" onClick={exportExcel} disabled={!data}>
             <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Excel
@@ -630,6 +632,8 @@ function ScorecardPage() {
 
           </>
         )}
+        </div>
+        </details>
       </div>
     </main>
   );

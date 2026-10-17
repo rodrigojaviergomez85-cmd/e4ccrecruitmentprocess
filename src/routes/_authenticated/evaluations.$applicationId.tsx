@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ProfileTierPicker } from "@/components/ProfileTierPicker";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -512,6 +513,7 @@ function EvaluationForm() {
               handleSeconds={evaluation.handle_seconds}
               canStart={!locked}
             />
+                <ProfileTierPicker stage="recruitment" evaluationId={evaluation.id} />
             <Badge variant={isLockedStatus(evaluation.status) ? "default" : "secondary"}>
               {evaluation.status}
             </Badge>

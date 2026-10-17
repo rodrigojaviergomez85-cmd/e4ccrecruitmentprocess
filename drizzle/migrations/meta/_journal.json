@@ -183,6 +183,13 @@
       "when": 1792253269153,
       "tag": "0025_training_outcomes",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792254945628,
+      "tag": "0026_profile_tiers",
+      "breakpoints": true
     }
   ]
 }

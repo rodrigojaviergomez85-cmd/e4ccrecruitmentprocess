@@ -16,6 +16,8 @@ import {
   type InterviewSource,
   type ManagerDecision,
   type RecruitmentDecision,
+  type Tier,
+  finalTier,
 } from "./scorecard-metrics";
 
 const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
@@ -53,6 +55,9 @@ export type MetricRow = {
   managerDecision: ManagerDecision;
   managerDecidedAt: string | null;
   lastContactAt: string | null;
+  recruitmentTier: Tier | null;
+  managerTier: Tier | null;
+  finalTier: Tier | null;
   // training
   training: {
     status: string | null;
@@ -67,7 +72,7 @@ export type MetricRow = {
 };
 
 const SELECT =
-  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, interview_date, started_at, submitted_at, decided_at, sections), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence), training_roster(status, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
+  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, interview_date, started_at, submitted_at, decided_at, sections, profile_tier), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence, profile_tier), training_roster(status, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
 
 type Db = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
@@ -176,6 +181,9 @@ export const getRecruitmentMetrics = createServerFn({ method: "POST" })
           managerDecision: mgrDecision,
           managerDecidedAt: mgr?.decided_at ?? mgr?.submitted_at ?? null,
           lastContactAt: app.last_contact_at ?? null,
+          recruitmentTier: (ev?.profile_tier as Tier) ?? null,
+          managerTier: (mgr?.profile_tier as Tier) ?? null,
+          finalTier: finalTier(ev?.profile_tier as Tier, mgr?.profile_tier as Tier),
           training: tr
             ? {
                 status: tr.status,
