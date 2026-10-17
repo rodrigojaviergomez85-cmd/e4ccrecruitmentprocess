@@ -784,6 +784,10 @@ export type Database = {
           live_cefr: string | null
           not_approved_other: string | null
           not_approved_reasons: Json
+          profile_tier: string | null
+          profile_tier_at: string | null
+          profile_tier_by: string | null
+          profile_tier_reason: string | null
           red_flags: string | null
           reopened_at: string | null
           retake_date: string | null
@@ -821,6 +825,10 @@ export type Database = {
           live_cefr?: string | null
           not_approved_other?: string | null
           not_approved_reasons?: Json
+          profile_tier?: string | null
+          profile_tier_at?: string | null
+          profile_tier_by?: string | null
+          profile_tier_reason?: string | null
           red_flags?: string | null
           reopened_at?: string | null
           retake_date?: string | null
@@ -858,6 +866,10 @@ export type Database = {
           live_cefr?: string | null
           not_approved_other?: string | null
           not_approved_reasons?: Json
+          profile_tier?: string | null
+          profile_tier_at?: string | null
+          profile_tier_by?: string | null
+          profile_tier_reason?: string | null
           red_flags?: string | null
           reopened_at?: string | null
           retake_date?: string | null
@@ -1062,6 +1074,10 @@ export type Database = {
           internal_comments: string | null
           manager_id: string | null
           no_show_marked_at: string | null
+          profile_tier: string | null
+          profile_tier_at: string | null
+          profile_tier_by: string | null
+          profile_tier_reason: string | null
           recommendation: string | null
           red_flags: string | null
           reopened_at: string | null
@@ -1098,6 +1114,10 @@ export type Database = {
           internal_comments?: string | null
           manager_id?: string | null
           no_show_marked_at?: string | null
+          profile_tier?: string | null
+          profile_tier_at?: string | null
+          profile_tier_by?: string | null
+          profile_tier_reason?: string | null
           recommendation?: string | null
           red_flags?: string | null
           reopened_at?: string | null
@@ -1134,6 +1154,10 @@ export type Database = {
           internal_comments?: string | null
           manager_id?: string | null
           no_show_marked_at?: string | null
+          profile_tier?: string | null
+          profile_tier_at?: string | null
+          profile_tier_by?: string | null
+          profile_tier_reason?: string | null
           recommendation?: string | null
           red_flags?: string | null
           reopened_at?: string | null
