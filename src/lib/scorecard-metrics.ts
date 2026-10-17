@@ -141,3 +141,66 @@ export const trainingStarted = (b: TrainingBucket) => b === "Activo" || b === "D
 /** Expected to start: confirmed, start date reached, not canceled. */
 export const trainingExpected = (b: TrainingBucket) =>
   trainingStarted(b) || b === "No show" || b === "Sin registrar";
+
+/* ---------- Executive scorecard (v3) ---------- */
+
+export type Tier = "A" | "B" | "C";
+export type TierLabels = Record<Tier, string>;
+export const DEFAULT_TIER_LABELS: TierLabels = {
+  A: "Alto ajuste",
+  B: "Ajuste con brechas",
+  C: "Bajo ajuste actual",
+};
+
+/** Manager validation wins when present; otherwise the Recruitment classification. */
+export function finalTier(recruitment: Tier | null | undefined, manager: Tier | null | undefined): Tier | null {
+  return manager ?? recruitment ?? null;
+}
+
+/** A/B/C distribution over classified candidates only (one row per application). */
+export function tierDistribution(tiers: (Tier | null)[]) {
+  const classified = tiers.filter((t): t is Tier => t !== null);
+  const count = (t: Tier) => classified.filter((x) => x === t).length;
+  return {
+    A: ratio(count("A"), classified.length),
+    B: ratio(count("B"), classified.length),
+    C: ratio(count("C"), classified.length),
+    unclassified: tiers.length - classified.length,
+    coverage: ratio(classified.length, tiers.length),
+  };
+}
+
+/** Total ratio from summed numerators and denominators, never an average of percentages. */
+export function sumRatio(parts: Ratio[]): Ratio {
+  return ratio(parts.reduce((s, r) => s + r.num, 0), parts.reduce((s, r) => s + r.den, 0));
+}
+
+/** Conversion to training: of the final-approved population, how many started. */
+export function conversionToTraining(rows: { finalApproved: boolean; started: boolean }[]): Ratio {
+  const approved = rows.filter((r) => r.finalApproved);
+  return ratio(approved.filter((r) => r.started).length, approved.length);
+}
+
+export type AttentionInput = {
+  pendingDays: number[];
+  finalApproved: number;
+  started: number;
+  upcomingStart: number;
+  lossReasons: string[];
+};
+/** Up to three verifiable findings; never infers causes. */
+export function attentionPoints(i: AttentionInput): string[] {
+  const out: string[] = [];
+  const old = i.pendingDays.filter((d) => d >= 7);
+  if (old.length) out.push(`${old.length} pendiente${old.length === 1 ? "" : "s"} de 2.º filtro con 7 días o más de espera (máx. ${Math.max(...old)} días).`);
+  const gap = i.finalApproved - i.started - i.upcomingStart;
+  if (i.finalApproved > 0 && gap > 0) out.push(`${gap} de ${i.finalApproved} aprobados finales no han iniciado training y no tienen inicio próximo.`);
+  const reasons = i.lossReasons.map((r) => r.trim()).filter(Boolean);
+  if (reasons.length) {
+    const m = new Map<string, number>();
+    for (const r of reasons) m.set(r, (m.get(r) ?? 0) + 1);
+    const [top, n] = [...m].sort((a, b) => b[1] - a[1])[0];
+    if (n >= 2) out.push(`Motivo de pérdida más frecuente: "${top}" (${n} casos).`);
+  }
+  return out.slice(0, 3);
+}
