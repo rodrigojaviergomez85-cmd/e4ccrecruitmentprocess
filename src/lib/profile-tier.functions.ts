@@ -82,7 +82,7 @@ export const setProfileTier = createServerFn({ method: "POST" })
     };
     const { error } = await db.from(table).update(patch).eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
-    await writeAudit({
+    await writeAudit(db, {
       actorId: context.userId,
       action: "evaluation.profile_tier",
       entityType: table,
@@ -90,7 +90,7 @@ export const setProfileTier = createServerFn({ method: "POST" })
       applicationId: ev.application_id,
       oldValue: { profile_tier: ev.profile_tier },
       newValue: { profile_tier: data.tier, reason: patch.profile_tier_reason, stage: data.stage },
-    } as never);
+    });
     return { ok: true };
   });
 
