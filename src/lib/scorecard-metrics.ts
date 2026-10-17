@@ -59,3 +59,85 @@ export function scoreBand(score: number | null) {
   if (score >= 70) return "70–79";
   return "Below 70";
 }
+
+/* ---------- Recruitment → Training metrics (v2) ---------- */
+
+export const LOBS = ["ONLINE", "EL SALVADOR", "NICARAGUA", "GUATEMALA"] as const;
+
+/** Business LOB comes from modality first; the candidate's country is a separate field. */
+export function lobOf(modality: string | null | undefined, countryCode: string | null | undefined) {
+  if ((modality ?? "").toLowerCase() === "online") return "ONLINE";
+  return ({ SV: "EL SALVADOR", NI: "NICARAGUA", GT: "GUATEMALA" } as Record<string, string>)[countryCode ?? ""] ?? "Sin registrar";
+}
+
+export type Ratio = { num: number; den: number; pct: number | null };
+export function ratio(num: number, den: number): Ratio {
+  return { num, den, pct: den ? Math.round((num / den) * 100) : null };
+}
+export function ratioLabel(r: Ratio, unit = "") {
+  return r.pct === null ? "— / Sin base" : `${r.num} de ${r.den}${unit ? ` ${unit}` : ""} = ${r.pct}%`;
+}
+
+/**
+ * Connection base: a live appointment whose time already passed (future, canceled and
+ * superseded reschedules excluded). Manual interviews without appointment count once evaluated.
+ */
+export function connectionEligible(appt: ApptLite | null, hasEvaluation: boolean, now: Date) {
+  if (!appt) return hasEvaluation;
+  if (appt.status === "Canceled" || appt.status === "Rescheduled") return false;
+  return new Date(appt.starts_at).getTime() <= now.getTime();
+}
+
+export type RecruitmentDecision = "Aprobado" | "No aprobado" | "Retake" | "Pendiente";
+export function recruitmentDecision(finalResult: string | null | undefined, finished: boolean): RecruitmentDecision {
+  if (!finished) return "Pendiente";
+  if (finalResult === APPROVED_RESULT) return "Aprobado";
+  if (finalResult === "Not approved") return "No aprobado";
+  if (finalResult === "Retake required") return "Retake";
+  return "Pendiente";
+}
+/** Closed decisions are the denominator; pending never lowers the rate. */
+export const isClosedRecruitment = (d: RecruitmentDecision) => d !== "Pendiente";
+
+export type ManagerDecision = "Aprobado" | "No aprobado" | "Retake" | "No show" | "Pendiente";
+export function managerDecision(finalDecision: string | null | undefined, submitted: boolean): ManagerDecision {
+  if (!submitted) return "Pendiente";
+  const d = finalDecision ?? "";
+  if (d.startsWith("Approved")) return "Aprobado";
+  if (d.startsWith("Not Approved")) return "No aprobado";
+  if (d === "Retake") return "Retake";
+  if (/no show/i.test(d)) return "No show";
+  return "Pendiente";
+}
+export const isClosedManager = (d: ManagerDecision) => d === "Aprobado" || d === "No aprobado" || d === "Retake";
+
+export type PendingBucket = "Sin manager asignado" | "Pendiente de agendar" | "Agendado" | "Realizado, pendiente de decisión";
+export function pendingSecondFilterBucket(p: { managerId: string | null; appointmentAt: string | null; started: boolean }): PendingBucket {
+  if (!p.managerId) return "Sin manager asignado";
+  if (p.started) return "Realizado, pendiente de decisión";
+  if (p.appointmentAt) return "Agendado";
+  return "Pendiente de agendar";
+}
+
+export type TrainingBucket =
+  | "No reclutado" | "Cancelado antes de iniciar" | "Pendiente de iniciar" | "Activo"
+  | "No show" | "Dropout" | "Completó" | "Sin registrar";
+export type TrainingLite = {
+  status: string | null; incorporationConfirmed: boolean; canceledBeforeStart: boolean;
+  waveStart: string | null; startedAt: string | null;
+};
+/** Recruited = confirmed incorporation + cohort. A training no-show is never a dropout. */
+export function trainingBucket(t: TrainingLite, today: string): TrainingBucket {
+  if (t.canceledBeforeStart || t.status === "DROP OUT BEFORE TRAINING") return "Cancelado antes de iniciar";
+  if (!t.incorporationConfirmed || !t.waveStart) return "No reclutado";
+  if (t.status === "NO SHOW") return "No show";
+  if (t.status === "DROP OUT DURING TRAINING") return "Dropout";
+  if (t.status === "CERTIFIED" || t.status === "NOT CERTIFIED") return "Completó";
+  if (t.status === "IN TRAINING" || t.startedAt) return "Activo";
+  if (t.waveStart > today) return "Pendiente de iniciar";
+  return "Sin registrar";
+}
+export const trainingStarted = (b: TrainingBucket) => b === "Activo" || b === "Dropout" || b === "Completó";
+/** Expected to start: confirmed, start date reached, not canceled. */
+export const trainingExpected = (b: TrainingBucket) =>
+  trainingStarted(b) || b === "No show" || b === "Sin registrar";
