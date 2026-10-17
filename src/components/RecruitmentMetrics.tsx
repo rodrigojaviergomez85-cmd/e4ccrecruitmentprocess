@@ -161,7 +161,8 @@ export function RecruitmentMetrics() {
     (source === ALL || (source === "Calendly" ? r.source === "Calendly" : r.source !== "Calendly")) &&
     (cohort === ALL || r.training?.waveStart === cohort),
   );
-  const interviews = base.filter((r) => inRange(r.interviewDate, from, to));
+  // Canceled bookings without an interview are not scheduled interviews.
+  const interviews = base.filter((r) => inRange(r.interviewDate, from, to) && (r.appointmentStatus !== "Canceled" || r.connected));
   const mgrRows = base.filter((r) => r.sentToSecondFilter && inRange(r.managerAppointmentAt ?? r.managerDecidedAt ?? r.interviewDate, from, to));
   const pending = base
     .filter((r) => r.sentToSecondFilter && (r.managerDecision === "Pendiente" || r.managerDecision === "No show"))
@@ -205,7 +206,7 @@ export function RecruitmentMetrics() {
 
   const cal = interviews.filter((r) => r.source === "Calendly");
   const man = interviews.filter((r) => r.source !== "Calendly");
-  const scheduled = interviews.filter((r) => r.hasAppointment || r.source === "Manual");
+  const scheduled = interviews;
   const cAll = connection(interviews), cCal = connection(cal), cMan = connection(man);
 
   const F = { conn: "Conectados ÷ citas elegibles (ya pasaron, sin canceladas ni reprogramadas) × 100", rec: "Aprobados por Recruitment ÷ decisiones cerradas (aprobado, no aprobado, retake) × 100", mgr: "Aprobados por manager ÷ decisiones cerradas del manager × 100" };
