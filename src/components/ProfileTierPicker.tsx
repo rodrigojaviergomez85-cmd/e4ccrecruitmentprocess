@@ -12,7 +12,7 @@ import { getProfileTier, setProfileTier } from "@/lib/profile-tier.functions";
 type Tier = "A" | "B" | "C";
 
 /** Manual A/B/C classification for one evaluation (Recruitment or Manager stage). */
-export function ProfileTierPicker({ stage, evaluationId }: { stage: "recruitment" | "manager"; evaluationId?: string | null }) {
+export function ProfileTierPicker({ stage, evaluationId }: { stage: "recruitment" | "manager"; evaluationId?: string | null | undefined }) {
   const fetchFn = useServerFn(getProfileTier);
   const saveFn = useServerFn(setProfileTier);
   const qc = useQueryClient();
