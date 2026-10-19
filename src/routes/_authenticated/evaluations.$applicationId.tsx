@@ -637,7 +637,7 @@ function EvaluationForm() {
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(countries ?? []).map((c) => (
+                    {(countries ?? []).filter((c) => c.code === contact.country_code || (lobRaw === "onsite" ? Boolean(ONSITE_LOB[c.code]) : (ONLINE_COUNTRIES as readonly string[]).includes(c.code))).map((c) => (
                       <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
                     ))}
                   </SelectContent>
