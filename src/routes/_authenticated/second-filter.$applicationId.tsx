@@ -1,4 +1,5 @@
 import { ONLINE_FIXED, ONSITE_TRAINING_HOURS } from "@/lib/agreements/constants";
+import { branchesFor, onsiteLobFor, ONSITE_LOB } from "@/lib/branches";
 import { ProfileTierPicker } from "@/components/ProfileTierPicker";
 import { readFinalFilter } from "@/lib/evaluations";
 import { useEffect, useMemo, useRef, useState } from "react";

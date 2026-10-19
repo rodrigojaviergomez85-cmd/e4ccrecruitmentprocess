@@ -692,14 +692,17 @@ function EvaluationForm() {
                   </Select>
                 </Field>
               )}
-              <Field label="Country">
-                <Input value={candidate.country} readOnly />
-              </Field>
-              <Field label="City or assigned branch">
-                <Input
-                  value={str("candidate", "branch") || candidate.city || ""}
-                  onChange={(e) => set("candidate", "branch", e.target.value)}
-                />
+              <Field label="Assigned branch">
+                {lobRaw === "online" ? (
+                  <Input value="Online" readOnly />
+                ) : (
+                  <Select value={str("candidate", "branch")} onValueChange={(v) => set("candidate", "branch", v)}>
+                    <SelectTrigger><SelectValue placeholder={branchesFor(contact.country_code).length ? "Select branch" : "Select country first (NI, SV, GT)"} /></SelectTrigger>
+                    <SelectContent>
+                      {branchesFor(contact.country_code).map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </Field>
               <Field label="LOB">
                 <Select
@@ -731,13 +734,6 @@ function EvaluationForm() {
                     ))}
                   </SelectContent>
                 </Select>
-              </Field>
-              <Field label="Training start date">
-                <Input
-                  type="date"
-                  value={str("candidate", "training_start")}
-                  onChange={(e) => set("candidate", "training_start", e.target.value)}
-                />
               </Field>
               <div className="flex items-center gap-2 sm:col-span-2">
                 <Checkbox
@@ -795,12 +791,6 @@ function EvaluationForm() {
                 <Input
                   value={str("equipment", "ram")}
                   onChange={(e) => set("equipment", "ram", e.target.value)}
-                />
-              </Field>
-              <Field label="Operating system">
-                <Input
-                  value={str("equipment", "os")}
-                  onChange={(e) => set("equipment", "os", e.target.value)}
                 />
               </Field>
               <Field label="Meets PC / internet requirements">
