@@ -636,6 +636,17 @@ async function applyDecision(
     const { sendEmail } = await import("./notify.server");
     const { buildTrainingWelcomeEmail } = await import("./candidate-emails");
     const t = (k: string) => (d.training[k] ?? "").trim();
+    // Carry the training start date into the Training Tracker (still editable there).
+    {
+      const start = t(TRAINING_KEYS.startDate);
+      const startOk = /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : null;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: existing } = await supabaseAdmin.from("training_roster").select("wave_start, agreed_schedule").eq("application_id", d.applicationId).maybeSingle();
+      const row: Record<string, unknown> = { application_id: d.applicationId, updated_by: actorId };
+      if (startOk && !existing?.wave_start) row["wave_start"] = startOk;
+      if (!existing?.agreed_schedule && t(TRAINING_KEYS.schedule)) row["agreed_schedule"] = t(TRAINING_KEYS.schedule);
+      await supabaseAdmin.from("training_roster").upsert(row as never, { onConflict: "application_id" });
+    }
     const { subject, html, requestedDocuments } = buildTrainingWelcomeEmail({
       fullName: d.applicantName,
       countryCode: d.countryCode,
