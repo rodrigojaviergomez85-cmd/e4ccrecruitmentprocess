@@ -1,4 +1,5 @@
 import { ONLINE_FIXED, ONSITE_TRAINING_HOURS } from "@/lib/agreements/constants";
+import { branchesFor, onsiteLobFor, ONSITE_LOB } from "@/lib/branches";
 import { ProfileTierPicker } from "@/components/ProfileTierPicker";
 import { readFinalFilter } from "@/lib/evaluations";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -344,7 +345,8 @@ function ReviewPage() {
   const setNote = (key: string, text: string) => set({ evidence: { ...(form?.evidence ?? {}), [key]: text } });
   const tv = (key: string) => form?.evidence[key] ?? trainingDefaults[key] ?? "";
   const setT = setNote;
-  const tz = defaultFfTimezone((app as { country_code?: string | null }).country_code);
+  const appCountry = (app as { country_code?: string | null }).country_code ?? null;
+  const tz = defaultFfTimezone(appCountry);
   const setSchedule = (structKey: string, textKey: string, v: ScheduleStruct) =>
     set({ evidence: { ...(form?.evidence ?? {}), [structKey]: JSON.stringify(v), [textKey]: formatSchedule(v, tz) } });
   const trainingMissing = [
@@ -734,14 +736,14 @@ function ReviewPage() {
                         <PresetField label="Zoom link" presets={[ONLINE_ZOOM]} value={tv(TRAINING_KEYS.zoom)} onChange={(v) => setT(TRAINING_KEYS.zoom, v)} placeholder="https://zoom.us/j/…" />
                       ) : (
                         <>
-                          <TField label="LOB / position type" value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} placeholder="Onsite Full-Time" />
-                          <TField label="Training branch" value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
+                          <PresetField label="LOB" presets={onsiteLobFor(appCountry) ? [onsiteLobFor(appCountry)] : Object.values(ONSITE_LOB)} value={tv(AGREEMENT_KEYS.lob)} onChange={(v) => setT(AGREEMENT_KEYS.lob, v)} />
+                          <PresetField key={`tb-${appCountry}`} label="Training branch" presets={branchesFor(appCountry)} value={tv(TRAINING_KEYS.branch)} onChange={(v) => setT(TRAINING_KEYS.branch, v)} />
                           <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={tv(AGREEMENT_KEYS.classSameBranch) === "yes"} onCheckedChange={(v) => setT(AGREEMENT_KEYS.classSameBranch, v === true ? "yes" : "")} />
                             Class branch is the same as the training branch
                           </label>
                           {tv(AGREEMENT_KEYS.classSameBranch) !== "yes" && (
-                            <TField label="Assigned class branch" value={tv(AGREEMENT_KEYS.classBranch)} onChange={(v) => setT(AGREEMENT_KEYS.classBranch, v)} />
+                            <PresetField key={`cb-${appCountry}`} label="Assigned class branch" presets={branchesFor(appCountry)} value={tv(AGREEMENT_KEYS.classBranch)} onChange={(v) => setT(AGREEMENT_KEYS.classBranch, v)} />
                           )}
                           <div className="sm:col-span-2 xl:col-span-4">
                             <ScheduleField label="Class days and schedule" tz={tz} raw={tv(SCHEDULE_STRUCT_KEYS.classes)} legacy={tv(AGREEMENT_KEYS.classSchedule)} onChange={(v) => setSchedule(SCHEDULE_STRUCT_KEYS.classes, AGREEMENT_KEYS.classSchedule, v)} />

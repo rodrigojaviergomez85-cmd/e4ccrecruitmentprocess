@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProfileTierPicker } from "@/components/ProfileTierPicker";
+import { branchesFor, ONLINE_COUNTRIES, ONSITE_LOB } from "@/lib/branches";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -637,7 +638,7 @@ function EvaluationForm() {
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(countries ?? []).map((c) => (
+                    {(countries ?? []).filter((c) => c.code === contact.country_code || (lobRaw === "onsite" ? Boolean(ONSITE_LOB[c.code]) : (ONLINE_COUNTRIES as readonly string[]).includes(c.code))).map((c) => (
                       <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -692,14 +693,17 @@ function EvaluationForm() {
                   </Select>
                 </Field>
               )}
-              <Field label="Country">
-                <Input value={candidate.country} readOnly />
-              </Field>
-              <Field label="City or assigned branch">
-                <Input
-                  value={str("candidate", "branch") || candidate.city || ""}
-                  onChange={(e) => set("candidate", "branch", e.target.value)}
-                />
+              <Field label="Assigned branch">
+                {lobRaw === "online" ? (
+                  <Input value="Online" readOnly />
+                ) : (
+                  <Select value={str("candidate", "branch")} onValueChange={(v) => set("candidate", "branch", v)}>
+                    <SelectTrigger><SelectValue placeholder={branchesFor(contact.country_code).length ? "Select branch" : "Select country first (NI, SV, GT)"} /></SelectTrigger>
+                    <SelectContent>
+                      {branchesFor(contact.country_code).map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </Field>
               <Field label="LOB">
                 <Select
@@ -731,13 +735,6 @@ function EvaluationForm() {
                     ))}
                   </SelectContent>
                 </Select>
-              </Field>
-              <Field label="Training start date">
-                <Input
-                  type="date"
-                  value={str("candidate", "training_start")}
-                  onChange={(e) => set("candidate", "training_start", e.target.value)}
-                />
               </Field>
               <div className="flex items-center gap-2 sm:col-span-2">
                 <Checkbox
@@ -795,12 +792,6 @@ function EvaluationForm() {
                 <Input
                   value={str("equipment", "ram")}
                   onChange={(e) => set("equipment", "ram", e.target.value)}
-                />
-              </Field>
-              <Field label="Operating system">
-                <Input
-                  value={str("equipment", "os")}
-                  onChange={(e) => set("equipment", "os", e.target.value)}
                 />
               </Field>
               <Field label="Meets PC / internet requirements">
