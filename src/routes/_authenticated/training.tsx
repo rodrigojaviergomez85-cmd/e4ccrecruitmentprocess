@@ -68,7 +68,7 @@ function TrainingPage() {
         <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los aprobados entran solos; los cupos de la requisición sin candidato salen como {PENDING_SPOT}.</p>{req?.canManage && <AddRequisition />}</div>
         <div className="flex flex-wrap items-center gap-3">
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
-          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
         </div>
         {isLoading && <Skeleton className="h-40 w-full" />}
