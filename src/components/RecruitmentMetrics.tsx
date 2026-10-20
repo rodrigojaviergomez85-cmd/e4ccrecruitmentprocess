@@ -254,7 +254,7 @@ export function RecruitmentMetrics() {
             <Results pop={pop} open={open} tb={tb} started={started} isPending2={isPending2} lobLabel={lobLabel} />
           </TabsContent>
           <TabsContent value="team">
-            <Team pop={pop} open={open} started={started} isPending2={isPending2} />
+            <Team pop={pop} open={open} started={started} tb={tb} isPending2={isPending2} />
           </TabsContent>
           <TabsContent value="training">
             <TrainingTab rows={base.filter((r) => r.training && inRange(r.training.waveStart, from, to))} tb={tb} today={today} open={open} lobLabel={lobLabel} />
@@ -458,7 +458,7 @@ function TierBreakdown({ rows, open, by, label }: { rows: MetricRow[]; open: Ope
 
 /* ---------- Equipo ---------- */
 
-function Team({ pop, open, started, isPending2 }: { pop: MetricRow[]; open: Open; started: (r: MetricRow) => boolean; isPending2: (r: MetricRow) => boolean }) {
+function Team({ pop, open, started, tb, isPending2 }: { pop: MetricRow[]; open: Open; started: (r: MetricRow) => boolean; tb: (r: MetricRow) => TrainingBucket | null; isPending2: (r: MetricRow) => boolean }) {
   const [view, setView] = useState<"rec" | "mgr">("rec");
   const [expanded, setExpanded] = useState<string | null>(null);
   const mgrRatio = (rs: MetricRow[]) => {
