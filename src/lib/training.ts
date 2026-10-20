@@ -17,18 +17,23 @@ export function trainingPermissions(roles: readonly string[]) {
   };
 }
 
+/** Attendance / progress status set by the Trainer. Certification is a separate final result. */
 export const TRAINING_STATUSES = [
   "RECLUTADO",
   "IN TRAINING",
-  "PENDING 2ND FILTRO",
   "NO SHOW",
   "DROP OUT BEFORE TRAINING",
   "DROP OUT DURING TRAINING",
-  "NOT CERTIFIED",
-  "CERTIFIED",
-  "NOT APPROVED",
   "BANCA",
 ] as const;
+
+export const CERTIFICATION_VALUES = ["PENDIENTE", "CERTIFIED", "NOT CERTIFIED"] as const;
+export const DAY1_VALUES = ["pending", "continues", "dropped"] as const;
+export const DAY1_LABELS: Record<(typeof DAY1_VALUES)[number], string> = {
+  pending: "Pendiente contacto",
+  continues: "Continúa en training",
+  dropped: "Dropeó",
+};
 
 export const REFERENCE_CALL_VALUES = ["pending", "done", "not_recommended"] as const;
 export type ReferenceCall = (typeof REFERENCE_CALL_VALUES)[number];

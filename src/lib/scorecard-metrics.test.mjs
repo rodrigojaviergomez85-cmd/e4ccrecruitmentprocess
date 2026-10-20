@@ -77,3 +77,13 @@ describe("recruitment → training metrics", () => {
     assert.equal(ratioLabel(ratio(18, 100), "citas elegibles"), "18 de 100 citas elegibles = 18%");
   });
 });
+
+import { certificationRate as _cr, trainingBucket as _tb } from "./scorecard-metrics.ts";
+import { test as _t, expect as _e } from "bun:test";
+_t("certification is separate from attendance and counts as completed", () => {
+  _e(_tb({ status: "IN TRAINING", certification: "CERTIFIED", incorporationConfirmed: true, canceledBeforeStart: false, waveStart: "2026-10-01", startedAt: null }, "2026-10-20")).toBe("Completó");
+});
+_t("recruiter certification rate = certified ÷ started", () => {
+  const r = _cr([{ started: true, certification: "CERTIFIED" }, { started: true, certification: "NOT CERTIFIED" }, { started: false, certification: "PENDIENTE" }]);
+  _e([r.num, r.den, r.pct]).toEqual([1, 2, 50]);
+});

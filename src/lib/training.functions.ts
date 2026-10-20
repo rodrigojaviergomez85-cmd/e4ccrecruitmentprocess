@@ -6,7 +6,7 @@ import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
 import { staffTier } from "./roles";
 import { trainingDocsFor } from "./candidate-emails";
-import { TRAINING_STATUSES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
+import { TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
 
 async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
@@ -39,18 +39,25 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
-      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), training_roster(*), recruitment_progress(work_modality)")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), interview_evaluations(attempt_number, evaluator_id, final_result), training_roster(*), recruitment_progress(work_modality)")
       .eq("status", "Approved for Training")
       .is("archived_at", null);
     if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
+    const recruiterOf = (a: { interview_evaluations?: { attempt_number: number | null; evaluator_id: string | null; final_result: string | null }[] | null }) =>
+      [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0]?.evaluator_id ?? null;
+    const ids = [...new Set((data ?? []).map(recruiterOf).filter(Boolean))] as string[];
+    const { data: staff } = ids.length ? await ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : { data: [] };
+    const names = new Map((staff ?? []).map((p) => [p.user_id, p.full_name]));
     const rows = (data ?? []).map((a) => {
       const ev = [...(a.manager_evaluations ?? [])]
         .filter((e) => e.final_decision === "Approved for Training")
         .sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
       const t = (ev?.evidence as Record<string, string> | null) ?? {};
-      const r = (Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null;
+      const r0 = (Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null;
+      const r = r0 as (NonNullable<typeof r0> & { certification?: string; certification_reason?: string; day1_followup?: string; day1_notes?: string }) | null;
+      const recruiterId = recruiterOf(a);
       const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null } | null;
       const modality = normalizeModality(t[AGREEMENT_KEYS.modality]) ?? normalizeModality(rp?.work_modality);
       const docs = trainingDocsFor(a.country_code)?.items ?? [];
@@ -78,6 +85,11 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         outcomeAt: r?.outcome_at ?? null,
         outcomeReason: r?.outcome_reason ?? "",
         canceledBeforeStart: r?.canceled_before_start ?? false,
+        recruiter: recruiterId ? (names.get(recruiterId) ?? "Sin registrar") : "Sin registrar",
+        certification: r?.certification ?? "PENDIENTE",
+        certificationReason: r?.certification_reason ?? "",
+        day1Followup: r?.day1_followup ?? "pending",
+        day1Notes: r?.day1_notes ?? "",
         documentList: docs,
         documents: (r?.documents as Record<string, boolean> | null) ?? {},
         referenceCall: r?.reference_call ?? "pending",
@@ -107,6 +119,10 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
         outcomeAt: z.string().max(20).nullable().optional(),
         outcomeReason: z.string().max(500).optional(),
         canceledBeforeStart: z.boolean().optional(),
+        certification: z.enum(CERTIFICATION_VALUES).optional(),
+        certificationReason: z.string().max(500).optional(),
+        day1Followup: z.enum(DAY1_VALUES).optional(),
+        day1Notes: z.string().max(2000).optional(),
         documents: z.record(z.string().max(200), z.boolean()).optional(),
         referenceCall: z.enum(REFERENCE_CALL_VALUES).optional(),
         referenceDetails: z.string().max(4000).optional(),
@@ -119,10 +135,10 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
     if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? ""))
       throw new Error("This candidate is outside your countries.");
-    const touchesRefs = data.referenceCall !== undefined || data.referenceDetails !== undefined;
+    const touchesRefs = [data.referenceCall, data.referenceDetails, data.day1Followup, data.day1Notes].some((v) => v !== undefined);
     if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
     if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
-    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart].some((v) => v !== undefined);
+    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
     if (data.documents) {
       const allowed = trainingDocsFor(app.country_code)?.items ?? [];
@@ -146,6 +162,10 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       documents: data.documents,
       reference_call: data.referenceCall,
       reference_details: data.referenceDetails,
+      certification: data.certification,
+      certification_reason: data.certificationReason,
+      day1_followup: data.day1Followup,
+      day1_notes: data.day1Notes,
     };
     if (data.referenceCall !== undefined) {
       patch["reference_called_by"] = context.userId;
