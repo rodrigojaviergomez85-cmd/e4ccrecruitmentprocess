@@ -162,7 +162,7 @@ function AddRequisition() {
   const [saving, setSaving] = useState(false);
   if (!show) return <Button onClick={() => setShow(true)}>Agregar requisición</Button>;
   async function save() {
-    if (!f.waveStart) return toast.error("Elige el inicio de wave.");
+    if (!f.waveStart) { toast.error("Elige el inicio de wave."); return; }
     setSaving(true);
     try {
       await create({ data: { ...f, waveStart: f.waveStart, requestDate: f.requestDate || null } });
