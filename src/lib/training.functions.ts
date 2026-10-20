@@ -55,7 +55,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         .filter((e) => e.final_decision === "Approved for Training")
         .sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
       const t = (ev?.evidence as Record<string, string> | null) ?? {};
-      const r = ((Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null) as (Record<string, any> & { certification?: string; certification_reason?: string; day1_followup?: string; day1_notes?: string }) | null;
+      const r0 = (Array.isArray(a.training_roster) ? a.training_roster[0] : a.training_roster) ?? null;
+      const r = r0 as (NonNullable<typeof r0> & { certification?: string; certification_reason?: string; day1_followup?: string; day1_notes?: string }) | null;
       const recruiterId = recruiterOf(a);
       const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null } | null;
       const modality = normalizeModality(t[AGREEMENT_KEYS.modality]) ?? normalizeModality(rp?.work_modality);
