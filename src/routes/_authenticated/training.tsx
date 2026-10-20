@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createRequisition, listRequisitions, listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
+import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
@@ -144,6 +145,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const [f, setF] = useState(row);
   const [baseline, setBaseline] = useState(row);
   const [saving, setSaving] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const dirty = JSON.stringify(f) !== JSON.stringify(baseline);
   const pct = documentsPercent(f.documentList, f.documents);
   const blocked = approvalBlocked(f.referenceCall);
@@ -166,7 +168,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
-    <td className={`${cell} sticky left-0 z-10 bg-card`}><p className="max-w-56 font-semibold">{row.fullName}</p><p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
+    <td className={`${cell} sticky left-0 z-10 bg-card`}>{p.trainingOnly ? <p className="max-w-56 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-56 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
     <td className={cell}>{row.recruiter}</td>
     <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`w-56 ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{row.branch || "—"}</td>
@@ -179,7 +181,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{row.trainer || "—"}</td>
     <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
-    <td className={cell}>{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
+    <td className={cell}>{row.referenceContacts.length > 0 && <ul className="mb-2 w-72 space-y-1 text-xs">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}</li>)}</ul>}{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
     {docs.map((d) => {
       const required = f.documentList.includes(d);

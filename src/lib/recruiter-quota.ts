@@ -39,3 +39,10 @@ export function certificationBoard(rows: Row[], from: string) {
   const inTraining = rows.filter((x) => x.training?.status === "IN TRAINING").length;
   return { certified, notCertified: done.length - certified, inTraining, rate: done.length ? Math.round((certified / done.length) * 100) : null };
 }
+
+/**
+ * Recruiter credited with an interview: whoever made the final decision
+ * (e.g. a retake approved by another recruiter), else whoever opened it.
+ */
+export const creditedRecruiterId = (ev: { decided_by?: string | null; evaluator_id?: string | null } | null | undefined) =>
+  ev?.decided_by ?? ev?.evaluator_id ?? null;

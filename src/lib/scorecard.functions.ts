@@ -1,3 +1,4 @@
+import { creditedRecruiterId } from "./recruiter-quota";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -163,8 +164,8 @@ async function buildRows(userId: string, data: z.infer<typeof filters>) {
         city: a.cities?.name ?? a.city_other ?? a.city ?? "",
         lob: String(sections["candidate"]?.["lob"] ?? progress?.work_modality ?? ""),
         referral: String(sections["candidate"]?.["referral_source"] ?? ""),
-        evaluator: ev?.evaluator_id ? (staffById.get(ev.evaluator_id) ?? "") : "",
-        evaluatorId: ev?.evaluator_id ?? null,
+        evaluator: creditedRecruiterId(ev) ? (staffById.get(creditedRecruiterId(ev)!) ?? "") : "",
+        evaluatorId: creditedRecruiterId(ev),
         interviewDate,
         appointmentAt: appt?.starts_at ?? null,
         appointmentStatus: appt?.status ?? null,

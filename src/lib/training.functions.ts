@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
+import { creditedRecruiterId } from "./recruiter-quota";
 import { staffTier } from "./roles";
 import { trainingGroup as trainingGroupOf } from "./training";
 import { trainingDocsFor } from "./candidate-emails";
@@ -40,14 +41,20 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
-      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), interview_evaluations(attempt_number, evaluator_id, final_result), training_roster(*), recruitment_progress(work_modality)")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(slot, company, position, supervisor_name, supervisor_position, supervisor_phone, supervisor_email, verification_status), interview_evaluations(id, attempt_number, evaluator_id, decided_by, final_result), training_roster(*), recruitment_progress(work_modality)")
       .eq("status", "Approved for Training")
       .is("archived_at", null);
     if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    const recruiterOf = (a: { interview_evaluations?: { attempt_number: number | null; evaluator_id: string | null; final_result: string | null }[] | null }) =>
-      [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0]?.evaluator_id ?? null;
+    const latestEval = (a: { interview_evaluations?: { id: string; attempt_number: number | null; evaluator_id: string | null; decided_by: string | null; final_result: string | null }[] | null }) =>
+      [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0] ?? null;
+    const recruiterOf = (a: Parameters<typeof latestEval>[0]) => creditedRecruiterId(latestEval(a));
+    const showContacts = ctx.canEditReferences || !ctx.trainingOnly;
+    const evalIds = showContacts ? ((data ?? []).map((a) => latestEval(a)?.id).filter(Boolean) as string[]) : [];
+    const { data: jobs } = evalIds.length
+      ? await ctx.db.from("evaluation_jobs").select("evaluation_id, slot, company, position, supervisor_name, supervisor_contact").in("evaluation_id", evalIds)
+      : { data: [] as { evaluation_id: string; slot: number; company: string; position: string; supervisor_name: string; supervisor_contact: string }[] };
     const ids = [...new Set((data ?? []).map(recruiterOf).filter(Boolean))] as string[];
     const { data: staff } = ids.length ? await ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : { data: [] };
     const names = new Map((staff ?? []).map((p) => [p.user_id, p.full_name]));
@@ -98,6 +105,10 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
         referencesVerified: refs.filter((x) => x.verification_status === "Verified").length,
+        referenceContacts: !showContacts ? [] : [
+          ...[...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ source: "Aplicante", company: x.company, position: x.position, supervisor: x.supervisor_name, contact: [x.supervisor_phone, x.supervisor_email].filter(Boolean).join(" · ") })),
+          ...(jobs ?? []).filter((j) => j.evaluation_id === latestEval(a)?.id).sort((x, y) => x.slot - y.slot).map((j) => ({ source: "Reclutador", company: j.company, position: j.position, supervisor: j.supervisor_name, contact: j.supervisor_contact })),
+        ].filter((c) => c.company || c.supervisor || c.contact),
       };
     });
     rows.sort((x, y) => (x.waveStart ?? "9999").localeCompare(y.waveStart ?? "9999"));
@@ -305,4 +316,43 @@ export const updateRequisition = createServerFn({ method: "POST" })
     }
     await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: `requisition.${data.action}`, entityType: "training_requisition", entityId: spot.id, applicationId: data.applicationId ?? spot.filled_application_id ?? null, newValue: data });
     return { ok: true };
+  });
+
+/** Compact read-only interview summary for an approved candidate. Full staff only (no Trainer/Generalista-only accounts). */
+export const getTrainingProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (ctx.trainingOnly) throw new Error("Tu rol no tiene acceso al expediente de entrevista.");
+    const { data: a, error } = await ctx.db
+      .from("applications")
+      .select("id, full_name, email, phone, country, country_code, city, status, recruitment_progress(work_modality, grammar_test_score), ai_evaluations(cefr), interview_evaluations(id, attempt_number, evaluator_id, decided_by, decided_at, final_result, live_cefr, hiring_bonus, comments, red_flags, retake_reason), manager_evaluations(attempt_number, final_decision, decided_by, manager_id, decided_at, decision_reason, internal_comments, improvement_areas, red_flags, evidence)")
+      .eq("id", data.applicationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!a) throw new Error("Candidato no encontrado.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(a.country_code ?? "")) throw new Error("Este candidato está fuera de tus países.");
+    const byAttempt = <T extends { attempt_number: number | null }>(l: T[] | null) => [...(l ?? [])].sort((x, y) => (x.attempt_number ?? 0) - (y.attempt_number ?? 0));
+    const evals = byAttempt(a.interview_evaluations);
+    const mgrs = byAttempt(a.manager_evaluations);
+    const last = evals[evals.length - 1];
+    const ids = [...new Set([...evals.flatMap((e) => [e.evaluator_id, e.decided_by]), ...mgrs.flatMap((m) => [m.decided_by, m.manager_id])].filter(Boolean))] as string[];
+    const [{ data: staff }, { data: jobs }] = await Promise.all([
+      ids.length ? ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : Promise.resolve({ data: [] as { user_id: string; full_name: string }[] }),
+      last ? ctx.db.from("evaluation_jobs").select("slot, company, position, start_date, end_date, supervisor_name, supervisor_contact, reason_for_leaving").eq("evaluation_id", last.id).order("slot") : Promise.resolve({ data: [] }),
+    ]);
+    const name = (id: string | null) => (id ? (staff ?? []).find((s) => s.user_id === id)?.full_name || "—" : "—");
+    const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null; grammar_test_score: number | null } | null;
+    const ai = (Array.isArray(a.ai_evaluations) ? a.ai_evaluations[0] : a.ai_evaluations) as { cefr: string | null } | null;
+    return {
+      fullName: a.full_name, email: a.email, phone: a.phone, country: a.country, city: a.city,
+      modality: rp?.work_modality ?? null, grammarScore: rp?.grammar_test_score ?? null, aiLevel: ai?.cefr ?? null,
+      interviews: evals.map((e) => ({ attempt: e.attempt_number, openedBy: name(e.evaluator_id), decidedBy: name(e.decided_by ?? e.evaluator_id), decidedAt: e.decided_at, result: e.final_result, level: e.live_cefr, hiringBonus: e.hiring_bonus, comments: e.comments, redFlags: e.red_flags, retakeReason: e.retake_reason })),
+      jobs: jobs ?? [],
+      managers: mgrs.map((m) => {
+        const ev = (m.evidence as Record<string, string> | null) ?? {};
+        return { attempt: m.attempt_number, manager: name(m.decided_by ?? m.manager_id), decidedAt: m.decided_at, decision: m.final_decision, reason: m.decision_reason, comments: m.internal_comments, improvement: m.improvement_areas, redFlags: m.red_flags, lob: ev[AGREEMENT_KEYS.lob] ?? "", schedule: ev[TRAINING_KEYS.schedule] ?? "", startDate: ev[TRAINING_KEYS.startDate] ?? "" };
+      }),
+    };
   });
