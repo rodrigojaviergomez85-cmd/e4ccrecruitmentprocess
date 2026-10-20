@@ -210,7 +210,7 @@ function AddRequisition() {
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
   return <div className="flex w-full flex-wrap items-end gap-3 border border-border bg-card p-3">
-    <label className="text-xs">LOB<Select value={f.group} onValueChange={(group) => setF({ ...f, group: group as typeof f.group, branch: group === "ONLINE" ? "Online" : "" })}><SelectTrigger className="mt-1 w-40"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select></label>
+    <label className="text-xs">LOB<Select value={f.group} onValueChange={(group) => setF({ ...f, group: group as typeof f.group, branch: branchOptions(group)[0] ?? "" })}><SelectTrigger className="mt-1 w-40"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select></label>
     <label className="text-xs">Sucursal<Select value={f.branch} onValueChange={(branch) => setF({ ...f, branch })}><SelectTrigger className="mt-1 w-48"><SelectValue placeholder="Elige sucursal" /></SelectTrigger><SelectContent>{branchOptions(f.group).map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></label>
     <label className="text-xs">Inicio de wave<Input type="date" className="mt-1 w-40" value={f.waveStart} onChange={(e) => setF({ ...f, waveStart: e.target.value })} /></label>
     <label className="text-xs">Request date<Input type="date" className="mt-1 w-40" value={f.requestDate} onChange={(e) => setF({ ...f, requestDate: e.target.value })} /></label>
