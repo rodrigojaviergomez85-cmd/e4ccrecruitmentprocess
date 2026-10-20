@@ -1046,3 +1046,32 @@ export const submitCandidateResponse = createServerFn({ method: "POST" })
   });
 
 const WITHDRAW_RESPONSE = "Thank you for the opportunity. I do not wish to continue with the recruitment process.";
+
+/** Managers/Admin can correct the training start date at any time, even after the decision is locked. */
+export const updateTrainingStart = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ applicationId: z.string().uuid(), startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date.") }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await managerCtx(context.userId);
+    if (!ctx.canDecide) throw new Error("Only Managers or Admin can change the training start date.");
+    const app = await assertAccess(ctx, data.applicationId);
+    const { data: ev } = await ctx.db.from("manager_evaluations").select("id, evidence").eq("application_id", app.id).order("attempt_number", { ascending: false }).limit(1).maybeSingle();
+    const old = ev ? String((ev.evidence as Record<string, unknown> | null)?.[TRAINING_KEYS.startDate] ?? "") || null : null;
+    if (ev) {
+      await ctx.db.from("manager_evaluations").update({ evidence: { ...((ev.evidence as Record<string, unknown>) ?? {}), [TRAINING_KEYS.startDate]: data.startDate } as never }).eq("id", ev.id);
+    }
+    const { data: roster } = await ctx.db.from("training_roster").select("wave_start").eq("application_id", app.id).maybeSingle();
+    if (roster || app.status === "Approved for Training") {
+      if (roster?.wave_start && roster.wave_start !== data.startDate)
+        await ctx.db.from("training_cohort_changes").insert({ application_id: app.id, old_wave_start: roster.wave_start, new_wave_start: data.startDate, changed_by: context.userId });
+      await ctx.db.from("training_roster").upsert({ application_id: app.id, wave_start: data.startDate, updated_by: context.userId } as never, { onConflict: "application_id" });
+    }
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId, actorEmail: ctx.email, action: "application.training_start_changed",
+      entityType: "application", entityId: app.id, applicationId: app.id,
+      oldValue: { training_start: roster?.wave_start ?? old }, newValue: { training_start: data.startDate },
+    });
+    return { ok: true };
+  });
