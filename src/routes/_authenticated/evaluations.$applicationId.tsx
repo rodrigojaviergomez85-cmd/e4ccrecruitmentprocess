@@ -235,7 +235,7 @@ function EvaluationForm() {
     setLastRoleplayDate(evaluation.last_roleplay_date ?? "");
     setInterviewDate(
       evaluation.interview_date ??
-        (candidate?.appointmentAt ? candidate.appointmentAt.slice(0, 10) : ""),
+        (evaluation.started_at ? new Date(evaluation.started_at).toLocaleDateString("en-CA", { timeZone: "America/El_Salvador" }) : ""),
     );
     setComments(evaluation.comments ?? "");
     setRedFlags(evaluation.red_flags ?? "");

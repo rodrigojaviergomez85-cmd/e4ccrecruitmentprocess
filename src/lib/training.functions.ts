@@ -41,13 +41,13 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
-      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(slot, company, position, supervisor_name, supervisor_position, supervisor_phone, supervisor_email, verification_status), interview_evaluations(id, attempt_number, evaluator_id, decided_by, final_result), training_roster(*), recruitment_progress(work_modality)")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(slot, company, position, supervisor_name, supervisor_position, supervisor_phone, supervisor_email, verification_status), interview_evaluations(id, attempt_number, evaluator_id, decided_by, final_result, decided_at, submitted_at, sections), training_roster(*), recruitment_progress(work_modality)")
       .eq("status", "Approved for Training")
       .is("archived_at", null);
     if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    const latestEval = (a: { interview_evaluations?: { id: string; attempt_number: number | null; evaluator_id: string | null; decided_by: string | null; final_result: string | null }[] | null }) =>
+    const latestEval = (a: { interview_evaluations?: { id: string; attempt_number: number | null; evaluator_id: string | null; decided_by: string | null; final_result: string | null; decided_at?: string | null; submitted_at?: string | null; sections?: unknown }[] | null }) =>
       [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0] ?? null;
     const recruiterOf = (a: Parameters<typeof latestEval>[0]) => creditedRecruiterId(latestEval(a));
     const showContacts = ctx.canEditReferences || !ctx.trainingOnly;
@@ -87,7 +87,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         hiringDate: r?.hiring_date ?? null,
         status: r?.certification === "CERTIFIED" || r?.certification === "NOT CERTIFIED" ? r.certification : (r?.status ?? "RECLUTADO"),
         group: trainingGroupOf(modality, a.country_code),
-        agreedSchedule: r?.agreed_schedule || t[TRAINING_KEYS.schedule] || "",
+        agreedSchedule: r?.agreed_schedule || t[TRAINING_KEYS.schedule] || String(((latestEval(a)?.sections as Record<string, Record<string, unknown>> | null)?.["candidate"]?.["schedule"]) ?? ""),
+        recruitmentApprovedAt: (latestEval(a)?.decided_at ?? latestEval(a)?.submitted_at ?? null)?.slice(0, 10) ?? null,
         comments: r?.comments ?? "",
         incorporationConfirmed: r?.incorporation_confirmed ?? false,
         startedAt: r?.started_at ?? null,
