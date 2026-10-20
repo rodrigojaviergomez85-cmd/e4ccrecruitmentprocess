@@ -31,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getManagerReview,
+  updateTrainingStart,
   reopenManagerEvaluation,
   retryManagerEmail,
   saveManagerEvaluation,
@@ -547,6 +548,13 @@ function ReviewPage() {
                   canStart={editable}
                 />
                 <ProfileTierPicker stage="manager" evaluationId={current?.id} />
+                {locked && d.access.canDecide && (
+                  <TrainingStartEditor
+                    applicationId={app.id}
+                    initial={String((current?.evidence as Record<string, unknown> | null)?.[TRAINING_KEYS.startDate] ?? "")}
+                    onSaved={() => { void qc.invalidateQueries({ queryKey: ["manager-review", applicationId] }); void qc.invalidateQueries({ queryKey: ["training-roster"] }); }}
+                  />
+                )}
                 {app.withdrawn_at && (
                   <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                     Withdrawn by applicant
@@ -1106,5 +1114,23 @@ function PresetField({ label, presets, value, onChange, placeholder }: { label: 
       </Select>
       {custom && <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoFocus />}
     </div>
+  );
+}
+
+function TrainingStartEditor({ applicationId, initial, onSaved }: { applicationId: string; initial: string; onSaved: () => void }) {
+  const update = useServerFn(updateTrainingStart);
+  const [value, setValue] = useState(/^\d{4}-\d{2}-\d{2}$/.test(initial) ? initial : "");
+  const [busy, setBusy] = useState(false);
+  return (
+    <span className="flex shrink-0 items-center gap-2 rounded-full border border-border px-3 py-1 text-xs">
+      <span className="font-semibold">Training start</span>
+      <Input type="date" aria-label="Correct training start date" value={value} onChange={(e) => setValue(e.target.value)} className="h-7 w-36 text-xs" />
+      <Button size="sm" variant="outline" className="h-7" disabled={busy || !value || value === initial} onClick={async () => {
+        setBusy(true);
+        try { await update({ data: { applicationId, startDate: value } }); toast.success("Training start date updated"); onSaved(); }
+        catch (e) { toast.error(e instanceof Error ? e.message : "Could not update"); }
+        finally { setBusy(false); }
+      }}>Save</Button>
+    </span>
   );
 }
