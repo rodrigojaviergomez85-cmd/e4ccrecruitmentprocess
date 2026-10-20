@@ -29,3 +29,6 @@
 - [x] Navegación: Applicants e Interviews como accesos principales; vista de entrevistas unificada
 - [x] Corregir nombre completo, correo y teléfono desde entrevistas agendadas; guardado y recarga verificados, seis pruebas de validación/permisos aprobadas
 - Fase 1 referidos: falta enlace de la hoja de Google (importación automática)
+- [x] Training: CERTIFIED/NOT CERTIFIED dentro de Estado; quitar columnas extra, solo Comments
+- [x] Requisiciones de vuelta: cupos abiertos como filas PENDIENTE DE RECLUTAR (drop out before training reabre cupo)
+- [x] Meta en rojo para reclutadores: pendientes Online/Onsite y mínimo semanal hasta inicio de wave

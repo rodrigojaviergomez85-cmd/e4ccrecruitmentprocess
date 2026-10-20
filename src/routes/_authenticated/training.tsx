@@ -11,8 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
-import { CERTIFICATION_VALUES, DAY1_LABELS, DAY1_VALUES, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
+import { createRequisition, listRequisitions, listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
+import { RecruitmentGoal } from "@/components/RecruitmentGoal";
+import { PENDING_SPOT, SPOT_TYPES, openSpots, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
 
 export const Route = createFileRoute("/_authenticated/training")({
   head: () => ({ meta: [
@@ -41,6 +42,9 @@ const documentLabel = (d: string) => {
 function TrainingPage() {
   const list = useServerFn(listTrainingRoster);
   const { data, isLoading, error } = useQuery({ queryKey: ["training-roster"], queryFn: () => list() });
+  const listReq = useServerFn(listRequisitions);
+  const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
+  const open = openSpots(req?.spots ?? [], data?.rows ?? []);
   const [lob, setLob] = useState("all");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -60,10 +64,11 @@ function TrainingPage() {
             </TabsList>
           </div>
         </Tabs>
-        <p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los candidatos entran solos cuando el Manager da Approved for Training.</p>
+        <RecruitmentGoal />
+        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los aprobados entran solos; los cupos de la requisición sin candidato salen como {PENDING_SPOT}.</p>{req?.canManage && <AddRequisition />}</div>
         <div className="flex flex-wrap items-center gap-3">
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
-          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
         </div>
         {isLoading && <Skeleton className="h-40 w-full" />}
@@ -71,16 +76,21 @@ function TrainingPage() {
         {data && !filtered.length && <p className="py-8 text-muted-foreground">No hay candidatos en esta lista.</p>}
         {data && groupNames.map((group) => {
           const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group);
-          if (!groupRows.length) return null;
+          const pending = (status === "all" || status === PENDING_SPOT) && !search ? open.filter((o) => o.group === group) : [];
+          if (!groupRows.length && !pending.length) return null;
           const docs = [...new Set(groupRows.flatMap((r) => r.documentList))];
           return <section key={group} className="space-y-2">
-            <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span></div>
+            <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span>{pending.length > 0 && <span className="text-sm font-semibold text-destructive">{pending.length} cupos pendientes de reclutar</span>}</div>
             <div className="max-h-[65vh] overflow-auto border border-border">
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
-                  <tr>{["Candidato", "Reclutador", "Estado en training", "Certificación", "Seguimiento Día 1", "Incorporación", "Inicio real", "Fecha salida / no show", "Motivo", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 21 && i < 21 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 21 && i < 21 + docs.length ? docs[i - 21] : undefined}>{h}</th>)}</tr>
+                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
                 </thead>
-                <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}</tbody>
+                <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}{pending.map((o) => <tr key={o.id} className="bg-destructive/5">
+                  <td className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
+                  <td className="border-b border-r border-border px-3 py-3"><span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{PENDING_SPOT}</span></td>
+                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={6 + docs.length}>{o.comments || ""}</td>
+                </tr>)}</tbody>
               </table>
             </div>
           </section>;
@@ -105,9 +115,9 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       const changed = <K extends keyof Row>(key: K) => f[key] !== baseline[key] ? f[key] : undefined;
       await update({ data: {
         applicationId: row.id,
-        ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments"), incorporationConfirmed: changed("incorporationConfirmed"), startedAt: changed("startedAt"), outcomeAt: changed("outcomeAt"), outcomeReason: changed("outcomeReason"), canceledBeforeStart: changed("canceledBeforeStart"), certification: changed("certification") as (typeof CERTIFICATION_VALUES)[number] | undefined, certificationReason: changed("certificationReason") } : {}),
+        ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments") } : {}),
         ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: f.documents } : {}),
-        ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails"), day1Followup: changed("day1Followup") as (typeof DAY1_VALUES)[number] | undefined, day1Notes: changed("day1Notes") } : {}),
+        ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails") } : {}),
       } });
       setBaseline(f);
       toast.success("Guardado");
@@ -115,18 +125,12 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
   const cell = "border-b border-r border-border px-3 py-3 align-top";
-  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate" | "startedAt" | "outcomeAt", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
+  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
     <td className={`${cell} sticky left-0 z-10 bg-card`}><p className="max-w-56 font-semibold">{row.fullName}</p><p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
     <td className={cell}>{row.recruiter}</td>
-    <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
-    <td className={`${cell} ${f.certification === "CERTIFIED" ? "bg-success/10" : f.certification === "NOT CERTIFIED" ? "bg-destructive/10" : ""}`}><Select value={f.certification} disabled={!p.canEditTraining} onValueChange={(certification) => setF({ ...f, certification })}><SelectTrigger aria-label={`Certificación — ${row.fullName}`} className="w-48"><SelectValue /></SelectTrigger><SelectContent>{CERTIFICATION_VALUES.map((s) => <SelectItem key={s} value={s}>{s === "PENDIENTE" ? "Pendiente / en curso" : s}</SelectItem>)}</SelectContent></Select>{f.certification === "NOT CERTIFIED" && <Input aria-label={`Motivo de no certificación — ${row.fullName}`} placeholder="Motivo" value={f.certificationReason} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, certificationReason: e.target.value })} className="mt-2 w-48" />}</td>
-    <td className={cell}><Select value={f.day1Followup} disabled={!p.canEditReferences} onValueChange={(day1Followup) => setF({ ...f, day1Followup })}><SelectTrigger aria-label={`Seguimiento Día 1 — ${row.fullName}`} className="w-48"><SelectValue /></SelectTrigger><SelectContent>{DAY1_VALUES.map((v) => <SelectItem key={v} value={v}>{DAY1_LABELS[v]}</SelectItem>)}</SelectContent></Select><Input aria-label={`Notas Día 1 — ${row.fullName}`} placeholder="Notas de la llamada" value={f.day1Notes} disabled={!p.canEditReferences} onChange={(e) => setF({ ...f, day1Notes: e.target.value })} className="mt-2 w-48" /></td>
-    <td className={cell}><label className="flex items-center gap-2 text-xs"><Checkbox aria-label={`Incorporación confirmada — ${row.fullName}`} checked={f.incorporationConfirmed} disabled={!p.canEditTraining} onCheckedChange={(v) => setF({ ...f, incorporationConfirmed: v === true })} />Confirmada</label><label className="mt-2 flex items-center gap-2 text-xs"><Checkbox aria-label={`Canceló antes de iniciar — ${row.fullName}`} checked={f.canceledBeforeStart} disabled={!p.canEditTraining} onCheckedChange={(v) => setF({ ...f, canceledBeforeStart: v === true })} />Canceló antes de iniciar</label></td>
-    <td className={cell}>{dateInput("startedAt", "Inicio real")}</td>
-    <td className={cell}>{dateInput("outcomeAt", "Fecha de salida o no show")}</td>
-    <td className={cell}><Input aria-label={`Motivo — ${row.fullName}`} placeholder="Sin motivo registrado" value={f.outcomeReason} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, outcomeReason: e.target.value })} className="w-56" /></td>
+    <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`w-56 ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{row.branch || "—"}</td>
     <td className={cell}>{f.waveStart ? `${f.waveStart.slice(0, 4)} / ${f.waveStart.slice(5, 7)}` : "—"}</td>
     <td className={cell}>{dateInput("waveStart", "Inicio de wave")}</td>
@@ -135,7 +139,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{dateInput("hiringDate", "Día de contratación")}</td>
     <td className={cell}>{textInput("agreedSchedule", "Horario", p.canEditTraining)}</td>
     <td className={cell}>{row.trainer || "—"}</td>
-    <td className={cell}>{textInput("comments", "Comments", p.canEditTraining)}</td>
+    <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
     <td className={cell}>{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
@@ -147,4 +151,36 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={`${cell} whitespace-nowrap`}>{row.phone}</td><td className={cell}><span className="whitespace-nowrap">{row.email}</span></td>
     <td className={cell}><Button variant={dirty ? "default" : "ghost"} size="icon" aria-label={`Guardar — ${row.fullName}`} title="Guardar" onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}</Button></td>
   </tr>;
+}
+
+
+function AddRequisition() {
+  const create = useServerFn(createRequisition);
+  const qc = useQueryClient();
+  const [show, setShow] = useState(false);
+  const [f, setF] = useState({ group: "ONLINE" as (typeof TRAINING_GROUPS)[number], branch: "Online", waveStart: "", requestDate: new Date().toISOString().slice(0, 10), spotType: "NEEDED" as (typeof SPOT_TYPES)[number], agreedSchedule: "", comments: "", quantity: 1 });
+  const [saving, setSaving] = useState(false);
+  if (!show) return <Button onClick={() => setShow(true)}>Agregar requisición</Button>;
+  async function save() {
+    if (!f.waveStart) { toast.error("Elige el inicio de wave."); return; }
+    setSaving(true);
+    try {
+      await create({ data: { ...f, waveStart: f.waveStart, requestDate: f.requestDate || null } });
+      toast.success(`${f.quantity} cupos agregados`);
+      setShow(false);
+      await qc.invalidateQueries({ queryKey: ["requisitions"] });
+    } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
+  }
+  return <div className="flex w-full flex-wrap items-end gap-3 border border-border bg-card p-3">
+    <label className="text-xs">LOB<Select value={f.group} onValueChange={(group) => setF({ ...f, group: group as typeof f.group, branch: group === "ONLINE" ? "Online" : "" })}><SelectTrigger className="mt-1 w-40"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select></label>
+    <label className="text-xs">Sucursal<Input className="mt-1 w-40" value={f.branch} onChange={(e) => setF({ ...f, branch: e.target.value })} /></label>
+    <label className="text-xs">Inicio de wave<Input type="date" className="mt-1 w-40" value={f.waveStart} onChange={(e) => setF({ ...f, waveStart: e.target.value })} /></label>
+    <label className="text-xs">Request date<Input type="date" className="mt-1 w-40" value={f.requestDate} onChange={(e) => setF({ ...f, requestDate: e.target.value })} /></label>
+    <label className="text-xs">Tipo<Select value={f.spotType} onValueChange={(spotType) => setF({ ...f, spotType: spotType as typeof f.spotType })}><SelectTrigger className="mt-1 w-32"><SelectValue /></SelectTrigger><SelectContent>{SPOT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></label>
+    <label className="text-xs">Cupos<Input type="number" min={1} max={50} className="mt-1 w-20" value={f.quantity} onChange={(e) => setF({ ...f, quantity: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })} /></label>
+    <label className="text-xs">Horario acordado<Input className="mt-1 w-48" value={f.agreedSchedule} onChange={(e) => setF({ ...f, agreedSchedule: e.target.value })} /></label>
+    <label className="text-xs">Comments<Input className="mt-1 w-48" value={f.comments} onChange={(e) => setF({ ...f, comments: e.target.value })} /></label>
+    <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}Guardar</Button>
+    <Button variant="ghost" onClick={() => setShow(false)}>Cancelar</Button>
+  </div>;
 }

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { AhtReport } from "@/components/AhtReport";
+import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -252,6 +253,7 @@ function Dashboard() {
   return (
     <main className="min-h-screen">
       <div className="mx-auto max-w-[1400px] space-y-4 px-4 py-5 sm:px-6">
+        <RecruitmentGoal />
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="font-display text-2xl font-semibold text-navy">Applicants</h1>

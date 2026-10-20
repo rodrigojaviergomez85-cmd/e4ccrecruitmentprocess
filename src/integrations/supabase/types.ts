@@ -1837,8 +1837,12 @@ export type Database = {
           agreed_schedule: string
           application_id: string
           canceled_before_start: boolean
+          certification: string
+          certification_reason: string
           comments: string
           created_at: string
+          day1_followup: string
+          day1_notes: string
           documents: Json
           hiring_date: string | null
           incorporation_confirmed: boolean
@@ -1859,8 +1863,12 @@ export type Database = {
           agreed_schedule?: string
           application_id: string
           canceled_before_start?: boolean
+          certification?: string
+          certification_reason?: string
           comments?: string
           created_at?: string
+          day1_followup?: string
+          day1_notes?: string
           documents?: Json
           hiring_date?: string | null
           incorporation_confirmed?: boolean
@@ -1881,8 +1889,12 @@ export type Database = {
           agreed_schedule?: string
           application_id?: string
           canceled_before_start?: boolean
+          certification?: string
+          certification_reason?: string
           comments?: string
           created_at?: string
+          day1_followup?: string
+          day1_notes?: string
           documents?: Json
           hiring_date?: string | null
           incorporation_confirmed?: boolean
