@@ -56,3 +56,10 @@ _t2("certified in the status dropdown counts as certification", () => {
   _e2(_cf("CERTIFIED")).toBe("CERTIFIED");
   _e2(_cf("IN TRAINING")).toBe("PENDIENTE");
 });
+import { statusSummary as _ss } from "./training.ts";
+_t2("status summary counts open spots as pending and gives percentages", () => {
+  const s = _ss([{ status: "IN TRAINING" }, { status: "RECLUTADO" }, { status: "IN TRAINING" }], 1);
+  _e2(s.total).toBe(4);
+  _e2(s.items.find((i) => i.status === "IN TRAINING").pct).toBe(50);
+  _e2(s.items.find((i) => i.status === "PENDIENTE DE RECLUTAR").count).toBe(1);
+});

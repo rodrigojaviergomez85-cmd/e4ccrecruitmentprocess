@@ -6,14 +6,14 @@ import { listRequisitions, listTrainingRoster } from "@/lib/training.functions";
 import { openSpots, weeklyMinimum } from "@/lib/training";
 
 /** Monthly hiring goal from requisitions: open spots by Online/Onsite and weekly minimum until each wave starts. */
-export function RecruitmentGoal() {
+export function RecruitmentGoal({ group }: { group?: string } = {}) {
   const listReq = useServerFn(listRequisitions);
   const listRoster = useServerFn(listTrainingRoster);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
   const { data: roster } = useQuery({ queryKey: ["training-roster"], queryFn: () => listRoster() });
   if (!req || !roster) return null;
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/El_Salvador" });
-  const upcoming = req.spots.filter((s) => !s.waveStart || s.waveStart >= today);
+  const upcoming = req.spots.filter((s) => (!s.waveStart || s.waveStart >= today) && (!group || s.group === group));
   const open = openSpots(upcoming, roster.rows);
   if (!upcoming.length) return null;
   const waves = new Map<string, { group: string; waveStart: string | null; open: number }>();

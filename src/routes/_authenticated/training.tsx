@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createRequisition, listRequisitions, listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
-import { PENDING_SPOT, SPOT_TYPES, openSpots, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
+import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
 
 export const Route = createFileRoute("/_authenticated/training")({
   head: () => ({ meta: [
@@ -44,12 +44,18 @@ function TrainingPage() {
   const { data, isLoading, error } = useQuery({ queryKey: ["training-roster"], queryFn: () => list() });
   const listReq = useServerFn(listRequisitions);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
-  const open = openSpots(req?.spots ?? [], data?.rows ?? []);
-  const [lob, setLob] = useState("all");
+  const [lob, setLob] = useState("ONLINE");
+  const [periodMode, setPeriodMode] = useState<"wave" | "month">("wave");
+  const [period, setPeriod] = useState("all");
+  const periodOf = (w: string | null) => (w ? (periodMode === "wave" ? w : w.slice(0, 7)) : "Sin fecha");
+  const inPeriod = (w: string | null) => period === "all" || periodOf(w) === period;
+  const periods = [...new Set([...(data?.rows ?? []).map((r) => r.waveStart), ...(req?.spots ?? []).map((x) => x.waveStart)].map(periodOf))].sort();
+  const open = openSpots(req?.spots ?? [], data?.rows ?? []).filter((o) => inPeriod(o.waveStart));
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const rows = data?.rows ?? [];
-  const filtered = rows.filter((r) => (lob === "all" || trainingGroup(r.modality, r.countryCode) === lob) && (status === "all" || r.status === status) && `${r.fullName} ${r.email} ${r.branch}`.toLowerCase().includes(search.toLowerCase()));
+  const periodRows = rows.filter((r) => inPeriod(r.waveStart));
+  const filtered = periodRows.filter((r) => (lob === "all" || trainingGroup(r.modality, r.countryCode) === lob) && (status === "all" || r.status === status) && `${r.fullName} ${r.email} ${r.branch}`.toLowerCase().includes(search.toLowerCase()));
   const groupNames = [...TRAINING_GROUPS, ...(rows.some((r) => trainingGroup(r.modality, r.countryCode) === "OTROS") ? ["OTROS"] : [])];
   return (
     <div className="min-h-screen bg-background">
@@ -58,13 +64,18 @@ function TrainingPage() {
         <Tabs value={lob} onValueChange={setLob}>
           <div className="overflow-x-auto">
             <TabsList className="h-auto justify-start rounded-none border-b bg-transparent p-0">
-              {["all", ...groupNames].map((g) => <TabsTrigger key={g} value={g} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
-                {g === "all" ? "TODOS" : g}<span className="text-xs text-muted-foreground">{rows.filter((r) => g === "all" || trainingGroup(r.modality, r.countryCode) === g).length}</span>
+              {[...groupNames, "all"].map((g) => <TabsTrigger key={g} value={g} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                {g === "all" ? "TODOS" : g}<span className="text-xs text-muted-foreground">{periodRows.filter((r) => g === "all" || trainingGroup(r.modality, r.countryCode) === g).length}</span>
               </TabsTrigger>)}
             </TabsList>
           </div>
         </Tabs>
-        <RecruitmentGoal />
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
+          <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+        </div>
+        {data && <StatusSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} open={open} />}
+        <RecruitmentGoal group={lob === "all" ? undefined : lob} />
         <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los aprobados entran solos; los cupos de la requisición sin candidato salen como {PENDING_SPOT}.</p>{req?.canManage && <AddRequisition />}</div>
         <div className="flex flex-wrap items-center gap-3">
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
@@ -76,7 +87,7 @@ function TrainingPage() {
         {data && !filtered.length && <p className="py-8 text-muted-foreground">No hay candidatos en esta lista.</p>}
         {data && groupNames.map((group) => {
           const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group);
-          const pending = (status === "all" || status === PENDING_SPOT) && !search ? open.filter((o) => o.group === group) : [];
+          const pending = (status === "all" || status === PENDING_SPOT) && !search && (lob === "all" || lob === group) ? open.filter((o) => o.group === group) : [];
           if (!groupRows.length && !pending.length) return null;
           const docs = [...new Set(groupRows.flatMap((r) => r.documentList))];
           return <section key={group} className="space-y-2">
@@ -183,4 +194,12 @@ function AddRequisition() {
     <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}Guardar</Button>
     <Button variant="ghost" onClick={() => setShow(false)}>Cancelar</Button>
   </div>;
+}
+
+function StatusSummary({ groups, rows, open }: { groups: string[]; rows: { status: string; modality: string | null; countryCode: string | null }[]; open: { group: string }[] }) {
+  const lines = groups.map((g) => ({ g, s: statusSummary(rows.filter((r) => trainingGroup(r.modality, r.countryCode) === g), open.filter((o) => o.group === g).length) }));
+  if (groups.length > 1) lines.push({ g: "TOTAL", s: statusSummary(rows.filter((r) => groups.includes(trainingGroup(r.modality, r.countryCode))), open.filter((o) => groups.includes(o.group)).length) });
+  const cols = lines[0]?.s.items ?? [];
+  return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-sm"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-3 py-2">LOB</th><th className="px-3 py-2">Total</th>{cols.map((c) => <th key={c.status} className="px-3 py-2">{c.status}</th>)}</tr></thead>
+    <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-3 py-2">{g}</td><td className="px-3 py-2">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-3 py-2"><span className="text-base font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
 }
