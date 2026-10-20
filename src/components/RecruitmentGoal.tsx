@@ -44,13 +44,14 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
       {board && cert && (
         <div className="mt-4 grid gap-3 border-t border-destructive/30 pt-3 sm:grid-cols-3">
           {board.map((r) => {
-            const goal = quotaFor(open.length, r.share);
+            const goal = quotaFor(upcoming.length, r.share);
+            const enlisted = roster.rows.filter((x) => x.recruiter.toLowerCase().includes(r.match) && (!group || x.group === group)).length;
             return (
               <div key={r.name} className="rounded border border-destructive/30 bg-background p-3">
                 <p className="text-sm font-semibold">{r.name} · {Math.round(r.share * 100)}%</p>
-                <p className="mt-1 text-3xl font-bold">{r.approved}<span className="text-base font-medium"> aprobados a Training este mes</span></p>
-                <p className="text-xs">Meta: {goal} por reclutar · {quotaFor(weekly, r.share)} por semana</p>
-                <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro: <b>{r.sent}</b> · Calidad: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
+                <p className="mt-1 text-3xl font-bold">{enlisted}/{goal}<span className="text-base font-medium"> aprobados a Training</span></p>
+                <p className="text-xs">Mínimo {quotaFor(weekly, r.share)} por semana</p>
+                <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro este mes: <b>{r.sent}</b> · % CR: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
               </div>
             );
           })}
