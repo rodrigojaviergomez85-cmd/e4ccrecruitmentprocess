@@ -256,6 +256,15 @@ export const updateInterviewCandidateContact = createServerFn({ method: "POST" }
       if (!c) throw new Error("Select a valid country.");
       countryUpdate = { country_code: c.code, country: c.name, city: "", city_id: null, city_other: null };
     }
+    const effCountry = data.country_code || app.country_code;
+    if (data.city_id) {
+      const { data: city } = await ctx.db.from("cities").select("id, name")
+        .eq("id", data.city_id).eq("country_code", effCountry ?? "").maybeSingle();
+      if (!city) throw new Error("Select a valid city for this country.");
+      countryUpdate = { ...countryUpdate, city: city.name, city_id: city.id, city_other: null };
+    } else if (data.city_other) {
+      countryUpdate = { ...countryUpdate, city: data.city_other, city_id: null, city_other: data.city_other };
+    }
     const update = { full_name: data.full_name, email: data.email, phone: data.phone,
       phone_e164: data.phone === app.phone ? app.phone_e164 : null, ...countryUpdate };
     const { error } = await ctx.db.from("applications").update(update).eq("id", app.id);
@@ -280,7 +289,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
     const { data: app, error } = await db
       .from("applications")
       .select(
-        "id, source, full_name, email, phone, phone_e164, country, country_code, city, city_other, status, assigned_manager_id, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
+        "id, source, full_name, email, phone, phone_e164, country, country_code, city, city_id, city_other, status, assigned_manager_id, teaching_experience, callcenter_experience, callcenter_experience_level, submitted_at, cities(name), ai_evaluations(cefr, overall_score, state), appointments(id, starts_at, status, meeting_link, candidate_timezone, interviewers(full_name)), recruitment_progress(*), work_references(*)",
       )
       .eq("id", data.applicationId)
       .maybeSingle();
@@ -420,6 +429,8 @@ export const openEvaluation = createServerFn({ method: "POST" })
         country: app.country,
         countryCode: app.country_code,
         city: app.cities?.name ?? app.city_other ?? app.city,
+        cityId: app.city_id ?? null,
+        cityOther: app.city_other ?? "",
         pipelineStatus: app.status,
         teachingExperience: app.teaching_experience,
         callcenterExperience: app.callcenter_experience,
