@@ -41,3 +41,18 @@ describe("requisitions", () => {
     expect(requisitionSummary([{ filledApplicationId: "a" }, { filledApplicationId: null }, { filledApplicationId: null }])).toEqual({ total: 3, filled: 1, open: 2 });
   });
 });
+
+import { openSpots as _os, weeklyMinimum as _wm, certificationFromStatus as _cf } from "./training.ts";
+import { test as _t2, expect as _e2 } from "bun:test";
+_t2("a drop out before training reopens its requisition spot", () => {
+  const spots = [1, 2, 3].map((i) => ({ id: String(i), group: "ONLINE", waveStart: "2026-11-16", spotType: "NEEDED", agreedSchedule: "", branch: "Online", requestDate: null }));
+  const rows = [{ group: "ONLINE", waveStart: "2026-11-16", status: "RECLUTADO" }, { group: "ONLINE", waveStart: "2026-11-16", status: "DROP OUT BEFORE TRAINING" }];
+  _e2(_os(spots, rows).length).toBe(2);
+});
+_t2("weekly minimum spreads open spots over weeks until the wave", () => {
+  _e2(_wm(22, "2026-11-16", "2026-10-20")).toBe(6);
+});
+_t2("certified in the status dropdown counts as certification", () => {
+  _e2(_cf("CERTIFIED")).toBe("CERTIFIED");
+  _e2(_cf("IN TRAINING")).toBe("PENDIENTE");
+});
