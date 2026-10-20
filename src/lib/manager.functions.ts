@@ -40,6 +40,21 @@ async function managerCtx(userId: string) {
 }
 type Ctx = Awaited<ReturnType<typeof managerCtx>>;
 
+/** Candidates without a country get it from the official branch chosen in the Recruitment interview. */
+async function backfillCountry(db: Db, applicationId: string) {
+  const { data: app } = await db.from("applications").select("id, country_code").eq("id", applicationId).maybeSingle();
+  if (!app || app.country_code) return;
+  const { data: evals } = await db.from("interview_evaluations").select("sections").eq("application_id", applicationId).order("attempt_number", { ascending: false });
+  const { countryForBranch } = await import("./branches");
+  for (const e of evals ?? []) {
+    const code = countryForBranch((e.sections as Record<string, Record<string, unknown>> | null)?.["candidate"]?.["branch"]);
+    if (!code) continue;
+    const { data: c } = await db.from("countries").select("code, name").eq("code", code).maybeSingle();
+    if (c) await db.from("applications").update({ country_code: c.code, country: c.name }).eq("id", applicationId).is("country_code", null);
+    return;
+  }
+}
+
 async function assertAccess(ctx: Ctx, applicationId: string) {
   const { data: app } = await ctx.db
     .from("applications")
@@ -305,6 +320,7 @@ export const getManagerReview = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const ctx = await managerCtx(context.userId);
+    await backfillCountry(ctx.db, data.applicationId);
     await assertAccess(ctx, data.applicationId);
     const db = ctx.db;
     const { data: app, error } = await db
