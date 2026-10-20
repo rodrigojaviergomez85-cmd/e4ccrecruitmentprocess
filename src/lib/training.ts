@@ -24,8 +24,41 @@ export const TRAINING_STATUSES = [
   "NO SHOW",
   "DROP OUT BEFORE TRAINING",
   "DROP OUT DURING TRAINING",
+  "CERTIFIED",
+  "NOT CERTIFIED",
   "BANCA",
 ] as const;
+export const PENDING_SPOT = "PENDIENTE DE RECLUTAR";
+/** Certification lives in the same status dropdown; it is mirrored to the certification field for metrics. */
+export function certificationFromStatus(status: string) {
+  return status === "CERTIFIED" || status === "NOT CERTIFIED" ? status : "PENDIENTE";
+}
+/** Candidates with these statuses no longer hold a requisition spot (the spot reopens). */
+export const RELEASES_SPOT = ["DROP OUT BEFORE TRAINING", "NO SHOW"];
+
+type SpotLite = { group: string; waveStart: string | null; spotType: string; agreedSchedule: string; branch: string; requestDate: string | null };
+type HeldLite = { group: string; waveStart: string | null; status: string };
+/** Open spots per requisition wave = requested spots minus candidates still holding one in the same LOB and wave. */
+export function openSpots<T extends SpotLite>(spots: T[], rows: HeldLite[]): T[] {
+  const held = new Map<string, number>();
+  for (const r of rows) if (!RELEASES_SPOT.includes(r.status)) {
+    const k = `${r.group}|${r.waveStart ?? ""}`;
+    held.set(k, (held.get(k) ?? 0) + 1);
+  }
+  const ordered = [...spots].sort((a, b) => (a.spotType === b.spotType ? 0 : a.spotType === "NEEDED" ? -1 : 1));
+  return ordered.filter((s) => {
+    const k = `${s.group}|${s.waveStart ?? ""}`;
+    const n = held.get(k) ?? 0;
+    if (n > 0) { held.set(k, n - 1); return false; }
+    return true;
+  });
+}
+/** Minimum hires per week to fill the open spots before the wave starts (at least one week). */
+export function weeklyMinimum(open: number, waveStart: string | null, today: string) {
+  if (!open) return 0;
+  const days = waveStart ? Math.ceil((Date.parse(`${waveStart}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000) : 7;
+  return Math.ceil(open / Math.max(1, Math.ceil(days / 7)));
+}
 
 export const CERTIFICATION_VALUES = ["PENDIENTE", "CERTIFIED", "NOT CERTIFIED"] as const;
 export const DAY1_VALUES = ["pending", "continues", "dropped"] as const;

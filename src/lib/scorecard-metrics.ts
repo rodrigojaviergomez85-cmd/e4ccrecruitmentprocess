@@ -129,8 +129,9 @@ export type TrainingLite = {
 /** Recruited = confirmed incorporation + cohort. A training no-show is never a dropout. */
 export function trainingBucket(t: TrainingLite, today: string): TrainingBucket {
   if (t.canceledBeforeStart || t.status === "DROP OUT BEFORE TRAINING") return "Cancelado antes de iniciar";
-  if (t.certification === "CERTIFIED" || t.certification === "NOT CERTIFIED") return "Completó";
-  if (!t.incorporationConfirmed || !t.waveStart) return "No reclutado";
+  if (t.certification === "CERTIFIED" || t.certification === "NOT CERTIFIED" || t.status === "CERTIFIED" || t.status === "NOT CERTIFIED") return "Completó";
+  const incorporated = t.incorporationConfirmed || ["IN TRAINING", "NO SHOW", "DROP OUT DURING TRAINING"].includes(t.status ?? "");
+  if (!incorporated || !t.waveStart) return "No reclutado";
   if (t.status === "NO SHOW") return "No show";
   if (t.status === "DROP OUT DURING TRAINING") return "Dropout";
   if (t.status === "IN TRAINING" || t.startedAt) return "Activo";

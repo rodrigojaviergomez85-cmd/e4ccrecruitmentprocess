@@ -5,8 +5,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
 import { staffTier } from "./roles";
+import { trainingGroup as trainingGroupOf } from "./training";
 import { trainingDocsFor } from "./candidate-emails";
-import { TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
+import { certificationFromStatus, TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
 
 async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
@@ -77,7 +78,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         waveStart: r?.wave_start ?? (t[TRAINING_KEYS.startDate] || null),
         requestDate: r?.request_date ?? null,
         hiringDate: r?.hiring_date ?? null,
-        status: r?.status ?? "RECLUTADO",
+        status: r?.certification === "CERTIFIED" || r?.certification === "NOT CERTIFIED" ? r.certification : (r?.status ?? "RECLUTADO"),
+        group: trainingGroupOf(modality, a.country_code),
         agreedSchedule: r?.agreed_schedule || t[TRAINING_KEYS.schedule] || "",
         comments: r?.comments ?? "",
         incorporationConfirmed: r?.incorporation_confirmed ?? false,
@@ -152,6 +154,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       request_date: nd(data.requestDate),
       hiring_date: nd(data.hiringDate),
       status: data.status,
+      certification: data.status !== undefined ? certificationFromStatus(data.status) : undefined,
       agreed_schedule: data.agreedSchedule,
       comments: data.comments,
       incorporation_confirmed: data.incorporationConfirmed,
@@ -162,7 +165,6 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       documents: data.documents,
       reference_call: data.referenceCall,
       reference_details: data.referenceDetails,
-      certification: data.certification,
       certification_reason: data.certificationReason,
       day1_followup: data.day1Followup,
       day1_notes: data.day1Notes,
