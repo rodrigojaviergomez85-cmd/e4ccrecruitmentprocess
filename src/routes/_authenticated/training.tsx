@@ -14,6 +14,33 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createRequisition, listRequisitions, listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
+import { ONSITE_BRANCHES } from "@/lib/branches";
+import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
+
+const GROUP_CODE: Record<string, string> = { "EL SALVADOR": "SV", NICARAGUA: "NI", GUATEMALA: "GT" };
+function branchOptions(group: string) {
+  return group === "ONLINE" ? ["Online"] : ONSITE_BRANCHES[GROUP_CODE[group] ?? ""] ?? [];
+}
+
+/** Days + start/end dropdowns; stored as readable text like "Lunes a viernes: 5:00 PM–9:00 PM". */
+function SchedulePicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const parsed = DAY_PATTERNS.find((d) => value.startsWith(`${d.label}: `));
+  const times = parsed ? value.slice(parsed.label.length + 2).split("–") : [];
+  const toHhmm = (t: string | undefined) => TIME_OPTIONS.find((o) => fmt12(o) === t?.trim()) ?? "";
+  const [p, setP] = useState<DayPattern | "">(parsed?.value ?? "");
+  const [s, setS] = useState(toHhmm(times[0]));
+  const [e, setE] = useState(toHhmm(times[1]));
+  const emit = (np: DayPattern | "", ns: string, ne: string) => {
+    setP(np); setS(ns); setE(ne);
+    const label = DAY_PATTERNS.find((d) => d.value === np)?.label;
+    if (label && ns && ne && ne > ns) onChange(`${label}: ${fmt12(ns)}–${fmt12(ne)}`);
+  };
+  return <div className="mt-1 flex items-center gap-1" title={value}>
+    <Select value={p} disabled={disabled} onValueChange={(v) => emit(v as DayPattern, s, e)}><SelectTrigger className="w-44"><SelectValue placeholder={!parsed && value ? value : "Días"} /></SelectTrigger><SelectContent>{DAY_PATTERNS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent></Select>
+    <Select value={s} disabled={disabled} onValueChange={(v) => emit(p, v, e && e > v ? e : "")}><SelectTrigger className="w-28"><SelectValue placeholder="Inicio" /></SelectTrigger><SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
+    <Select value={e} disabled={disabled} onValueChange={(v) => emit(p, s, v)}><SelectTrigger className="w-28"><SelectValue placeholder="Fin" /></SelectTrigger><SelectContent>{TIME_OPTIONS.filter((t) => !s || t > s).map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
+  </div>;
+}
 
 export const Route = createFileRoute("/_authenticated/training")({
   head: () => ({ meta: [
@@ -148,7 +175,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{daysUntil(f.waveStart) ?? "—"}</td>
     <td className={cell}>{dateInput("requestDate", "Request date")}</td>
     <td className={cell}>{dateInput("hiringDate", "Día de contratación")}</td>
-    <td className={cell}>{textInput("agreedSchedule", "Horario", p.canEditTraining)}</td>
+    <td className={cell}><SchedulePicker value={f.agreedSchedule} disabled={!p.canEditTraining} onChange={(agreedSchedule) => setF({ ...f, agreedSchedule })} /></td>
     <td className={cell}>{row.trainer || "—"}</td>
     <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
@@ -184,12 +211,12 @@ function AddRequisition() {
   }
   return <div className="flex w-full flex-wrap items-end gap-3 border border-border bg-card p-3">
     <label className="text-xs">LOB<Select value={f.group} onValueChange={(group) => setF({ ...f, group: group as typeof f.group, branch: group === "ONLINE" ? "Online" : "" })}><SelectTrigger className="mt-1 w-40"><SelectValue /></SelectTrigger><SelectContent>{TRAINING_GROUPS.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}</SelectContent></Select></label>
-    <label className="text-xs">Sucursal<Input className="mt-1 w-40" value={f.branch} onChange={(e) => setF({ ...f, branch: e.target.value })} /></label>
+    <label className="text-xs">Sucursal<Select value={f.branch} onValueChange={(branch) => setF({ ...f, branch })}><SelectTrigger className="mt-1 w-48"><SelectValue placeholder="Elige sucursal" /></SelectTrigger><SelectContent>{branchOptions(f.group).map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select></label>
     <label className="text-xs">Inicio de wave<Input type="date" className="mt-1 w-40" value={f.waveStart} onChange={(e) => setF({ ...f, waveStart: e.target.value })} /></label>
     <label className="text-xs">Request date<Input type="date" className="mt-1 w-40" value={f.requestDate} onChange={(e) => setF({ ...f, requestDate: e.target.value })} /></label>
     <label className="text-xs">Tipo<Select value={f.spotType} onValueChange={(spotType) => setF({ ...f, spotType: spotType as typeof f.spotType })}><SelectTrigger className="mt-1 w-32"><SelectValue /></SelectTrigger><SelectContent>{SPOT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select></label>
     <label className="text-xs">Cupos<Input type="number" min={1} max={50} className="mt-1 w-20" value={f.quantity} onChange={(e) => setF({ ...f, quantity: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })} /></label>
-    <label className="text-xs">Horario acordado<Input className="mt-1 w-48" value={f.agreedSchedule} onChange={(e) => setF({ ...f, agreedSchedule: e.target.value })} /></label>
+    <div className="text-xs">Horario acordado<SchedulePicker value={f.agreedSchedule} onChange={(agreedSchedule) => setF({ ...f, agreedSchedule })} /></div>
     <label className="text-xs">Comments<Input className="mt-1 w-48" value={f.comments} onChange={(e) => setF({ ...f, comments: e.target.value })} /></label>
     <Button onClick={() => void save()} disabled={saving}>{saving && <Loader2 className="h-4 w-4 animate-spin" />}Guardar</Button>
     <Button variant="ghost" onClick={() => setShow(false)}>Cancelar</Button>
