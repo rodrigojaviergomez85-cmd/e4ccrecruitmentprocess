@@ -16,6 +16,7 @@ import { getRecruitmentMetrics, type MetricRow } from "@/lib/metrics.functions";
 import {
   LOBS,
   attentionPoints,
+  certificationRate,
   conversionToTraining,
   isClosedManager,
   ratio,
@@ -119,7 +120,7 @@ function toCsv(rows: MetricRow[]) {
     ["Realizada", (r) => (r.completed ? "Sí" : "No")], ["Reclutador", (r) => r.recruiter], ["Decisión Recruitment", (r) => r.recruitment],
     ["Country manager", (r) => r.manager], ["Decisión manager", (r) => r.managerDecision],
     ["Perfil Recruitment", (r) => r.recruitmentTier ?? ""], ["Perfil manager", (r) => r.managerTier ?? ""], ["Perfil final", (r) => r.finalTier ?? "Sin clasificar"],
-    ["Cohorte", (r) => r.training?.waveStart ?? ""], ["Training", (r) => r.training?.status ?? ""], ["Motivo", (r) => r.training?.outcomeReason ?? ""],
+    ["Cohorte", (r) => r.training?.waveStart ?? ""], ["Training", (r) => r.training?.status ?? ""], ["Certificación", (r) => r.training?.certification ?? ""], ["Motivo", (r) => r.training?.outcomeReason ?? ""],
   ];
   const cell = (v: string | number) => { const t = String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
   return [cols.map((c) => c[0]).join(","), ...rows.map((r) => cols.map((c) => cell(c[1](r))).join(","))].join("\n");
@@ -484,11 +485,11 @@ function Team({ pop, open, started, isPending2 }: { pop: MetricRow[]; open: Open
 
       {view === "rec" ? (
         <table className="w-full table-fixed">
-          <thead><tr>{["Reclutador / LOB", "Entrevistas", "Aprobados Recruitment", "Aprobados manager", "% aprobación manager", "Iniciaron training"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Reclutador / LOB", "Entrevistas", "Aprobados Recruitment", "Aprobados manager", "% aprobación manager", "Iniciaron training", "Certified", "Not certified / dropout", "% certificación"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
           <tbody>
             {grouped(pop.filter((r) => r.completed), (r) => r.recruiter).map(([l, m]) => (
               <Fragment key={l}>
-                <tr><td colSpan={6} className="bg-muted px-2 py-1 text-xs font-semibold">{l}</td></tr>
+                <tr><td colSpan={9} className="bg-muted px-2 py-1 text-xs font-semibold">{l}</td></tr>
                 {[...m].sort((a, b) => b[1].length - a[1].length).map(([name, rs]) => {
                   const id = `${l}|${name}`;
                   const sent = rs.filter((r) => r.sentToSecondFilter);
@@ -506,9 +507,12 @@ function Team({ pop, open, started, isPending2 }: { pop: MetricRow[]; open: Open
                         <td className={td}><Num rows={sent.filter((r) => r.managerDecision === "Aprobado")} title={`${name} · Aprobados manager`} open={open} /></td>
                         <td className={td}><Pct r={mgrRatio(sent)} formula="Candidatos del reclutador aprobados por manager ÷ sus candidatos con decisión cerrada del manager × 100" /></td>
                         <td className={td}><Num rows={sent.filter(started)} title={`${name} · Iniciaron training`} open={open} /></td>
+                        <td className={td}><Num rows={sent.filter((r) => r.training?.certification === "CERTIFIED")} title={`${name} · Certified`} open={open} /></td>
+                        <td className={td}><Num rows={sent.filter((r) => r.training?.certification === "NOT CERTIFIED" || tb(r) === "Dropout")} title={`${name} · Not certified / dropout`} open={open} /></td>
+                        <td className={td}><Pct r={certificationRate(sent.map((r) => ({ started: started(r), certification: r.training?.certification })))} formula="Candidatos del reclutador con CERTIFIED ÷ sus candidatos que iniciaron training × 100" /></td>
                       </tr>
                       {expanded === id && (
-                        <tr><td colSpan={6} className="border-b border-border bg-muted/30 px-6 py-2 text-xs">
+                        <tr><td colSpan={9} className="border-b border-border bg-muted/30 px-6 py-2 text-xs">
                           Pendientes 2.º filtro: <Num rows={sent.filter(isPending2)} title={`${name} · Pendientes 2.º filtro`} open={open} /> ·
                           {TIERS.map((t) => <span key={t}> Perfil {t}: <Num rows={rs.filter((r) => r.finalTier === t)} title={`${name} · Perfil ${t}`} open={open} />{d[t].pct !== null ? ` (${d[t].pct}%)` : ""} ·</span>)}
                           {" "}Sin clasificar: {d.unclassified}
@@ -527,7 +531,7 @@ function Team({ pop, open, started, isPending2 }: { pop: MetricRow[]; open: Open
           <tbody>
             {grouped(pop.filter((r) => r.sentToSecondFilter), (r) => r.manager).map(([l, m]) => (
               <Fragment key={l}>
-                <tr><td colSpan={6} className="bg-muted px-2 py-1 text-xs font-semibold">{l}</td></tr>
+                <tr><td colSpan={9} className="bg-muted px-2 py-1 text-xs font-semibold">{l}</td></tr>
                 {[...m].sort((a, b) => a[0].localeCompare(b[0])).map(([name, rs]) => (
                   <tr key={`${l}|${name}`}>
                     <td className={`${td} font-medium`}>{name}</td>
