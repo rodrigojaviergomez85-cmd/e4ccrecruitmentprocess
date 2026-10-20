@@ -33,7 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { resultLabel } from "@/lib/roles";
 import { candidateContactSchema } from "@/lib/candidate-contact";
-import { useCountries } from "@/hooks/useLocations";
+import { useCities, useCountries } from "@/hooks/useLocations";
 import {
   B2_PAST_READING,
   ENGLISH_ACTIVITIES,
@@ -142,9 +142,10 @@ function EvaluationForm() {
   const sendResultFn = useServerFn(sendResultEmail);
   const contactFn = useServerFn(updateInterviewCandidateContact);
   const queryClient = useQueryClient();
-  const [contact, setContact] = useState({ full_name: "", email: "", phone: "", country_code: "" });
+  const [contact, setContact] = useState({ full_name: "", email: "", phone: "", country_code: "", city_id: "", city_other: "" });
   const [contactSaving, setContactSaving] = useState(false);
   const { data: countries } = useCountries();
+  const { data: cities } = useCities(contact.country_code || null);
 
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ["evaluation", applicationId],
@@ -182,11 +183,13 @@ function EvaluationForm() {
   const locked = isLockedStatus(evaluation?.status) || !data?.access.canEvaluate || approvedReadOnly;
 
   useEffect(() => {
-    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "", country_code: candidate.countryCode ?? "" });
-  }, [candidate?.fullName, candidate?.email, candidate?.phone, candidate?.countryCode]);
+    if (candidate) setContact({ full_name: candidate.fullName, email: candidate.email, phone: candidate.phone ?? "", country_code: candidate.countryCode ?? "", city_id: candidate.cityId ?? (candidate.cityOther ? "__other__" : ""), city_other: candidate.cityOther ?? "" });
+  }, [candidate?.fullName, candidate?.email, candidate?.phone, candidate?.countryCode, candidate?.cityId, candidate?.cityOther]);
 
   const saveContact = async () => {
-    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact, country_code: contact.country_code || undefined });
+    const parsed = candidateContactSchema.safeParse({ applicationId, ...contact, country_code: contact.country_code || undefined,
+      city_id: contact.city_id && contact.city_id !== "__other__" ? contact.city_id : undefined,
+      city_other: contact.city_id === "__other__" && contact.city_other.trim() ? contact.city_other : undefined });
     if (!parsed.success) { toast.error(parsed.error.issues[0]?.message ?? "Review candidate details"); return; }
     setContactSaving(true);
     try {
@@ -633,7 +636,7 @@ function EvaluationForm() {
                 <Input aria-label="Candidate email" type="email" autoComplete="email" maxLength={255} value={contact.email} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, email: e.target.value }))} />
               </Field>
               <Field label="Candidate country">
-                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => setContact((c) => ({ ...c, country_code: v }))}>
+                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => setContact((c) => ({ ...c, country_code: v, city_id: "", city_other: "" }))}>
                   <SelectTrigger aria-label="Candidate country">
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>
@@ -644,8 +647,22 @@ function EvaluationForm() {
                   </SelectContent>
                 </Select>
               </Field>
+              <Field label="Candidate city">
+                <Select value={contact.city_id} disabled={contactSaving || !contact.country_code} onValueChange={(v) => setContact((c) => ({ ...c, city_id: v }))}>
+                  <SelectTrigger aria-label="Candidate city">
+                    <SelectValue placeholder={contact.country_code ? "Select city" : "Select country first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(cities ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    <SelectItem value="__other__">Other city</SelectItem>
+                  </SelectContent>
+                </Select>
+                {contact.city_id === "__other__" && (
+                  <Input className="mt-2" aria-label="Other city" placeholder="City name" maxLength={100} value={contact.city_other} disabled={contactSaving} onChange={(e) => setContact((c) => ({ ...c, city_other: e.target.value }))} />
+                )}
+              </Field>
               <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? "") && contact.country_code === (candidate.countryCode ?? ""))}>
+                <Button variant="outline" size="sm" onClick={() => void saveContact()} disabled={contactSaving || (contact.full_name === candidate.fullName && contact.email === candidate.email && contact.phone === (candidate.phone ?? "") && contact.country_code === (candidate.countryCode ?? "") && contact.city_id === (candidate.cityId ?? (candidate.cityOther ? "__other__" : "")) && contact.city_other === (candidate.cityOther ?? ""))}>
                   {contactSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save candidate details
                 </Button>
               </div>
