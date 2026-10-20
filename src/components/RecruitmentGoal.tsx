@@ -5,9 +5,9 @@ import { Target } from "lucide-react";
 import { listRequisitions, listTrainingRoster } from "@/lib/training.functions";
 import { getRecruitmentMetrics } from "@/lib/metrics.functions";
 import { openSpots, weeklyMinimum } from "@/lib/training";
-import { CERTIFICATION_OWNER, certificationBoard, quotaFor, recruiterBoard } from "@/lib/recruiter-quota";
+import { quotaFor, recruiterBoard } from "@/lib/recruiter-quota";
 
-/** Monthly hiring goal from requisitions, split per recruiter (65/35), plus trainer certification results. */
+/** Monthly hiring goal from requisitions, split per recruiter (Morena/Kennia). */
 export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) {
   const listReq = useServerFn(listRequisitions);
   const listRoster = useServerFn(listTrainingRoster);
@@ -31,7 +31,6 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
   const onsite = open.length - online;
   const weekly = list.reduce((n, w) => n + weeklyMinimum(w.open, w.waveStart, today), 0);
   const board = metrics ? recruiterBoard(metrics.rows, monthStart) : null;
-  const cert = metrics ? certificationBoard(metrics.rows, monthStart) : null;
   return (
     <section className="border-2 border-destructive bg-destructive/5 p-4 text-destructive">
       <div className="flex items-center gap-2 text-sm font-semibold uppercase"><Target className="h-4 w-4" />Meta de reclutamiento</div>
