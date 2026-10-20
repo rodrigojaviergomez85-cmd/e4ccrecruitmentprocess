@@ -41,28 +41,37 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
         <div><p className="text-4xl font-bold">{weekly}</p><p className="text-sm font-medium">contrataciones mínimas por semana</p></div>
       </div>
       {list.length > 0 && <p className="mt-3 text-xs">{list.map((w) => `${w.group} · wave ${w.waveStart ?? "sin fecha"}: ${w.open} cupos (${weeklyMinimum(w.open, w.waveStart, today)}/semana)`).join("  ·  ")}</p>}
-      {board && cert && (
-        <div className="mt-4 grid gap-3 border-t border-destructive/30 pt-3 sm:grid-cols-3">
+      {board && (
+        <div className="mt-4 grid gap-3 border-t border-destructive/30 pt-3 sm:grid-cols-2">
           {board.map((r) => {
-            const allUpcoming = req.spots.filter((s) => !s.waveStart || s.waveStart >= today).length;
-            const goal = quotaFor(allUpcoming, r.share);
+            const allSpots = req.spots.filter((s) => !s.waveStart || s.waveStart >= today);
+            const goal = quotaFor(allSpots.length, r.share);
             const mine = roster.rows.filter((x) => x.recruiter.toLowerCase().includes(r.match));
-            const enlisted = mine.length;
-            const inTab = group ? mine.filter((x) => x.group === group).length : null;
+            const allOpen = openSpots(allSpots, roster.rows);
+            const byLob = new Map<string, { spots: number; wave: string }>();
+            for (const s of allSpots) {
+              const cur = byLob.get(s.group);
+              const w = s.waveStart ?? "9999";
+              byLob.set(s.group, { spots: (cur?.spots ?? 0) + 1, wave: cur && cur.wave < w ? cur.wave : w });
+            }
+            const lobs = [...byLob.entries()].sort((a, b) => a[1].wave.localeCompare(b[1].wave) || a[0].localeCompare(b[0]));
+            const weeklyAll = (() => {
+              const m = new Map<string, { open: number; wave: string | null }>();
+              for (const o of allOpen) { const k = `${o.group}|${o.waveStart}`; m.set(k, { open: (m.get(k)?.open ?? 0) + 1, wave: o.waveStart }); }
+              return [...m.values()].reduce((n, w) => n + weeklyMinimum(w.open, w.wave, today), 0);
+            })();
             return (
               <div key={r.name} className="rounded border border-destructive/30 bg-background p-3">
                 <p className="text-sm font-semibold">{r.name} · {Math.round(r.share * 100)}%</p>
-                <p className="mt-1 text-3xl font-bold">{enlisted}/{goal}<span className="text-base font-medium"> aprobados a Training</span></p>
-                <p className="text-xs">{inTab != null && <>En {group}: <b>{inTab}</b> · </>}Mínimo {quotaFor(weekly, r.share)} por semana</p>
+                <p className="mt-1 text-3xl font-bold">{mine.length}/{goal}<span className="text-base font-medium"> aprobados a Training</span></p>
+                <p className="mt-1 text-xs">
+                  {lobs.map(([lob, v]) => `${lob} ${mine.filter((x) => x.group === lob).length}/${quotaFor(v.spots, r.share)}`).join("  ·  ")}
+                </p>
+                <p className="text-xs">Mínimo <b>{quotaFor(weeklyAll, r.share)}</b> por semana</p>
                 <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro este mes: <b>{r.sent}</b> · % CR: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
               </div>
             );
           })}
-          <div className="rounded border border-border bg-background p-3 text-foreground">
-            <p className="text-sm font-semibold">{CERTIFICATION_OWNER.name} · Training</p>
-            <p className="mt-1 text-3xl font-bold">{cert.certified}<span className="text-base font-medium"> certificados este mes</span></p>
-            <p className="text-xs">Not certified: <b>{cert.notCertified}</b> · % certificación: <b>{cert.rate == null ? "—" : `${cert.rate}%`}</b> · In Training: <b>{cert.inTraining}</b></p>
-          </div>
         </div>
       )}
     </section>
