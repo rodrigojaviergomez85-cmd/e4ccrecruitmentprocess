@@ -44,13 +44,16 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
       {board && cert && (
         <div className="mt-4 grid gap-3 border-t border-destructive/30 pt-3 sm:grid-cols-3">
           {board.map((r) => {
-            const goal = quotaFor(upcoming.length, r.share);
-            const enlisted = roster.rows.filter((x) => x.recruiter.toLowerCase().includes(r.match) && (!group || x.group === group)).length;
+            const allUpcoming = req.spots.filter((s) => !s.waveStart || s.waveStart >= today).length;
+            const goal = quotaFor(allUpcoming, r.share);
+            const mine = roster.rows.filter((x) => x.recruiter.toLowerCase().includes(r.match));
+            const enlisted = mine.length;
+            const inTab = group ? mine.filter((x) => x.group === group).length : null;
             return (
               <div key={r.name} className="rounded border border-destructive/30 bg-background p-3">
                 <p className="text-sm font-semibold">{r.name} · {Math.round(r.share * 100)}%</p>
                 <p className="mt-1 text-3xl font-bold">{enlisted}/{goal}<span className="text-base font-medium"> aprobados a Training</span></p>
-                <p className="text-xs">Mínimo {quotaFor(weekly, r.share)} por semana</p>
+                <p className="text-xs">{inTab != null && <>En {group}: <b>{inTab}</b> · </>}Mínimo {quotaFor(weekly, r.share)} por semana</p>
                 <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro este mes: <b>{r.sent}</b> · % CR: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
               </div>
             );
