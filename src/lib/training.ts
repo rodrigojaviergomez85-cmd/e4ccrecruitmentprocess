@@ -95,6 +95,6 @@ export function statusSummary(rows: { status: string }[], pendingSpots: number) 
   const total = rows.length + pendingSpots;
   const counts: Record<string, number> = Object.fromEntries(SUMMARY_STATUSES.map((s) => [s, 0]));
   counts[PENDING_SPOT] = pendingSpots;
-  for (const r of rows) if (r.status in counts) counts[r.status]++;
-  return { total, items: SUMMARY_STATUSES.map((s) => ({ status: s, count: counts[s], pct: total ? Math.round((counts[s] / total) * 100) : 0 })) };
+  for (const r of rows) if (r.status in counts) counts[r.status] = (counts[r.status] ?? 0) + 1;
+  return { total, items: SUMMARY_STATUSES.map((s) => ({ status: s, count: counts[s] ?? 0, pct: total ? Math.round(((counts[s] ?? 0) / total) * 100) : 0 })) };
 }

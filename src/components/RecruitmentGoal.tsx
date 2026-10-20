@@ -6,7 +6,7 @@ import { listRequisitions, listTrainingRoster } from "@/lib/training.functions";
 import { openSpots, weeklyMinimum } from "@/lib/training";
 
 /** Monthly hiring goal from requisitions: open spots by Online/Onsite and weekly minimum until each wave starts. */
-export function RecruitmentGoal({ group }: { group?: string } = {}) {
+export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) {
   const listReq = useServerFn(listRequisitions);
   const listRoster = useServerFn(listTrainingRoster);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
