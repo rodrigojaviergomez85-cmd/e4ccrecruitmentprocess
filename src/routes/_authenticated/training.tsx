@@ -123,7 +123,7 @@ function TrainingPage() {
             <div className="max-h-[65vh] overflow-auto border border-border">
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
-                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Día de contratación", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
+                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
                 </thead>
                 <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}{pending.map((o) => <tr key={o.id} className="bg-destructive/5">
                   <td className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
@@ -176,7 +176,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{dateInput("waveStart", "Inicio de wave")}</td>
     <td className={cell}>{daysUntil(f.waveStart) ?? "—"}</td>
     <td className={cell}>{dateInput("requestDate", "Request date")}</td>
-    <td className={cell}>{dateInput("hiringDate", "Día de contratación")}</td>
+    <td className={cell}>{row.recruitmentApprovedAt ?? "—"}</td>
     <td className={cell}><SchedulePicker value={f.agreedSchedule} disabled={!p.canEditTraining} onChange={(agreedSchedule) => setF({ ...f, agreedSchedule })} /></td>
     <td className={cell}>{row.trainer || "—"}</td>
     <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>

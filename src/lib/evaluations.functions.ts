@@ -321,7 +321,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
           evaluator_id: context.userId,
           last_edited_by: context.userId,
           status: "In progress",
-          interview_date: appt?.starts_at ? appt.starts_at.slice(0, 10) : null,
+          interview_date: new Date().toLocaleDateString("en-CA", { timeZone: "America/El_Salvador" }),
         })
         .select("*")
         .single();
@@ -686,8 +686,9 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         ...(data.submit
           ? {
               decision_stage: "recruitment_interview",
-              decided_by: context.userId,
-              decided_at: new Date().toISOString(),
+              // Edits to an already-decided interview keep the original decider and date.
+              decided_by: current.decided_by && current.final_result === data.finalResult ? current.decided_by : context.userId,
+              decided_at: current.decided_at && current.final_result === data.finalResult ? current.decided_at : new Date().toISOString(),
               decision_reason:
                 data.finalResult === "Not approved"
                   ? (data.notApprovedReasons ?? []).join("; ") || null
