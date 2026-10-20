@@ -145,6 +145,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const [f, setF] = useState(row);
   const [baseline, setBaseline] = useState(row);
   const [saving, setSaving] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const dirty = JSON.stringify(f) !== JSON.stringify(baseline);
   const pct = documentsPercent(f.documentList, f.documents);
   const blocked = approvalBlocked(f.referenceCall);
