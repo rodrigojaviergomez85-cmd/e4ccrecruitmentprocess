@@ -61,6 +61,7 @@ export type MetricRow = {
   // training
   training: {
     status: string | null;
+    certification: string;
     incorporationConfirmed: boolean;
     canceledBeforeStart: boolean;
     waveStart: string | null;
@@ -72,7 +73,7 @@ export type MetricRow = {
 };
 
 const SELECT =
-  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, interview_date, started_at, submitted_at, decided_at, sections, profile_tier), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence, profile_tier), training_roster(status, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
+  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, interview_date, started_at, submitted_at, decided_at, sections, profile_tier), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence, profile_tier), training_roster(status, certification, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
 
 type Db = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
@@ -187,6 +188,7 @@ export const getRecruitmentMetrics = createServerFn({ method: "POST" })
           training: tr
             ? {
                 status: tr.status,
+                certification: tr.certification ?? "PENDIENTE",
                 incorporationConfirmed: Boolean(tr.incorporation_confirmed),
                 canceledBeforeStart: Boolean(tr.canceled_before_start),
                 waveStart: tr.wave_start,
