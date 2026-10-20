@@ -17,7 +17,7 @@ type Row = {
   recruitmentDecidedAt: string | null;
   managerDecision: string;
   managerDecidedAt: string | null;
-  training: { status: string; certification: string; outcomeAt: string | null } | null;
+  training: { status: string | null; certification: string; outcomeAt: string | null } | null;
 };
 
 const inPeriod = (d: string | null, from: string) => Boolean(d && d.slice(0, 10) >= from);
