@@ -317,3 +317,42 @@ export const updateRequisition = createServerFn({ method: "POST" })
     await writeAudit(ctx.db as never, { actorId: context.userId, actorEmail: ctx.email, action: `requisition.${data.action}`, entityType: "training_requisition", entityId: spot.id, applicationId: data.applicationId ?? spot.filled_application_id ?? null, newValue: data });
     return { ok: true };
   });
+
+/** Compact read-only interview summary for an approved candidate. Full staff only (no Trainer/Generalista-only accounts). */
+export const getTrainingProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ applicationId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (ctx.trainingOnly) throw new Error("Tu rol no tiene acceso al expediente de entrevista.");
+    const { data: a, error } = await ctx.db
+      .from("applications")
+      .select("id, full_name, email, phone, country, country_code, city, status, recruitment_progress(work_modality, grammar_test_score), ai_evaluations(cefr), interview_evaluations(id, attempt_number, evaluator_id, decided_by, decided_at, final_result, live_cefr, hiring_bonus, comments, red_flags, retake_reason), manager_evaluations(attempt_number, final_decision, decided_by, manager_id, decided_at, decision_reason, internal_comments, improvement_areas, red_flags, evidence)")
+      .eq("id", data.applicationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!a) throw new Error("Candidato no encontrado.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(a.country_code ?? "")) throw new Error("Este candidato está fuera de tus países.");
+    const byAttempt = <T extends { attempt_number: number | null }>(l: T[] | null) => [...(l ?? [])].sort((x, y) => (x.attempt_number ?? 0) - (y.attempt_number ?? 0));
+    const evals = byAttempt(a.interview_evaluations);
+    const mgrs = byAttempt(a.manager_evaluations);
+    const last = evals[evals.length - 1];
+    const ids = [...new Set([...evals.flatMap((e) => [e.evaluator_id, e.decided_by]), ...mgrs.flatMap((m) => [m.decided_by, m.manager_id])].filter(Boolean))] as string[];
+    const [{ data: staff }, { data: jobs }] = await Promise.all([
+      ids.length ? ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : Promise.resolve({ data: [] as { user_id: string; full_name: string }[] }),
+      last ? ctx.db.from("evaluation_jobs").select("slot, company, position, start_date, end_date, supervisor_name, supervisor_contact, reason_for_leaving").eq("evaluation_id", last.id).order("slot") : Promise.resolve({ data: [] }),
+    ]);
+    const name = (id: string | null) => (id ? (staff ?? []).find((s) => s.user_id === id)?.full_name || "—" : "—");
+    const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null; grammar_test_score: number | null } | null;
+    const ai = (Array.isArray(a.ai_evaluations) ? a.ai_evaluations[0] : a.ai_evaluations) as { cefr: string | null } | null;
+    return {
+      fullName: a.full_name, email: a.email, phone: a.phone, country: a.country, city: a.city,
+      modality: rp?.work_modality ?? null, grammarScore: rp?.grammar_test_score ?? null, aiLevel: ai?.cefr ?? null,
+      interviews: evals.map((e) => ({ attempt: e.attempt_number, openedBy: name(e.evaluator_id), decidedBy: name(e.decided_by ?? e.evaluator_id), decidedAt: e.decided_at, result: e.final_result, level: e.live_cefr, hiringBonus: e.hiring_bonus, comments: e.comments, redFlags: e.red_flags, retakeReason: e.retake_reason })),
+      jobs: jobs ?? [],
+      managers: mgrs.map((m) => {
+        const ev = (m.evidence as Record<string, string> | null) ?? {};
+        return { attempt: m.attempt_number, manager: name(m.decided_by ?? m.manager_id), decidedAt: m.decided_at, decision: m.final_decision, reason: m.decision_reason, comments: m.internal_comments, improvement: m.improvement_areas, redFlags: m.red_flags, lob: ev[AGREEMENT_KEYS.lob] ?? "", schedule: ev[TRAINING_KEYS.schedule] ?? "", startDate: ev[TRAINING_KEYS.startDate] ?? "" };
+      }),
+    };
+  });
