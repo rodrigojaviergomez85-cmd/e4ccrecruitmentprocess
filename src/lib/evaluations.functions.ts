@@ -608,6 +608,18 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     }
 
     const sections = { ...(current.sections as Record<string, Record<string, unknown>>), ...data.sections };
+    // Fill a missing candidate country from the official onsite branch chosen in the interview.
+    if (app && !app.country_code) {
+      const { countryForBranch } = await import("./branches");
+      const code = countryForBranch(sections["candidate"]?.["branch"]);
+      if (code) {
+        const { data: c } = await db.from("countries").select("code, name").eq("code", code).maybeSingle();
+        if (c) {
+          await db.from("applications").update({ country_code: c.code, country: c.name }).eq("id", app.id).is("country_code", null);
+          await writeAudit(db as never, { actorId: context.userId, actorEmail: ctx.email, action: "application.country_inferred", entityType: "application", entityId: app.id, applicationId: app.id, oldValue: { country_code: null }, newValue: { country_code: c.code, from_branch: sections["candidate"]?.["branch"] } });
+        }
+      }
+    }
     const modality = one(app?.recruitment_progress)?.work_modality ?? "";
     if (!String(sections["candidate"]?.["lob"] ?? "").trim() && modality) {
       sections["candidate"] = { ...(sections["candidate"] ?? {}), lob: modality };
