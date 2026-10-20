@@ -35,11 +35,14 @@ async function statusesFor(db: Db, appIds: string[]) {
   const [{ data: apps }, { data: appts }, { data: roster }] = await Promise.all([
     db.from("applications").select("id, status").in("id", appIds),
     db.from("appointments").select("application_id, status").in("application_id", appIds).in("status", ["Scheduled", "Confirmed"]),
-    db.from("training_roster").select("application_id, status").in("application_id", appIds),
+    db.from("training_roster").select("application_id, status, certification" as "application_id, status").in("application_id", appIds),
   ]);
   for (const a of apps ?? []) map.set(a.id, { status: a.status, appointment: false, training: null });
   for (const a of appts ?? []) { const m = map.get(a.application_id); if (m) m.appointment = true; }
-  for (const r of roster ?? []) { const m = map.get(r.application_id); if (m) m.training = r.status; }
+  for (const r of (roster ?? []) as Array<{ application_id: string; status: string; certification?: string }>) {
+    const m = map.get(r.application_id);
+    if (m) m.training = r.certification && r.certification !== "PENDIENTE" ? r.certification : r.status;
+  }
   return map;
 }
 

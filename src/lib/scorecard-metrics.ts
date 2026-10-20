@@ -124,15 +124,15 @@ export type TrainingBucket =
   | "No show" | "Dropout" | "Completó" | "Sin registrar";
 export type TrainingLite = {
   status: string | null; incorporationConfirmed: boolean; canceledBeforeStart: boolean;
-  waveStart: string | null; startedAt: string | null;
+  waveStart: string | null; startedAt: string | null; certification?: string | null;
 };
 /** Recruited = confirmed incorporation + cohort. A training no-show is never a dropout. */
 export function trainingBucket(t: TrainingLite, today: string): TrainingBucket {
   if (t.canceledBeforeStart || t.status === "DROP OUT BEFORE TRAINING") return "Cancelado antes de iniciar";
+  if (t.certification === "CERTIFIED" || t.certification === "NOT CERTIFIED") return "Completó";
   if (!t.incorporationConfirmed || !t.waveStart) return "No reclutado";
   if (t.status === "NO SHOW") return "No show";
   if (t.status === "DROP OUT DURING TRAINING") return "Dropout";
-  if (t.status === "CERTIFIED" || t.status === "NOT CERTIFIED") return "Completó";
   if (t.status === "IN TRAINING" || t.startedAt) return "Activo";
   if (t.waveStart > today) return "Pendiente de iniciar";
   return "Sin registrar";
@@ -141,6 +141,12 @@ export const trainingStarted = (b: TrainingBucket) => b === "Activo" || b === "D
 /** Expected to start: confirmed, start date reached, not canceled. */
 export const trainingExpected = (b: TrainingBucket) =>
   trainingStarted(b) || b === "No show" || b === "Sin registrar";
+
+/** Quality of hire for a recruiter: certified ÷ candidates who started training. */
+export function certificationRate(rows: { started: boolean; certification: string | null | undefined }[]): Ratio {
+  const started = rows.filter((r) => r.started);
+  return ratio(started.filter((r) => r.certification === "CERTIFIED").length, started.length);
+}
 
 /* ---------- Executive scorecard (v3) ---------- */
 
