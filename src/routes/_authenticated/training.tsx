@@ -23,7 +23,7 @@ function branchOptions(group: string) {
 }
 
 /** Days + start/end dropdowns; stored as readable text like "Lunes a viernes: 5:00 PM–9:00 PM". */
-function SchedulePicker({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+function SchedulePicker({ value, onChange, disabled = false }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
   const parsed = DAY_PATTERNS.find((d) => value.startsWith(`${d.label}: `));
   const times = parsed ? value.slice(parsed.label.length + 2).split("–") : [];
   const toHhmm = (t: string | undefined) => TIME_OPTIONS.find((o) => fmt12(o) === t?.trim()) ?? "";
