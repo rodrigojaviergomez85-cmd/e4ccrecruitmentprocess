@@ -1,3 +1,4 @@
+import { creditedRecruiterId } from "./recruiter-quota";
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -73,7 +74,7 @@ export type MetricRow = {
 };
 
 const SELECT =
-  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, interview_date, started_at, submitted_at, decided_at, sections, profile_tier), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence, profile_tier), training_roster(status, certification, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
+  "id, full_name, email, country, country_code, city, city_other, status, assigned_manager_id, last_contact_at, archived_at, cities(name), recruitment_progress(work_modality), appointments(starts_at, status, calendly_invitee_uri), interview_evaluations(attempt_number, status, final_result, evaluator_id, decided_by, interview_date, started_at, submitted_at, decided_at, sections, profile_tier), manager_evaluations(attempt_number, status, final_decision, manager_id, evaluator_id, decided_by, decided_at, submitted_at, appointment_at, timer_started_at, evidence, profile_tier), training_roster(status, certification, incorporation_confirmed, canceled_before_start, wave_start, started_at, outcome_at, outcome_reason)";
 
 type Db = Awaited<typeof import("@/integrations/supabase/client.server")>["supabaseAdmin"];
 
@@ -149,7 +150,7 @@ export const getRecruitmentMetrics = createServerFn({ method: "POST" })
         const mgrDecision = managerDecision(mgr?.final_decision, mgrSubmitted);
         // Attribution: whoever actually decided, otherwise the assigned manager.
         const managerId = mgr?.decided_by ?? mgr?.manager_id ?? app.assigned_manager_id ?? null;
-        const recruiterId = ev?.evaluator_id ?? null;
+        const recruiterId = creditedRecruiterId(ev);
         const live = appt && appt.status !== "Canceled";
         return {
           applicationId: app.id,

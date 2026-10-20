@@ -20,3 +20,13 @@ describe("Recruiter quota split", () => {
     assert.equal(b[0].quality, 50);
   });
 });
+
+import { creditedRecruiterId } from "./recruiter-quota.ts";
+describe("Retake credit", () => {
+  test("Retake approved by Morena credits Morena even if Kennia opened it", () => {
+    assert.equal(creditedRecruiterId({ evaluator_id: "kennia", decided_by: "morena" }), "morena");
+  });
+  test("Undecided interview stays with whoever opened it", () => {
+    assert.equal(creditedRecruiterId({ evaluator_id: "kennia", decided_by: null }), "kennia");
+  });
+});

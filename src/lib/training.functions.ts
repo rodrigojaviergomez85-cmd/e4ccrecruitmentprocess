@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scorecard";
+import { creditedRecruiterId } from "./recruiter-quota";
 import { staffTier } from "./roles";
 import { trainingGroup as trainingGroupOf } from "./training";
 import { trainingDocsFor } from "./candidate-emails";
@@ -40,14 +41,20 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const ctx = await ctxFor(context.userId, context.supabase);
     let q = ctx.db
       .from("applications")
-      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(verification_status), interview_evaluations(attempt_number, evaluator_id, final_result), training_roster(*), recruitment_progress(work_modality)")
+      .select("id, full_name, email, phone, country, country_code, city, status, assigned_manager_id, manager_evaluations(attempt_number, final_decision, decided_at, evidence), work_references(slot, company, position, supervisor_name, supervisor_position, supervisor_phone, supervisor_email, verification_status), interview_evaluations(id, attempt_number, evaluator_id, decided_by, final_result), training_roster(*), recruitment_progress(work_modality)")
       .eq("status", "Approved for Training")
       .is("archived_at", null);
     if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    const recruiterOf = (a: { interview_evaluations?: { attempt_number: number | null; evaluator_id: string | null; final_result: string | null }[] | null }) =>
-      [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0]?.evaluator_id ?? null;
+    const latestEval = (a: { interview_evaluations?: { id: string; attempt_number: number | null; evaluator_id: string | null; decided_by: string | null; final_result: string | null }[] | null }) =>
+      [...(a.interview_evaluations ?? [])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0] ?? null;
+    const recruiterOf = (a: Parameters<typeof latestEval>[0]) => creditedRecruiterId(latestEval(a));
+    const showContacts = ctx.canEditReferences || !ctx.trainingOnly;
+    const evalIds = showContacts ? ((data ?? []).map((a) => latestEval(a)?.id).filter(Boolean) as string[]) : [];
+    const { data: jobs } = evalIds.length
+      ? await ctx.db.from("evaluation_jobs").select("evaluation_id, slot, company, position, supervisor_name, supervisor_contact").in("evaluation_id", evalIds)
+      : { data: [] as { evaluation_id: string; slot: number; company: string; position: string; supervisor_name: string; supervisor_contact: string }[] };
     const ids = [...new Set((data ?? []).map(recruiterOf).filter(Boolean))] as string[];
     const { data: staff } = ids.length ? await ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : { data: [] };
     const names = new Map((staff ?? []).map((p) => [p.user_id, p.full_name]));
@@ -98,6 +105,10 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
         referencesVerified: refs.filter((x) => x.verification_status === "Verified").length,
+        referenceContacts: !showContacts ? [] : [
+          ...[...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ source: "Aplicante", company: x.company, position: x.position, supervisor: x.supervisor_name, contact: [x.supervisor_phone, x.supervisor_email].filter(Boolean).join(" · ") })),
+          ...(jobs ?? []).filter((j) => j.evaluation_id === latestEval(a)?.id).sort((x, y) => x.slot - y.slot).map((j) => ({ source: "Reclutador", company: j.company, position: j.position, supervisor: j.supervisor_name, contact: j.supervisor_contact })),
+        ].filter((c) => c.company || c.supervisor || c.contact),
       };
     });
     rows.sort((x, y) => (x.waveStart ?? "9999").localeCompare(y.waveStart ?? "9999"));
