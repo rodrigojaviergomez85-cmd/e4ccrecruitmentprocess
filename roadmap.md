@@ -32,4 +32,4 @@
 - [x] Training: CERTIFIED/NOT CERTIFIED dentro de Estado; quitar columnas extra, solo Comments
 - [x] Requisiciones de vuelta: cupos abiertos como filas PENDIENTE DE RECLUTAR (drop out before training reabre cupo)
 - [x] Meta en rojo para reclutadores: pendientes Online/Onsite y mínimo semanal hasta inicio de wave
-- [x] Meta por reclutador: Morena 65%, Kennia 35%, Roberto certificaciones
+- [x] Meta por reclutador: Morena 60%, Kennia 40%, Roberto certificaciones

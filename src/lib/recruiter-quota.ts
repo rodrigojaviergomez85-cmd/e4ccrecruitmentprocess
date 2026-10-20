@@ -1,7 +1,7 @@
 /** Hiring quota split per recruiter. Trainers (e.g. Roberto Sánchez) carry certification metrics, not hiring quota. */
 export const RECRUITER_SHARES: { match: string; name: string; share: number }[] = [
-  { match: "morena", name: "Morena Lemus", share: 0.65 },
-  { match: "kennia", name: "Kennia Vasquez", share: 0.35 },
+  { match: "morena", name: "Morena Lemus", share: 0.6 },
+  { match: "kennia", name: "Kennia Vasquez", share: 0.4 },
 ];
 export const CERTIFICATION_OWNER = { match: "roberto", name: "Roberto Sánchez" };
 

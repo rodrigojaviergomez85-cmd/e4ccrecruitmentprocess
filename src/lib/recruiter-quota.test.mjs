@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { quotaFor, recruiterBoard, shareOf } from "./recruiter-quota.ts";
 
 describe("Recruiter quota split", () => {
-  test("Morena carries 65% and Kennia 35% of the hiring goal", () => {
-    assert.equal(shareOf("MORENA LEMUS").share, 0.65);
-    assert.equal(shareOf("Kennia Vasquez").share, 0.35);
-    assert.equal(quotaFor(14, 0.65), 10);
-    assert.equal(quotaFor(14, 0.35), 5);
+  test("Morena carries 60% and Kennia 40% of the hiring goal", () => {
+    assert.equal(shareOf("MORENA LEMUS").share, 0.6);
+    assert.equal(shareOf("Kennia Vasquez").share, 0.4);
+    assert.equal(quotaFor(39, 0.6), 24);
+    assert.equal(quotaFor(39, 0.4), 16);
   });
   test("Roberto Sánchez has no hiring quota", () => {
     assert.equal(shareOf("ROBERTO SANCHEZ"), null);
