@@ -18,6 +18,8 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
   if (!req || !roster) return null;
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/El_Salvador" });
   const monthStart = `${today.slice(0, 7)}-01`;
+  // Week starts Monday (El Salvador date).
+  const weekStart = (() => { const d = new Date(`${today}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); })();
   const upcoming = req.spots.filter((s) => (!s.waveStart || s.waveStart >= today) && (!group || s.group === group));
   const open = openSpots(upcoming, roster.rows);
   if (!upcoming.length) return null;
@@ -66,7 +68,7 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
                 <p className="mt-1 text-xs">
                   {lobs.map(([lob, v]) => `${lob} ${mine.filter((x) => x.group === lob).length}/${quotaFor(v.spots, r.share)}`).join("  ·  ")}
                 </p>
-                <p className="text-xs">Mínimo <b>{quotaFor(weeklyAll, r.share)}</b> por semana</p>
+                <p className="mt-1 text-sm font-semibold">Esta semana: {mine.filter((x) => (x.recruitmentApprovedAt ?? "") >= weekStart).length}/{quotaFor(weeklyAll, r.share)} <span className="font-normal">mínimo por semana</span></p>
                 <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro este mes: <b>{r.sent}</b> · % CR: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
               </div>
             );
