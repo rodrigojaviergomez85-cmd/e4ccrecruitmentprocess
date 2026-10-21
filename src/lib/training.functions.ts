@@ -402,9 +402,9 @@ export const saveTrainingReferences = createServerFn({ method: "POST" })
       const { data: ev } = await ctx.db.from("interview_evaluations").select("id").eq("application_id", app.id).order("attempt_number", { ascending: false }).limit(1).maybeSingle();
       if (!ev) throw new Error("Este candidato no tiene entrevista donde guardar referencias.");
       for (const r of recRows) {
-        const fields = { company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_contact: r.phone, reference_comment: r.comment } as never;
+        const fields = { company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_contact: r.phone, reference_comment: r.comment } as Record<string, string>;
         const { error } = r.id
-          ? await ctx.db.from("evaluation_jobs").update(fields).eq("id", r.id).eq("evaluation_id", ev.id)
+          ? await ctx.db.from("evaluation_jobs").update(fields as never).eq("id", r.id).eq("evaluation_id", ev.id)
           : await ctx.db.from("evaluation_jobs").insert({ evaluation_id: ev.id, slot: r.slot, ...fields } as never);
         if (error) throw new Error(error.message);
       }
