@@ -7,8 +7,7 @@ import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scor
 import { creditedRecruiterId } from "./recruiter-quota";
 import { staffTier } from "./roles";
 import { trainingGroup as trainingGroupOf } from "./training";
-import { trainingDocsFor } from "./candidate-emails";
-import { certificationFromStatus, TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions } from "./training";
+import { certificationFromStatus, TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions, trainingDocList, compactDocuments } from "./training";
 
 async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
@@ -68,7 +67,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
       const recruiterId = recruiterOf(a);
       const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null } | null;
       const modality = normalizeModality(t[AGREEMENT_KEYS.modality]) ?? normalizeModality(rp?.work_modality);
-      const docs = trainingDocsFor(a.country_code)?.items ?? [];
+      const docs = trainingDocList(a.country_code);
       const refs = a.work_references ?? [];
       return {
         id: a.id,
@@ -101,7 +100,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         day1Followup: r?.day1_followup ?? "pending",
         day1Notes: r?.day1_notes ?? "",
         documentList: docs,
-        documents: (r?.documents as Record<string, boolean> | null) ?? {},
+        documents: compactDocuments(r?.documents as Record<string, boolean> | null),
         referenceCall: r?.reference_call ?? "pending",
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
@@ -160,7 +159,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
     if (data.documents) {
-      const allowed = trainingDocsFor(app.country_code)?.items ?? [];
+      const allowed = trainingDocList(app.country_code);
       if (Object.keys(data.documents).some((key) => !allowed.includes(key))) throw new Error("Unknown document for this candidate.");
     }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);

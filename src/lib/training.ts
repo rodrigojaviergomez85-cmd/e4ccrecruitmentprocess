@@ -76,6 +76,38 @@ export function approvalBlocked(referenceCall: string) {
   return referenceCall !== "done";
 }
 
+/** Compact document checklist shown in the Training Tracker — the same for every country. */
+export const DOC_ID = "Identidad (ambos lados)";
+export const DOC_DIPLOMA = "Título académico";
+export const DOC_RECORDS = "Antecedentes";
+export const DOC_HEALTH = "Certificado de Salud";
+export const DOC_AGREEMENT = "Convenio firmado";
+export const TRAINING_DOC_CHECKLIST = [DOC_ID, DOC_DIPLOMA, DOC_RECORDS, DOC_HEALTH, DOC_AGREEMENT] as const;
+
+/** The health certificate is the only document that varies by country (Nicaragua requires it). */
+export function trainingDocList(countryCode: string | null | undefined): string[] {
+  const cc = (countryCode ?? "").toUpperCase();
+  return cc === "NI" ? [...TRAINING_DOC_CHECKLIST] : TRAINING_DOC_CHECKLIST.filter((d) => d !== DOC_HEALTH);
+}
+
+/** Maps the old per-country document keys onto the compact checklist so existing checkmarks are kept. */
+const OLD_DOC_GROUPS: [string, string[]][] = [
+  [DOC_ID, ["DUI", "DPI", "Cédula", "Identity card", "Voter ID", "ID / Cédula"]],
+  [DOC_DIPLOMA, ["diploma", "Título"]],
+  [DOC_RECORDS, ["Antecedentes", "Police", "Criminal", "Judicial", "RENAS", "RTU", "Conduct certificate", "Constancia"]],
+  [DOC_HEALTH, ["Health certificate", "Certificado de Salud"]],
+  [DOC_AGREEMENT, ["Agreement", "Convenio"]],
+];
+export function compactDocuments(documents: Record<string, boolean> | null | undefined): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  if (!documents) return out;
+  for (const [newKey, olds] of OLD_DOC_GROUPS) {
+    if (documents[newKey] !== undefined) { out[newKey] = documents[newKey]; continue; }
+    if (Object.entries(documents).some(([k, v]) => v && olds.some((o) => k.includes(o)))) out[newKey] = true;
+  }
+  return out;
+}
+
 export function documentsPercent(list: string[], checked: Record<string, boolean>) {
   if (!list.length) return 0;
   return Math.round((list.filter((d) => checked[d]).length / list.length) * 100);

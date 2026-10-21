@@ -35,3 +35,4 @@
 - [x] Meta por reclutador: Morena 60%, Kennia 40%, Roberto certificaciones
 - [x] Training: Guardar fijo junto al nombre; editar/agregar referencias
 - [x] Training: la Meta de Reclutamiento se muda al espacio vacío del menú lateral (sigue el país de la pestaña); en celular y tableta sigue apareciendo dentro de la página
+- [x] Training: documentos unificados en 5 columnas (Identidad, Título, Antecedentes, Certificado de Salud solo NI, Convenio firmado para todos)
