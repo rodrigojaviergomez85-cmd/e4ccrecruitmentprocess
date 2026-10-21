@@ -100,7 +100,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         day1Followup: r?.day1_followup ?? "pending",
         day1Notes: r?.day1_notes ?? "",
         documentList: docs,
-        documents: (r?.documents as Record<string, boolean> | null) ?? {},
+        documents: compactDocuments(r?.documents as Record<string, boolean> | null),
         referenceCall: r?.reference_call ?? "pending",
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
@@ -159,7 +159,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
     if (data.documents) {
-      const allowed = trainingDocsFor(app.country_code)?.items ?? [];
+      const allowed = trainingDocList(app.country_code);
       if (Object.keys(data.documents).some((key) => !allowed.includes(key))) throw new Error("Unknown document for this candidate.");
     }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
