@@ -220,13 +220,13 @@ function ReferencesEditor({ applicationId, name, initial }: { applicationId: str
   const blank = (slot: number): Ref => ({ source: "rec", id: null, slot, company: "", position: "", supervisor: "", phone: "", email: "", comment: "" });
   const set = (i: number, k: keyof Ref, v: string) => setRefs(refs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   return <>
-    <Button type="button" size="sm" variant="outline" className="mb-1 h-7 text-xs" onClick={() => { setRefs(initial.length ? initial : [blank(1)]); setOpen(true); }}><Pencil className="h-3 w-3" />Editar / agregar</Button>
+    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setRefs(initial.length ? initial : [blank(1)]); setOpen(true); }}><Pencil className="h-3 w-3" />Referencias ({initial.length})</Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>Referencias — {name}</DialogTitle></DialogHeader>
         <div className="space-y-3">{refs.map((r, i) => <div key={`${r.source}-${r.slot}`} className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
           <p className="col-span-2 text-xs font-semibold text-muted-foreground">Referencia {i + 1} · {r.source === "app" ? "Aplicante" : "Reclutador"}{r.id === null && r.source === "rec" ? " (nueva)" : ""}</p>
-          <div className="space-y-2"><Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${i + 1}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} /><Textarea rows={2} placeholder="Comments de esta referencia" aria-label={`Comments referencia ${i + 1}`} value={r.comment} onChange={(e) => set(i, "comment", e.target.value)} /></div>
+          <Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${i + 1}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} />
           <Input placeholder="Empresa" aria-label={`Empresa referencia ${r.slot}`} value={r.company} onChange={(e) => set(i, "company", e.target.value)} />
           <Input placeholder="Puesto" aria-label={`Puesto referencia ${r.slot}`} value={r.position} onChange={(e) => set(i, "position", e.target.value)} />
           <Input placeholder={r.source === "rec" ? "Teléfono / contacto" : "Teléfono"} aria-label={`Teléfono referencia ${i + 1}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
