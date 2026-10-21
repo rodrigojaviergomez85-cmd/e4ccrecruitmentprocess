@@ -23,7 +23,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { supabase } from "@/integrations/supabase/client";
+import { useTrainingLob } from "@/lib/training-lob";
 import { cn } from "@/lib/utils";
 
 type StaffNavigationAccess = {
@@ -106,6 +108,7 @@ export function InternalNavigation({ access }: { access: StaffNavigationAccess }
   const pathname = useLocation({ select: (location) => location.pathname });
   const navigate = useNavigate();
   const items = ITEMS.filter((item) => item.show(access));
+  const navLob = useTrainingLob();
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -159,6 +162,11 @@ export function InternalNavigation({ access }: { access: StaffNavigationAccess }
               </Link>
             );
           })}
+          {pathname === "/training" && !collapsed && (
+            <div className="pt-4">
+              <RecruitmentGoal group={navLob === "all" ? undefined : navLob} compact />
+            </div>
+          )}
         </nav>
         <div className="space-y-0.5 border-t border-border p-2">
           <button

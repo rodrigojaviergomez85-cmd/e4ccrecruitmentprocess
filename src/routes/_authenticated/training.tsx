@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createRequisition, listRequisitions, listTrainingRoster, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
 import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
+import { publishTrainingLob } from "@/lib/training-lob";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
 import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
@@ -75,6 +76,8 @@ function TrainingPage() {
   const listReq = useServerFn(listRequisitions);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
   const [lob, setLob] = useState("ONLINE");
+  // The goal summary now lives in the sidebar: keep it on the tab being viewed.
+  useEffect(() => { publishTrainingLob(lob); }, [lob]);
   const [periodMode, setPeriodMode] = useState<"wave" | "month">("wave");
   const [period, setPeriod] = useState("all");
   const periodOf = (w: string | null) => (w ? (periodMode === "wave" ? w : w.slice(0, 7)) : "Sin fecha");
@@ -105,7 +108,8 @@ function TrainingPage() {
           <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
         {data && <StatusSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} open={open} />}
-        <RecruitmentGoal group={lob === "all" ? undefined : lob} />
+        {/* On phones and tablets the sidebar is hidden, so the goal stays in the page. */}
+        <div className="lg:hidden"><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
         <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los aprobados entran solos; los cupos de la requisición sin candidato salen como {PENDING_SPOT}.</p>{req?.canManage && <AddRequisition />}</div>
         <div className="flex flex-wrap items-center gap-3">
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
