@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Save } from "lucide-react";
+import { Check, Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createRequisition, listRequisitions, listTrainingRoster, updateTrainingRow } from "@/lib/training.functions";
+import { createRequisition, listRequisitions, listTrainingRoster, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
 import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
@@ -128,7 +128,7 @@ function TrainingPage() {
                 <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}{pending.map((o) => <tr key={o.id} className="bg-destructive/5">
                   <td className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
                   <td className="border-b border-r border-border px-3 py-3"><span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{PENDING_SPOT}</span></td>
-                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={6 + docs.length}>{o.comments || ""}</td>
+                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={6 + docs.length}>{o.comments || ""}</td><td className="border-b border-r border-border px-3 py-3">{req?.canManage && <DeleteSpot id={o.id} />}</td>
                 </tr>)}</tbody>
               </table>
             </div>
@@ -137,6 +137,19 @@ function TrainingPage() {
       </main>
     </div>
   );
+}
+
+function DeleteSpot({ id }: { id: string }) {
+  const update = useServerFn(updateRequisition);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  return <Button size="sm" variant="ghost" className="text-destructive" aria-label="Eliminar cupo" disabled={busy} onClick={async () => {
+    if (!confirm("¿Eliminar este cupo de la requisición?")) return;
+    setBusy(true);
+    try { await update({ data: { id, action: "delete" } }); await qc.invalidateQueries({ queryKey: ["requisitions"] }); toast.success("Cupo eliminado"); }
+    catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo eliminar"); }
+    finally { setBusy(false); }
+  }}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button>;
 }
 
 function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; permissions: Permissions }) {
