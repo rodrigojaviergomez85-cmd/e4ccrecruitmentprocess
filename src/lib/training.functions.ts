@@ -106,6 +106,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
         referencesVerified: refs.filter((x) => x.verification_status === "Verified").length,
+        applicantRefs: !ctx.canEditReferences ? [] : [...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ slot: x.slot, company: x.company ?? "", position: x.position ?? "", supervisor: x.supervisor_name ?? "", phone: x.supervisor_phone ?? "", email: x.supervisor_email ?? "" })),
         referenceContacts: !showContacts ? [] : [
           ...[...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ source: "Aplicante", company: x.company, position: x.position, supervisor: x.supervisor_name, contact: [x.supervisor_phone, x.supervisor_email].filter(Boolean).join(" · ") })),
           ...(jobs ?? []).filter((j) => j.evaluation_id === latestEval(a)?.id).sort((x, y) => x.slot - y.slot).map((j) => ({ source: "Reclutador", company: j.company, position: j.position, supervisor: j.supervisor_name, contact: j.supervisor_contact })),
