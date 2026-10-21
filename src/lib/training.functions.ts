@@ -53,8 +53,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
     const showContacts = ctx.canEditReferences || !ctx.trainingOnly;
     const evalIds = showContacts ? ((data ?? []).map((a) => latestEval(a)?.id).filter(Boolean) as string[]) : [];
     const { data: jobs } = evalIds.length
-      ? await ctx.db.from("evaluation_jobs").select("evaluation_id, slot, company, position, supervisor_name, supervisor_contact").in("evaluation_id", evalIds)
-      : { data: [] as { evaluation_id: string; slot: number; company: string; position: string; supervisor_name: string; supervisor_contact: string }[] };
+      ? await ctx.db.from("evaluation_jobs").select("id, evaluation_id, slot, company, position, supervisor_name, supervisor_contact").in("evaluation_id", evalIds)
+      : { data: [] as { id: string; evaluation_id: string; slot: number; company: string; position: string; supervisor_name: string; supervisor_contact: string }[] };
     const ids = [...new Set((data ?? []).map(recruiterOf).filter(Boolean))] as string[];
     const { data: staff } = ids.length ? await ctx.db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : { data: [] };
     const names = new Map((staff ?? []).map((p) => [p.user_id, p.full_name]));
@@ -106,7 +106,11 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
         referencesVerified: refs.filter((x) => x.verification_status === "Verified").length,
-        applicantRefs: !ctx.canEditReferences ? [] : [...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ slot: x.slot, company: x.company ?? "", position: x.position ?? "", supervisor: x.supervisor_name ?? "", phone: x.supervisor_phone ?? "", email: x.supervisor_email ?? "" })),
+        applicantRefs: !ctx.canEditReferences ? [] : [
+          ...[...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ source: "app" as const, id: null as string | null, slot: x.slot, company: x.company ?? "", position: x.position ?? "", supervisor: x.supervisor_name ?? "", phone: x.supervisor_phone ?? "", email: x.supervisor_email ?? "" })),
+          ...((jobs ?? []) as { id?: string; evaluation_id: string; slot: number; company: string; position: string; supervisor_name: string; supervisor_contact: string }[]).filter((j) => j.evaluation_id === latestEval(a)?.id).sort((x, y) => x.slot - y.slot).map((j) => ({ source: "rec" as const, id: j.id ?? null, slot: j.slot, company: j.company ?? "", position: j.position ?? "", supervisor: j.supervisor_name ?? "", phone: j.supervisor_contact ?? "", email: "" })),
+        ],
+        latestEvaluationId: latestEval(a)?.id ?? null,
         referenceContacts: !showContacts ? [] : [
           ...[...refs].sort((x, y) => x.slot - y.slot).map((x) => ({ source: "Aplicante", company: x.company, position: x.position, supervisor: x.supervisor_name, contact: [x.supervisor_phone, x.supervisor_email].filter(Boolean).join(" · ") })),
           ...(jobs ?? []).filter((j) => j.evaluation_id === latestEval(a)?.id).sort((x, y) => x.slot - y.slot).map((j) => ({ source: "Reclutador", company: j.company, position: j.position, supervisor: j.supervisor_name, contact: j.supervisor_contact })),
@@ -366,13 +370,15 @@ export const saveTrainingReferences = createServerFn({ method: "POST" })
     z.object({
       applicationId: z.string().uuid(),
       references: z.array(z.object({
-        slot: z.number().int().min(1).max(5),
+        source: z.enum(["app", "rec"]),
+        id: z.string().uuid().nullable(),
+        slot: z.number().int().min(1).max(20),
         company: z.string().trim().max(200),
         position: z.string().trim().max(200),
         supervisor: z.string().trim().max(200),
         phone: z.string().trim().max(60),
         email: z.string().trim().max(200),
-      })).max(5),
+      })).max(20),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -382,12 +388,25 @@ export const saveTrainingReferences = createServerFn({ method: "POST" })
     if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
     if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) throw new Error("You do not have access to this candidate.");
     const rows = data.references.filter((r) => r.company || r.supervisor || r.phone || r.email);
-    if (rows.length) {
+    const appRows = rows.filter((r) => r.source === "app");
+    if (appRows.length) {
       const { error } = await ctx.db.from("work_references").upsert(
-        rows.map((r) => ({ application_id: app.id, slot: r.slot, company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_phone: r.phone, supervisor_email: r.email })),
+        appRows.map((r) => ({ application_id: app.id, slot: Math.min(r.slot, 5), company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_phone: r.phone, supervisor_email: r.email })),
         { onConflict: "application_id,slot" },
       );
       if (error) throw new Error(error.message);
+    }
+    const recRows = rows.filter((r) => r.source === "rec");
+    if (recRows.length) {
+      const { data: ev } = await ctx.db.from("interview_evaluations").select("id").eq("application_id", app.id).order("attempt_number", { ascending: false }).limit(1).maybeSingle();
+      if (!ev) throw new Error("Este candidato no tiene entrevista donde guardar referencias.");
+      for (const r of recRows) {
+        const fields = { company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_contact: r.phone };
+        const { error } = r.id
+          ? await ctx.db.from("evaluation_jobs").update(fields).eq("id", r.id).eq("evaluation_id", ev.id)
+          : await ctx.db.from("evaluation_jobs").insert({ evaluation_id: ev.id, slot: r.slot, ...fields } as never);
+        if (error) throw new Error(error.message);
+      }
     }
     await writeAudit(ctx.db, { actorId: context.userId, action: "training_references_updated", entityType: "application", entityId: app.id, details: { count: rows.length } } as never).catch(() => undefined);
     return { ok: true };

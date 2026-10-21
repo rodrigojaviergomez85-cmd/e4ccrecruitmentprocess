@@ -207,30 +207,31 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
 }
 
 
-type Ref = { slot: number; company: string; position: string; supervisor: string; phone: string; email: string };
+type Ref = { source: "app" | "rec"; id: string | null; slot: number; company: string; position: string; supervisor: string; phone: string; email: string };
 function ReferencesEditor({ applicationId, name, initial }: { applicationId: string; name: string; initial: Ref[] }) {
   const saveRefs = useServerFn(saveTrainingReferences);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [refs, setRefs] = useState<Ref[]>(initial);
   const [busy, setBusy] = useState(false);
-  const blank = (slot: number): Ref => ({ slot, company: "", position: "", supervisor: "", phone: "", email: "" });
-  const nextSlot = [1, 2, 3, 4, 5].find((n) => !refs.some((r) => r.slot === n));
+  const recSlots = refs.filter((r) => r.source === "rec").map((r) => r.slot);
+  const nextSlot = recSlots.length < 10 ? Math.max(0, ...recSlots) + 1 : null;
+  const blank = (slot: number): Ref => ({ source: "rec", id: null, slot, company: "", position: "", supervisor: "", phone: "", email: "" });
   const set = (i: number, k: keyof Ref, v: string) => setRefs(refs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   return <>
     <Button type="button" size="sm" variant="outline" className="mb-1 h-7 text-xs" onClick={() => { setRefs(initial.length ? initial : [blank(1)]); setOpen(true); }}><Pencil className="h-3 w-3" />Editar / agregar</Button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader><DialogTitle>Referencias — {name}</DialogTitle></DialogHeader>
-        <div className="space-y-3">{refs.map((r, i) => <div key={r.slot} className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
-          <p className="col-span-2 text-xs font-semibold text-muted-foreground">Referencia {r.slot}</p>
+        <div className="space-y-3">{refs.map((r, i) => <div key={`${r.source}-${r.slot}`} className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
+          <p className="col-span-2 text-xs font-semibold text-muted-foreground">Referencia {i + 1} · {r.source === "app" ? "Aplicante" : "Reclutador"}{r.id === null && r.source === "rec" ? " (nueva)" : ""}</p>
           <Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${r.slot}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} />
           <Input placeholder="Empresa" aria-label={`Empresa referencia ${r.slot}`} value={r.company} onChange={(e) => set(i, "company", e.target.value)} />
           <Input placeholder="Puesto" aria-label={`Puesto referencia ${r.slot}`} value={r.position} onChange={(e) => set(i, "position", e.target.value)} />
-          <Input placeholder="Teléfono" aria-label={`Teléfono referencia ${r.slot}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
-          <Input className="col-span-2" placeholder="Correo" aria-label={`Correo referencia ${r.slot}`} value={r.email} onChange={(e) => set(i, "email", e.target.value)} />
+          <Input placeholder={r.source === "rec" ? "Teléfono / contacto" : "Teléfono"} aria-label={`Teléfono referencia ${i + 1}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
+          {r.source === "app" && <Input className="col-span-2" placeholder="Correo" aria-label={`Correo referencia ${i + 1}`} value={r.email} onChange={(e) => set(i, "email", e.target.value)} />}
         </div>)}</div>
-        {nextSlot && <Button type="button" variant="outline" size="sm" onClick={() => setRefs([...refs, blank(nextSlot)])}><Plus className="h-4 w-4" />Agregar referencia</Button>}
+        {nextSlot !== null && <Button type="button" variant="outline" size="sm" onClick={() => setRefs([...refs, blank(nextSlot)])}><Plus className="h-4 w-4" />Agregar referencia</Button>}
         <DialogFooter><Button disabled={busy} onClick={async () => {
           setBusy(true);
           try { await saveRefs({ data: { applicationId, references: refs } }); toast.success("Referencias guardadas"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
