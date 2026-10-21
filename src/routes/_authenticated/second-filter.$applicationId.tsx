@@ -335,7 +335,7 @@ function ReviewPage() {
   const grammarScore = shown(S["grammar_test"]?.["score"]);
   const recruiterId = (interview as { decided_by?: string | null } | null)?.decided_by ?? interview?.evaluator_id;
   const recruiterName = d.evaluators.find((e) => e.id === recruiterId)?.name ?? "Not recorded";
-  const managerName = d.managers.find((m) => m.id === (current?.manager_id ?? d.application.assigned_manager_id))?.name ?? d.access.name;
+  const managerName = d.managers.find((m) => m.id === (current?.manager_id ?? d.app.assigned_manager_id))?.name ?? d.access.name;
   const managerEmails = d.emails.filter((e) => e.manager_evaluation_id && e.manager_evaluation_id === current?.id);
   const lastEmail = managerEmails[0];
   const recruitmentFlags = String(interview?.red_flags ?? "").trim();
