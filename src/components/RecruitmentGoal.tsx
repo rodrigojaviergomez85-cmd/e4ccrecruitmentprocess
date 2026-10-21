@@ -67,7 +67,7 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
               for (const o of allOpen) { const k = `${o.group}|${o.waveStart}`; m.set(k, { open: (m.get(k)?.open ?? 0) + 1, wave: o.waveStart }); }
               const out = new Map<string, { mine: number; min: number; wave: string }>();
               for (const [k, w] of m) {
-                const lob = k.split("|")[0];
+                const [lob = ""] = k.split("|");
                 const wave = w.wave ?? "9999";
                 const cur = out.get(lob) ?? { mine: 0, min: 0, wave };
                 cur.min += weeklyMinimum(w.open, w.wave, today);
