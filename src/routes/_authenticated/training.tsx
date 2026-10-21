@@ -231,6 +231,7 @@ function ReferencesEditor({ applicationId, name, initial }: { applicationId: str
           <Input placeholder="Puesto" aria-label={`Puesto referencia ${r.slot}`} value={r.position} onChange={(e) => set(i, "position", e.target.value)} />
           <Input placeholder={r.source === "rec" ? "Teléfono / contacto" : "Teléfono"} aria-label={`Teléfono referencia ${i + 1}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
           {r.source === "app" && <Input className="col-span-2" placeholder="Correo" aria-label={`Correo referencia ${i + 1}`} value={r.email} onChange={(e) => set(i, "email", e.target.value)} />}
+          <Textarea className="col-span-2" rows={2} placeholder="Comments de esta referencia" aria-label={`Comments referencia ${i + 1}`} value={r.comment} onChange={(e) => set(i, "comment", e.target.value)} />
         </div>)}</div>
         {nextSlot !== null && <Button type="button" variant="outline" size="sm" onClick={() => setRefs([...refs, blank(nextSlot)])}><Plus className="h-4 w-4" />Agregar referencia</Button>}
         <DialogFooter><Button disabled={busy} onClick={async () => {
