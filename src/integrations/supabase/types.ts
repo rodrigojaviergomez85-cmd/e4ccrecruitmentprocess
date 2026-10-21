@@ -671,6 +671,7 @@ export type Database = {
           position: string
           rating_reason: string
           reason_for_leaving: string
+          reference_comment: string
           slot: number
           start_date: string
           supervisor_contact: string
@@ -690,6 +691,7 @@ export type Database = {
           position?: string
           rating_reason?: string
           reason_for_leaving?: string
+          reference_comment?: string
           slot?: number
           start_date?: string
           supervisor_contact?: string
@@ -709,6 +711,7 @@ export type Database = {
           position?: string
           rating_reason?: string
           reason_for_leaving?: string
+          reference_comment?: string
           slot?: number
           start_date?: string
           supervisor_contact?: string
