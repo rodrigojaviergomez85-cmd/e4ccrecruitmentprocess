@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -195,7 +196,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{row.trainer || "—"}</td>
     <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
-    <td className={cell}>{row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}</li>)}</ul></details>}{p.canEditReferences && <ReferencesEditor applicationId={row.id} name={row.fullName} initial={row.applicantRefs} />}{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
+    <td className={cell}>{row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}{c.comment && <p className="mt-1 italic text-muted-foreground">{c.comment}</p>}</li>)}</ul></details>}{p.canEditReferences && <ReferencesEditor applicationId={row.id} name={row.fullName} initial={row.applicantRefs} />}{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
     {docs.map((d) => {
       const required = f.documentList.includes(d);
@@ -207,7 +208,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
 }
 
 
-type Ref = { source: "app" | "rec"; id: string | null; slot: number; company: string; position: string; supervisor: string; phone: string; email: string };
+type Ref = { source: "app" | "rec"; id: string | null; slot: number; company: string; position: string; supervisor: string; phone: string; email: string; comment: string };
 function ReferencesEditor({ applicationId, name, initial }: { applicationId: string; name: string; initial: Ref[] }) {
   const saveRefs = useServerFn(saveTrainingReferences);
   const qc = useQueryClient();
@@ -216,7 +217,7 @@ function ReferencesEditor({ applicationId, name, initial }: { applicationId: str
   const [busy, setBusy] = useState(false);
   const recSlots = refs.filter((r) => r.source === "rec").map((r) => r.slot);
   const nextSlot = recSlots.length < 10 ? Math.max(0, ...recSlots) + 1 : null;
-  const blank = (slot: number): Ref => ({ source: "rec", id: null, slot, company: "", position: "", supervisor: "", phone: "", email: "" });
+  const blank = (slot: number): Ref => ({ source: "rec", id: null, slot, company: "", position: "", supervisor: "", phone: "", email: "", comment: "" });
   const set = (i: number, k: keyof Ref, v: string) => setRefs(refs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   return <>
     <Button type="button" size="sm" variant="outline" className="mb-1 h-7 text-xs" onClick={() => { setRefs(initial.length ? initial : [blank(1)]); setOpen(true); }}><Pencil className="h-3 w-3" />Editar / agregar</Button>
@@ -225,7 +226,7 @@ function ReferencesEditor({ applicationId, name, initial }: { applicationId: str
         <DialogHeader><DialogTitle>Referencias — {name}</DialogTitle></DialogHeader>
         <div className="space-y-3">{refs.map((r, i) => <div key={`${r.source}-${r.slot}`} className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
           <p className="col-span-2 text-xs font-semibold text-muted-foreground">Referencia {i + 1} · {r.source === "app" ? "Aplicante" : "Reclutador"}{r.id === null && r.source === "rec" ? " (nueva)" : ""}</p>
-          <Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${r.slot}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} />
+          <div className="space-y-2"><Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${i + 1}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} /><Textarea rows={2} placeholder="Comments de esta referencia" aria-label={`Comments referencia ${i + 1}`} value={r.comment} onChange={(e) => set(i, "comment", e.target.value)} /></div>
           <Input placeholder="Empresa" aria-label={`Empresa referencia ${r.slot}`} value={r.company} onChange={(e) => set(i, "company", e.target.value)} />
           <Input placeholder="Puesto" aria-label={`Puesto referencia ${r.slot}`} value={r.position} onChange={(e) => set(i, "position", e.target.value)} />
           <Input placeholder={r.source === "rec" ? "Teléfono / contacto" : "Teléfono"} aria-label={`Teléfono referencia ${i + 1}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
