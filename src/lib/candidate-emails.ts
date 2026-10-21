@@ -453,7 +453,7 @@ export function buildManagerRetakeEmail(input: {
 export type TrainingDocs = { items: string[]; links: { label: string; url: string }[]; note?: string };
 export const TRAINING_DOCUMENTS_BY_COUNTRY: Record<string, TrainingDocs> = {
   SV: {
-    items: ["DUI, both sides", "High school diploma (Título de Bachillerato)", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)"],
+    items: ["DUI, both sides", "High school diploma (Título de Bachillerato)", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [{ label: "simple.sv", url: "https://simple.sv/" }],
   },
   GT: {
@@ -474,23 +474,23 @@ export const TRAINING_DOCUMENTS_BY_COUNTRY: Record<string, TrainingDocs> = {
     note: "The agreement will be shared with you separately.",
   },
   NI: {
-    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Health certificate (Certificado de Salud)", "Conduct certificate (Certificado de Conducta)"],
+    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Health certificate (Certificado de Salud)", "Conduct certificate (Certificado de Conducta)", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [{ label: "Policía Nacional — trámites en línea", url: "https://tramitesenlinea.policia.gob.ni/" }],
   },
   HN: {
-    items: ["Identity card (Tarjeta de Identidad), both sides", "High school diploma (Título de Bachillerato)", "PayPal link", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)", "Curriculum Vitae"],
+    items: ["Identity card (Tarjeta de Identidad), both sides", "High school diploma (Título de Bachillerato)", "PayPal link", "Criminal record (Antecedentes Penales)", "Police clearance (Solvencia Policial)", "Curriculum Vitae", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [],
   },
   CO: {
-    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Police record (Antecedentes Policiales)", "Judicial record (Antecedentes Judiciales)", "PayPal link"],
+    items: ["Cédula, both sides", "High school diploma (Título de Bachillerato)", "Police record (Antecedentes Policiales)", "Judicial record (Antecedentes Judiciales)", "PayPal link", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [],
   },
   MX: {
-    items: ["Voter ID (Credencial para Votar — INE)", "High school diploma (Título de Bachillerato)", "Certificate of no criminal record (Constancia de No Antecedentes Penales)", "PayPal link"],
+    items: ["Voter ID (Credencial para Votar — INE)", "High school diploma (Título de Bachillerato)", "Certificate of no criminal record (Constancia de No Antecedentes Penales)", "PayPal link", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [{ label: "Mexico City (CDMX) only — Constancia de No Antecedentes Penales", url: "https://www.cdmx.gob.mx/public/InformacionTramite.xhtml?idTramite=872" }],
   },
   CR: {
-    items: ["ID / Cédula, both sides", "High school diploma (Título de Bachillerato)", "Wise or PayPal link", "Criminal record (Antecedentes Penales)", "Curriculum Vitae"],
+    items: ["ID / Cédula, both sides", "High school diploma (Título de Bachillerato)", "Wise or PayPal link", "Criminal record (Antecedentes Penales)", "Curriculum Vitae", "Agreement: read it, sign it through DocuSign and upload it once it is provided to you"],
     links: [],
   },
 };

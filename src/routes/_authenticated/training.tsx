@@ -63,6 +63,7 @@ type Row = Data["rows"][number];
 type Permissions = Omit<Data, "rows">;
 const daysUntil = (d: string | null) => d ? Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000) : null;
 const documentLabel = (d: string) => {
+  if (d.length <= 30) return d;
   if (d.includes("both sides")) return d.split(",")[0] + " · ambos lados";
   if (d.includes("diploma")) return "Título académico";
   if (d.startsWith("Agreement:")) return "Convenio firmado";
