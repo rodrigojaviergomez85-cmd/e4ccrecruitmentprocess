@@ -362,7 +362,7 @@ export const getManagerReview = createServerFn({ method: "POST" })
     const managers = await managerNames(db);
     // Names of the recruiters who ran each interview, so the sheet can credit
     // who captured each answer without a second round-trip.
-    const evaluatorIds = [...new Set((interviews ?? []).map((i) => i.evaluator_id).filter(Boolean) as string[])];
+    const evaluatorIds = [...new Set((interviews ?? []).flatMap((i) => [i.evaluator_id, (i as { decided_by?: string | null }).decided_by]).filter(Boolean) as string[])];
     let evaluators: { id: string; name: string }[] = [];
     if (evaluatorIds.length) {
       const { data: evaluatorProfiles } = await db
