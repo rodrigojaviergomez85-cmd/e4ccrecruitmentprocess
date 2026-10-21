@@ -358,3 +358,37 @@ export const getTrainingProfile = createServerFn({ method: "POST" })
       }),
     };
   });
+
+/** Recruitment can correct or add the candidate's work references from Training. */
+export const saveTrainingReferences = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      applicationId: z.string().uuid(),
+      references: z.array(z.object({
+        slot: z.number().int().min(1).max(5),
+        company: z.string().trim().max(200),
+        position: z.string().trim().max(200),
+        supervisor: z.string().trim().max(200),
+        phone: z.string().trim().max(60),
+        email: z.string().trim().max(200),
+      })).max(5),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (!ctx.canEditReferences) throw new Error("No tienes permiso para editar referencias.");
+    const { data: app } = await ctx.db.from("applications").select("id, country_code, status").eq("id", data.applicationId).maybeSingle();
+    if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) throw new Error("You do not have access to this candidate.");
+    const rows = data.references.filter((r) => r.company || r.supervisor || r.phone || r.email);
+    if (rows.length) {
+      const { error } = await ctx.db.from("work_references").upsert(
+        rows.map((r) => ({ application_id: app.id, slot: r.slot, company: r.company, position: r.position, supervisor_name: r.supervisor, supervisor_phone: r.phone, supervisor_email: r.email })),
+        { onConflict: "application_id,slot" },
+      );
+      if (error) throw new Error(error.message);
+    }
+    await writeAudit(ctx.db, { actorId: context.userId, action: "training_references_updated", entityType: "application", entityId: app.id, details: { count: rows.length } } as never).catch(() => undefined);
+    return { ok: true };
+  });
