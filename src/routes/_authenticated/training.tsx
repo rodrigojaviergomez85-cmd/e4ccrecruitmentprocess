@@ -111,11 +111,11 @@ function TrainingPage() {
         {data && <StatusSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} open={open} />}
         {/* On phones and tablets the sidebar is hidden, so the goal stays in the page. */}
         <div className="lg:hidden"><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
-        <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Una sola lista ordenada por inicio de wave. Los aprobados entran solos; los cupos de la requisición sin candidato salen como {PENDING_SPOT}.</p>{req?.canManage && <AddRequisition />}</div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="-mt-2 flex flex-wrap items-center gap-3">
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
           <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
+          {req?.canManage && <div className="ml-auto"><AddRequisition /></div>}
         </div>
         {isLoading && <Skeleton className="h-40 w-full" />}
         {error && <p className="text-destructive">{(error as Error).message}</p>}
