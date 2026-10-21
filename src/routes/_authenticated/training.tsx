@@ -2,7 +2,8 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Save, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createRequisition, listRequisitions, listTrainingRoster, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
+import { createRequisition, listRequisitions, listTrainingRoster, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
 import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
@@ -123,12 +124,12 @@ function TrainingPage() {
             <div className="max-h-[65vh] overflow-auto border border-border">
               <table className="w-full border-separate border-spacing-0 text-sm">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
-                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email", ""].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-56 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
+                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email"].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-72 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
                 </thead>
                 <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}{pending.map((o) => <tr key={o.id} className="bg-destructive/5">
-                  <td className="sticky left-0 z-10 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
+                  <td className="sticky left-0 z-10 min-w-72 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
                   <td className="border-b border-r border-border px-3 py-3"><span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{PENDING_SPOT}</span></td>
-                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={6 + docs.length}>{o.comments || ""}</td><td className="border-b border-r border-border px-3 py-3">{req?.canManage && <DeleteSpot id={o.id} />}</td>
+                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={5 + docs.length}>{o.comments || ""}</td><td className="border-b border-r border-border px-3 py-3">{req?.canManage && <DeleteSpot id={o.id} />}</td>
                 </tr>)}</tbody>
               </table>
             </div>
@@ -181,7 +182,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
-    <td className={`${cell} sticky left-0 z-10 bg-card`}>{p.trainingOnly ? <p className="max-w-56 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-56 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="mt-1 text-xs text-muted-foreground">{row.country}</p></td>
+    <td className={`${cell} sticky left-0 z-10 min-w-72 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-56 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-56 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="mt-1 text-xs text-muted-foreground">{row.country}</p></div><Button variant={dirty ? "default" : "outline"} size="sm" className="shrink-0" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
     <td className={cell}>{row.recruiter}</td>
     <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`w-56 ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{row.branch || "—"}</td>
@@ -194,7 +195,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={cell}>{row.trainer || "—"}</td>
     <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
-    <td className={cell}>{row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}</li>)}</ul></details>}{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
+    <td className={cell}>{row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}</li>)}</ul></details>}{p.canEditReferences && <ReferencesEditor applicationId={row.id} name={row.fullName} initial={row.applicantRefs} />}{textInput("referenceDetails", "Detalles de referencias", p.canEditReferences)}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
     {docs.map((d) => {
       const required = f.documentList.includes(d);
@@ -202,10 +203,43 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       return <td key={d} className={`${cell} text-center ${required && !received ? "bg-destructive/10" : "bg-card text-foreground"}`}>{required ? <Checkbox aria-label={`${d} — ${row.fullName}`} title={`${d}: ${received ? "Entregado" : "Pendiente"}`} checked={received} disabled={!p.canEditDocuments} onCheckedChange={(v) => setF({ ...f, documents: { ...f.documents, [d]: v === true } })} className="rounded-sm border-foreground/50 data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background disabled:opacity-100" /> : <span className="text-muted-foreground">—</span>}</td>;
     })}
     <td className={`${cell} whitespace-nowrap`}>{row.phone}</td><td className={cell}><span className="whitespace-nowrap">{row.email}</span></td>
-    <td className={cell}><Button variant={dirty ? "default" : "ghost"} size="icon" aria-label={`Guardar — ${row.fullName}`} title="Guardar" onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}</Button></td>
   </tr>;
 }
 
+
+type Ref = { slot: number; company: string; position: string; supervisor: string; phone: string; email: string };
+function ReferencesEditor({ applicationId, name, initial }: { applicationId: string; name: string; initial: Ref[] }) {
+  const saveRefs = useServerFn(saveTrainingReferences);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [refs, setRefs] = useState<Ref[]>(initial);
+  const [busy, setBusy] = useState(false);
+  const blank = (slot: number): Ref => ({ slot, company: "", position: "", supervisor: "", phone: "", email: "" });
+  const nextSlot = [1, 2, 3, 4, 5].find((n) => !refs.some((r) => r.slot === n));
+  const set = (i: number, k: keyof Ref, v: string) => setRefs(refs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
+  return <>
+    <Button type="button" size="sm" variant="outline" className="mb-1 h-7 text-xs" onClick={() => { setRefs(initial.length ? initial : [blank(1)]); setOpen(true); }}><Pencil className="h-3 w-3" />Editar / agregar</Button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogHeader><DialogTitle>Referencias — {name}</DialogTitle></DialogHeader>
+        <div className="space-y-3">{refs.map((r, i) => <div key={r.slot} className="grid grid-cols-2 gap-2 rounded-md border border-border p-3">
+          <p className="col-span-2 text-xs font-semibold text-muted-foreground">Referencia {r.slot}</p>
+          <Input placeholder="Nombre del jefe / referencia" aria-label={`Nombre referencia ${r.slot}`} value={r.supervisor} onChange={(e) => set(i, "supervisor", e.target.value)} />
+          <Input placeholder="Empresa" aria-label={`Empresa referencia ${r.slot}`} value={r.company} onChange={(e) => set(i, "company", e.target.value)} />
+          <Input placeholder="Puesto" aria-label={`Puesto referencia ${r.slot}`} value={r.position} onChange={(e) => set(i, "position", e.target.value)} />
+          <Input placeholder="Teléfono" aria-label={`Teléfono referencia ${r.slot}`} value={r.phone} onChange={(e) => set(i, "phone", e.target.value)} />
+          <Input className="col-span-2" placeholder="Correo" aria-label={`Correo referencia ${r.slot}`} value={r.email} onChange={(e) => set(i, "email", e.target.value)} />
+        </div>)}</div>
+        {nextSlot && <Button type="button" variant="outline" size="sm" onClick={() => setRefs([...refs, blank(nextSlot)])}><Plus className="h-4 w-4" />Agregar referencia</Button>}
+        <DialogFooter><Button disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await saveRefs({ data: { applicationId, references: refs } }); toast.success("Referencias guardadas"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
+          catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+        }}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Guardar referencias</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
+}
 
 function AddRequisition() {
   const create = useServerFn(createRequisition);

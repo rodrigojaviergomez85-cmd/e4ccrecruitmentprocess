@@ -33,3 +33,4 @@
 - [x] Requisiciones de vuelta: cupos abiertos como filas PENDIENTE DE RECLUTAR (drop out before training reabre cupo)
 - [x] Meta en rojo para reclutadores: pendientes Online/Onsite y mínimo semanal hasta inicio de wave
 - [x] Meta por reclutador: Morena 60%, Kennia 40%, Roberto certificaciones
+- [x] Training: Guardar fijo junto al nombre; editar/agregar referencias
