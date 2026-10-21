@@ -61,6 +61,26 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
               for (const o of allOpen) { const k = `${o.group}|${o.waveStart}`; m.set(k, { open: (m.get(k)?.open ?? 0) + 1, wave: o.waveStart }); }
               return [...m.values()].reduce((n, w) => n + weeklyMinimum(w.open, w.wave, today), 0);
             })();
+            // Weekly minimum broken down per LOB, plus this week's approvals per LOB.
+            const weeklyByLob = (() => {
+              const m = new Map<string, { open: number; wave: string | null }>();
+              for (const o of allOpen) { const k = `${o.group}|${o.waveStart}`; m.set(k, { open: (m.get(k)?.open ?? 0) + 1, wave: o.waveStart }); }
+              const out = new Map<string, { mine: number; min: number; wave: string }>();
+              for (const [k, w] of m) {
+                const [lob = ""] = k.split("|");
+                const wave = w.wave ?? "9999";
+                const cur = out.get(lob) ?? { mine: 0, min: 0, wave };
+                cur.min += weeklyMinimum(w.open, w.wave, today);
+                if (wave < cur.wave) cur.wave = wave;
+                out.set(lob, cur);
+              }
+              const approvedThisWeek = mine.filter((x) => (x.recruitmentApprovedAt ?? "") >= weekStart);
+              for (const [lob, v] of out) v.mine = approvedThisWeek.filter((x) => x.group === lob).length;
+              return [...out.entries()].sort((a, b) => a[1].wave.localeCompare(b[1].wave) || a[0].localeCompare(b[0]));
+            })();
+            const weekText = weeklyByLob.length
+              ? weeklyByLob.map(([lob, v]) => `${lob} ${v.mine}/${v.min}`).join("  ·  ")
+              : `0/${quotaFor(weeklyAll, r.share)}`;
             return (
               <div key={r.name} className="rounded border border-destructive/30 bg-background p-3">
                 <p className="text-sm font-semibold">{r.name} · {Math.round(r.share * 100)}%</p>
@@ -68,7 +88,7 @@ export function RecruitmentGoal({ group }: { group?: string | undefined } = {}) 
                 <p className="mt-1 text-xs">
                   {lobs.map(([lob, v]) => `${lob} ${mine.filter((x) => x.group === lob).length}/${quotaFor(v.spots, r.share)}`).join("  ·  ")}
                 </p>
-                <p className="mt-1 text-sm font-semibold">Esta semana: {mine.filter((x) => (x.recruitmentApprovedAt ?? "") >= weekStart).length}/{quotaFor(weeklyAll, r.share)} <span className="font-normal">mínimo por semana</span></p>
+                <p className="mt-1 text-sm font-semibold">Esta semana: {weekText} <span className="font-normal">mínimo por semana</span></p>
                 <p className="mt-1 text-xs text-foreground">Enviados a 2º Filtro este mes: <b>{r.sent}</b> · % CR: <b>{r.quality == null ? "—" : `${r.quality}%`}</b></p>
               </div>
             );
