@@ -38,3 +38,4 @@
 - [x] Training: documentos unificados en 5 columnas (Identidad, Título, Antecedentes, Certificado de Salud solo NI, Convenio firmado para todos)
 - [x] Módulo de Leads: 4 campos independientes por LOB, catálogos originales, grupos, métricas semanales separadas y cruce con Lovable
 - [x] Leads: escribir cambios de vuelta a la hoja de Google vía Apps Script v2
+- [x] Leads: TODOS al final, quitar métrica automática de mensajes y verificar llamadas con resultados negativos (17 pruebas y pantalla autenticada)

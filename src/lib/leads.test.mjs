@@ -41,4 +41,24 @@ describe("Leads rules", () => {
     assert.equal(canonicalRecruiter("KENIA"), "KENNIA VASQUEZ");
     assert.equal(canonicalRecruiter("MORENA"), "MORENA LEMUS");
   });
+  for (const result of ["NOT APPROVED", "NOT INTERESTED", "NO INTERESADO / HUNG UP", "NOT INTERESTED / HUNG UP", "NO ANSWER", "OFFLINE", "NOT AVAILABILITY"]) {
+    test(`${result} counts as a weekly call for Morena regardless of approval`, () => {
+      const m = weeklyMetrics([{ ...base, call_at: inWeek, llamada: result, call_recruiter: "MORENA LEMUS" }], W0, W1);
+      assert.equal(m.calls, 1);
+      assert.equal(m.byRecruiter["MORENA LEMUS"].calls, 1);
+      assert.equal(m.callApproved, 0);
+    });
+  }
+  test("Morena's five dated calls and 23 Open House invites remain separate", () => {
+    const calls = ["APPROVED", "NOT APPROVED", "NO ANSWER", "NOT AVAILABILITY", "OFFLINE"];
+    const m = weeklyMetrics([...calls, ...Array(23).fill("OPEN HOUSE INVITE")].map((llamada) => ({ ...base, llamada, call_at: inWeek, call_recruiter: "MORENA" })), W0, W1);
+    assert.equal(m.calls, 5);
+    assert.equal(m.byRecruiter["MORENA LEMUS"].calls, 5);
+    assert.equal(m.openHouse, 23);
+    assert.equal(m.callApproved, 1);
+  });
+  test("undated historical calls cannot be attributed to this week", () => {
+    const m = weeklyMetrics([{ ...base, lead_created_at: inWeek, llamada: "NOT INTERESTED", call_recruiter: "MORENA", call_at: null }], W0, W1);
+    assert.equal(m.calls, 0);
+  });
 });
