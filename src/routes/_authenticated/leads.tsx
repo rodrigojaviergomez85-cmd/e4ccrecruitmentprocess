@@ -196,13 +196,22 @@ function LeadRow({ row }: { row: Row }) {
   return (
     <tr className="border-t border-border">
       <td className="p-2 align-top">
-        <div className="font-medium">{row.full_name || "(sin nombre)"}</div>
+        <div className="font-medium">{row.full_name || "(sin nombre)"}{row.age ? <span className="ml-1 text-xs font-normal text-muted-foreground">· {row.age}</span> : null}</div>
         <div className="text-xs text-muted-foreground">{row.email}</div>
         <div className="text-xs text-muted-foreground">{row.phone}</div>
         <div className="text-[10px] text-muted-foreground">
           {LOB_LABEL[lob]}{row.lead_country && row.lob === "ONLINE" ? ` · ${row.lead_country}` : ""} · {fmtDt(row.lead_created_at)}
           {row.edited_in_app_at ? " · editado en plataforma" : ""}
         </div>
+        {(row.cc_time || row.cc_exp || row.teaching_time || row.teaching_exp) && (
+          <details className="mt-1 max-w-xs text-xs">
+            <summary className="cursor-pointer font-medium text-primary">Experiencia</summary>
+            <div className="mt-1 space-y-1">
+              <p><span className="font-semibold">Call center:</span> {humanize(row.cc_time)}{row.cc_exp ? ` — ${row.cc_exp}` : ""}</p>
+              <p><span className="font-semibold">Enseñanza:</span> {humanize(row.teaching_time)}{row.teaching_exp ? ` — ${row.teaching_exp}` : ""}</p>
+            </div>
+          </details>
+        )}
       </td>
       <td className="p-2 align-top">{pick("filtro_lead")}</td>
       <td className="p-2 align-top">{pick("mensaje", { rec: row.msg_recruiter, date: row.msg_date, time: row.msg_time })}</td>
@@ -236,4 +245,8 @@ function LeadRow({ row }: { row: Row }) {
       </td>
     </tr>
   );
+}
+
+function humanize(v: string) {
+  return (v || "—").replace(/_/g, " ").trim();
 }

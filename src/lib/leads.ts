@@ -10,12 +10,12 @@ export const LOB_LABEL: Record<LeadLob, string> = { ONLINE: "ONLINE", SV: "EL SA
 export const LOB_SHEET: Record<LeadLob, string> = { ONLINE: "LEADS ONLINE", SV: "SV", NICA: "NICA", GT: "GT" };
 
 /** 0-indexed sheet columns. GT/SV/NICA: O,S,W,Y. LEADS ONLINE: Q,U,Y,AA. */
-const COUNTRY_COLS = { created: 0, country: -1, branch: 4, email: 11, name: 12, phone: 13, filtro: 14, msgRec: 15, msgDate: 16, msgTime: 17, msg: 18, callRec: 19, callDate: 20, callTime: 21, call: 22, intDate: 23, int: 24, comment: 25 };
+const COUNTRY_COLS = { created: 0, country: -1, branch: 4, teachTime: 5, teachExp: 6, ccTime: 7, ccExp: 8, age: 10, email: 11, name: 12, phone: 13, filtro: 14, msgRec: 15, msgDate: 16, msgTime: 17, msg: 18, callRec: 19, callDate: 20, callTime: 21, call: 22, intDate: 23, int: 24, comment: 25 };
 export const SHEET_COLUMNS: Record<LeadLob, typeof COUNTRY_COLS> = {
   GT: COUNTRY_COLS,
   SV: COUNTRY_COLS,
   NICA: COUNTRY_COLS,
-  ONLINE: { created: 0, country: 5, branch: 6, email: 13, name: 14, phone: 15, filtro: 16, msgRec: 17, msgDate: 18, msgTime: 19, msg: 20, callRec: 21, callDate: 22, callTime: 23, call: 24, intDate: 25, int: 26, comment: 27 },
+  ONLINE: { created: 0, country: 5, branch: 6, teachTime: 7, teachExp: 8, ccTime: 9, ccExp: 10, age: 12, email: 13, name: 14, phone: 15, filtro: 16, msgRec: 17, msgDate: 18, msgTime: 19, msg: 20, callRec: 21, callDate: 22, callTime: 23, call: 24, intDate: 25, int: 26, comment: 27 },
 };
 
 export type LeadField = "filtro_lead" | "mensaje" | "llamada" | "interview_result";

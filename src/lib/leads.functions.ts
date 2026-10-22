@@ -52,10 +52,12 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       const c = SHEET_COLUMNS[lob];
       const g = (r: string[], i: number) => (i >= 0 ? (r[i] ?? "").trim() : "");
       const batch: Record<string, unknown>[] = [];
+      const expOnly: Record<string, unknown>[] = [];
       rows.slice(1).forEach((r, i) => {
         const rowNo = i + 2;
         if (!g(r, c.email) && !g(r, c.name) && !g(r, c.phone)) return;
-        if (edited.has(`${sheet}#${rowNo}`)) return;
+        const exp = { age: g(r, c.age), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
+        if (edited.has(`${sheet}#${rowNo}`)) { expOnly.push({ source_sheet: sheet, source_row: rowNo, ...exp }); return; }
         const created = Date.parse(g(r, c.created));
         batch.push({
           lob, source_sheet: sheet, source_row: rowNo,
@@ -67,12 +69,16 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
           interview_date: g(r, c.intDate), interview_result: g(r, c.int), comment: g(r, c.comment),
           msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)),
           call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)),
-          imported_at: new Date().toISOString(),
+          imported_at: new Date().toISOString(), ...exp,
         });
       });
       for (let i = 0; i < batch.length; i += 500) {
         const { error } = await db.from("recruitment_leads").upsert(batch.slice(i, i + 500), { onConflict: "source_sheet,source_row" });
         if (error) throw new Error(error.message);
+      }
+      for (const row of expOnly) {
+        const { source_sheet, source_row, ...exp } = row;
+        await db.from("recruitment_leads").update(exp).eq("source_sheet", source_sheet).eq("source_row", source_row);
       }
       summary[lob] = batch.length;
     }
@@ -80,7 +86,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
     return summary;
   });
 
-const COLS = "id, lob, source_sheet, source_row, lead_created_at, lead_country, branch, full_name, email, email_norm, phone, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_date, interview_result, comment, msg_at, call_at, edited_in_app_at";
+const COLS = "id, lob, source_sheet, source_row, lead_created_at, lead_country, branch, full_name, email, email_norm, phone, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_date, interview_result, comment, msg_at, call_at, edited_in_app_at, age, teaching_time, teaching_exp, cc_time, cc_exp";
 
 export const listLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
