@@ -70,7 +70,7 @@ function AddCandidate() {
     return () => clearTimeout(t);
   }, [term, suggest]);
   const applyLead = (l: LeadSuggestion) => {
-    const code = leadCountryCode(l.lob, l.lead_country);
+    const code = leadCountryCode(l.lob, l.lead_country, l.phone);
     const d = countries.find((c) => c.code === code)?.dial_code ?? "";
     setFullName(l.full_name ?? "");
     setEmail(l.email ?? "");

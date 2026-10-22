@@ -238,13 +238,16 @@ export function parseCsv(text: string): string[][] {
 }
 
 /** Country code for the applicant form from a lead (ONLINE uses the country the lead typed). */
-export function leadCountryCode(lob: LeadLob, leadCountry: string | null): string {
+export function leadCountryCode(lob: LeadLob, leadCountry: string | null, phone: string | null = null): string {
   if (lob === "SV") return "SV";
   if (lob === "GT") return "GT";
   if (lob === "NICA") return "NI";
   const c = (leadCountry ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
   const map: Record<string, string> = { "el salvador": "SV", guatemala: "GT", nicaragua: "NI", honduras: "HN", mexico: "MX", colombia: "CO" };
-  return map[c] ?? "OTHER";
+  if (map[c]) return map[c];
+  const d = (phone ?? "").replace(/\D/g, "");
+  const byDial: [string, string][] = [["503", "SV"], ["502", "GT"], ["505", "NI"], ["504", "HN"], ["57", "CO"], ["52", "MX"]];
+  return byDial.find(([p]) => d.startsWith(p) && d.length >= p.length + 7)?.[1] ?? "OTHER";
 }
 
 /** Local phone digits without the country dial prefix. */
