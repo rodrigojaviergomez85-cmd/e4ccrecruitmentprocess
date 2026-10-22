@@ -46,7 +46,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
     const summary: Record<string, number> = {};
     for (const lob of LEAD_LOBS) {
       const sheet = LOB_SHEET[lob];
-      const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`);
+      const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${LOB_GID[lob]}`);
       if (!res.ok) throw new Error(`No se pudo leer la pestaña ${sheet} (${res.status}).`);
       const rows = parseCsv(await res.text());
       const c = SHEET_COLUMNS[lob];
