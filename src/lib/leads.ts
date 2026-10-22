@@ -87,6 +87,41 @@ export const isCallConnected = (llamada: string) => isCallMade(llamada) && !NOT_
 export const isCalendlyScheduled = (llamada: string) => valueGroup(llamada) === "Agendado (Calendly)";
 export const isOpenHouseInvite = (llamada: string) => valueGroup(llamada) === "Invitación Open House";
 
+/** Approval filters offered on the Leads screen ("solo los APPROVED"). */
+export const APPROVAL_STAGES = ["filtro", "llamada", "entrevista", "avance", "filtro_y_llamada"] as const;
+export type ApprovalStage = (typeof APPROVAL_STAGES)[number];
+export type ApprovalFilter = "ALL" | ApprovalStage;
+export const APPROVAL_LABEL: Record<ApprovalFilter, string> = {
+  ALL: "Todas",
+  filtro: "Aprobadas en filtro",
+  llamada: "Aprobadas en llamada",
+  entrevista: "Aprobadas en entrevista (hoja)",
+  avance: "Avanzaron a último filtro",
+  filtro_y_llamada: "Aprobadas en filtro y llamada",
+};
+
+/**
+ * Approval per stage, group-based so equivalent spellings count together.
+ * "Approved for last step" is advance to the final filter, never an interview approval.
+ */
+export function isApprovedAt(row: LeadMetricRow, stage: ApprovalStage): boolean {
+  switch (stage) {
+    case "filtro":
+      return valueGroup(row.filtro_lead) === "Aprobado";
+    case "llamada":
+      return valueGroup(row.llamada) === "Aprobado";
+    case "entrevista":
+      return valueGroup(row.interview_result) === "Aprobado";
+    case "avance":
+      return row.lovable?.result === "Approved for last step";
+    case "filtro_y_llamada":
+      return isApprovedAt(row, "filtro") && isApprovedAt(row, "llamada");
+  }
+}
+
+export const matchesApproval = (row: LeadMetricRow, filter: ApprovalFilter) =>
+  filter === "ALL" || isApprovedAt(row, filter);
+
 export type LeadMetricRow = {
   lead_created_at: string | null;
   msg_at: string | null;

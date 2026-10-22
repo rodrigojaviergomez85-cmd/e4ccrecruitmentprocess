@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { isCallMade, isCallConnected, isCalendlyScheduled, valueGroup, weeklyMetrics, parseSheetDateTime, canonicalRecruiter } from "./leads.ts";
+import { isCallMade, isCallConnected, isCalendlyScheduled, valueGroup, weeklyMetrics, parseSheetDateTime, canonicalRecruiter, matchesApproval } from "./leads.ts";
 
 const base = { lead_created_at: null, msg_at: null, call_at: null, filtro_lead: "", mensaje: "", llamada: "", msg_recruiter: "", call_recruiter: "", interview_result: "", lovable: null };
 const W0 = Date.parse("2026-10-19T06:00:00Z"), W1 = W0 + 7 * 86400_000;
@@ -60,5 +60,31 @@ describe("Leads rules", () => {
   test("undated historical calls cannot be attributed to this week", () => {
     const m = weeklyMetrics([{ ...base, lead_created_at: inWeek, llamada: "NOT INTERESTED", call_recruiter: "MORENA", call_at: null }], W0, W1);
     assert.equal(m.calls, 0);
+  });
+  test("APPROVED filter keeps only approved rows and drops blacklist spellings", () => {
+    const approved = { ...base, filtro_lead: "APPROVED" };
+    const blacklisted = { ...base, filtro_lead: "BLACK LISTED" };
+    assert.equal(matchesApproval(approved, "ALL"), true);
+    assert.equal(matchesApproval(approved, "filtro"), true);
+    assert.equal(matchesApproval(blacklisted, "filtro"), false);
+    assert.equal(matchesApproval({ ...base, filtro_lead: "" }, "filtro"), false);
+  });
+  test("call and interview approvals are independent stages", () => {
+    const callOnly = { ...base, llamada: "APPROVED" };
+    assert.equal(matchesApproval(callOnly, "llamada"), true);
+    assert.equal(matchesApproval(callOnly, "filtro"), false);
+    assert.equal(matchesApproval(callOnly, "entrevista"), false);
+    assert.equal(matchesApproval({ ...base, interview_result: "APPROVED" }, "entrevista"), true);
+    assert.equal(matchesApproval({ ...base, interview_result: "RETAKE" }, "entrevista"), false);
+  });
+  test("Approved for last step is advance only, never interview approval", () => {
+    const advanced = { ...base, lovable: { interviewed_at: inWeek, result: "Approved for last step", appointment_at: null } };
+    assert.equal(matchesApproval(advanced, "avance"), true);
+    assert.equal(matchesApproval(advanced, "entrevista"), false);
+    assert.equal(matchesApproval(advanced, "filtro"), false);
+  });
+  test("filtro y llamada needs both approvals", () => {
+    assert.equal(matchesApproval({ ...base, filtro_lead: "APPROVED", llamada: "APPROVED" }, "filtro_y_llamada"), true);
+    assert.equal(matchesApproval({ ...base, filtro_lead: "APPROVED", llamada: "NO ANSWER" }, "filtro_y_llamada"), false);
   });
 });

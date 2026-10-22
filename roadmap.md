@@ -39,3 +39,4 @@
 - [x] Módulo de Leads: 4 campos independientes por LOB, catálogos originales, grupos, métricas semanales separadas y cruce con Lovable
 - [x] Leads: escribir cambios de vuelta a la hoja de Google vía Apps Script v2
 - [x] Leads: TODOS al final, quitar métrica automática de mensajes y verificar llamadas con resultados negativos (17 pruebas y pantalla autenticada)
+- [x] Leads: filtro "Aprobación" para ver solo APPROVED (filtro, llamada, entrevista hoja, avance a último filtro, filtro+llamada) con 21 pruebas y pantalla autenticada
