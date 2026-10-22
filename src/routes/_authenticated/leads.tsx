@@ -71,7 +71,7 @@ function LeadsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {(["ALL", ...LEAD_LOBS] as const).map((l) => (
+        {([...LEAD_LOBS, "ALL"] as const).map((l) => (
           <Button key={l} size="sm" variant={lob === l ? "default" : "outline"} onClick={() => setLob(l)}>
             {l === "ALL" ? "TODOS" : LOB_LABEL[l]}
           </Button>
@@ -84,10 +84,9 @@ function LeadsPage() {
       </div>
 
       {m && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           <Kpi label="Leads recibidas" value={m.received} />
           <Kpi label="Aprobadas en filtro" value={m.filterApproved} sub={pct(m.filterApproved, m.received)} />
-          <Kpi label="Mensajes enviados" value={m.messages} />
           <Kpi label="Llamadas realizadas" value={m.calls} sub={`${m.openHouse} Open House aparte`} />
           <Kpi label="Llamadas conectadas" value={m.connected} sub={pct(m.connected, m.calls)} />
           <Kpi label="Aprobadas en llamada" value={m.callApproved} sub={pct(m.callApproved, m.connected)} />
@@ -96,15 +95,15 @@ function LeadsPage() {
         </div>
       )}
 
-      {m && Object.keys(m.byRecruiter).length > 0 && (
+      {m && Object.values(m.byRecruiter).some((v) => v.calls > 0) && (
         <div className="overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left text-xs text-muted-foreground">
-              <tr><th className="p-2">Reclutador</th><th className="p-2">Mensajes</th><th className="p-2">Llamadas</th><th className="p-2">Conectadas</th><th className="p-2">Aprobadas en llamada</th></tr>
+              <tr><th className="p-2">Reclutador</th><th className="p-2">Llamadas</th><th className="p-2">Conectadas</th><th className="p-2">Aprobadas en llamada</th></tr>
             </thead>
             <tbody>
-              {Object.entries(m.byRecruiter).sort((a, b) => b[1].calls - a[1].calls).map(([n, v]) => (
-                <tr key={n} className="border-t border-border"><td className="p-2 font-medium">{n}</td><td className="p-2">{v.messages}</td><td className="p-2">{v.calls}</td><td className="p-2">{v.connected}</td><td className="p-2">{v.callApproved}</td></tr>
+              {Object.entries(m.byRecruiter).filter(([, v]) => v.calls > 0).sort((a, b) => b[1].calls - a[1].calls).map(([n, v]) => (
+                <tr key={n} className="border-t border-border"><td className="p-2 font-medium">{n}</td><td className="p-2">{v.calls}</td><td className="p-2">{v.connected}</td><td className="p-2">{v.callApproved}</td></tr>
               ))}
             </tbody>
           </table>
