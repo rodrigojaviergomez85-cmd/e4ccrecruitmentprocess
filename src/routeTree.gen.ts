@@ -40,6 +40,7 @@ import { Route as AuthenticatedSecondFilterApplicationIdRouteImport } from './ro
 import { Route as ApiPublicSpeedTestRouteImport } from './routes/api/public/speed-test'
 import { Route as ApiPublicCronRemindersRouteImport } from './routes/api/public/cron/reminders'
 import { Route as ApiPublicSheetsInterviewsRouteImport } from './routes/api/public/sheets/interviews'
+import { Route as ApiPublicSheetsLeadEditsRouteImport } from './routes/api/public/sheets/lead-edits'
 import { Route as ApiPublicWebhooksCalendlyRouteImport } from './routes/api/public/webhooks/calendly'
 
 const IndexRoute = IndexRouteImport.update({
@@ -203,6 +204,12 @@ const ApiPublicSheetsInterviewsRoute =
     path: '/api/public/sheets/interviews',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicSheetsLeadEditsRoute =
+  ApiPublicSheetsLeadEditsRouteImport.update({
+    id: '/api/public/sheets/lead-edits',
+    path: '/api/public/sheets/lead-edits',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWebhooksCalendlyRoute =
   ApiPublicWebhooksCalendlyRouteImport.update({
     id: '/api/public/webhooks/calendly',
@@ -241,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/sheets/interviews': typeof ApiPublicSheetsInterviewsRoute
+  '/api/public/sheets/lead-edits': typeof ApiPublicSheetsLeadEditsRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesByTo {
@@ -274,6 +282,7 @@ export interface FileRoutesByTo {
   '/second-filter': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/sheets/interviews': typeof ApiPublicSheetsInterviewsRoute
+  '/api/public/sheets/lead-edits': typeof ApiPublicSheetsLeadEditsRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRoutesById {
@@ -309,6 +318,7 @@ export interface FileRoutesById {
   '/_authenticated/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
   '/api/public/sheets/interviews': typeof ApiPublicSheetsInterviewsRoute
+  '/api/public/sheets/lead-edits': typeof ApiPublicSheetsLeadEditsRoute
   '/api/public/webhooks/calendly': typeof ApiPublicWebhooksCalendlyRoute
 }
 export interface FileRouteTypes {
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/second-filter/'
     | '/api/public/cron/reminders'
     | '/api/public/sheets/interviews'
+    | '/api/public/sheets/lead-edits'
     | '/api/public/webhooks/calendly'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/second-filter'
     | '/api/public/cron/reminders'
     | '/api/public/sheets/interviews'
+    | '/api/public/sheets/lead-edits'
     | '/api/public/webhooks/calendly'
   id:
     | '__root__'
@@ -411,6 +423,7 @@ export interface FileRouteTypes {
     | '/_authenticated/second-filter/'
     | '/api/public/cron/reminders'
     | '/api/public/sheets/interviews'
+    | '/api/public/sheets/lead-edits'
     | '/api/public/webhooks/calendly'
   fileRoutesById: FileRoutesById
 }
@@ -431,6 +444,7 @@ export interface RootRouteChildren {
   ApiPublicSpeedTestRoute: typeof ApiPublicSpeedTestRoute
   ApiPublicCronRemindersRoute: typeof ApiPublicCronRemindersRoute
   ApiPublicSheetsInterviewsRoute: typeof ApiPublicSheetsInterviewsRoute
+  ApiPublicSheetsLeadEditsRoute: typeof ApiPublicSheetsLeadEditsRoute
   ApiPublicWebhooksCalendlyRoute: typeof ApiPublicWebhooksCalendlyRoute
 }
 
@@ -653,6 +667,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicSheetsInterviewsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/sheets/lead-edits': {
+      id: '/api/public/sheets/lead-edits'
+      path: '/api/public/sheets/lead-edits'
+      fullPath: '/api/public/sheets/lead-edits'
+      preLoaderRoute: typeof ApiPublicSheetsLeadEditsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/webhooks/calendly': {
       id: '/api/public/webhooks/calendly'
       path: '/api/public/webhooks/calendly'
@@ -729,6 +750,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicSpeedTestRoute: ApiPublicSpeedTestRoute,
   ApiPublicCronRemindersRoute: ApiPublicCronRemindersRoute,
   ApiPublicSheetsInterviewsRoute: ApiPublicSheetsInterviewsRoute,
+  ApiPublicSheetsLeadEditsRoute: ApiPublicSheetsLeadEditsRoute,
   ApiPublicWebhooksCalendlyRoute: ApiPublicWebhooksCalendlyRoute,
 }
 export const routeTree = rootRouteImport
