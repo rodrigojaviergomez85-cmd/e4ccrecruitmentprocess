@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import { useCities, useCountries } from "@/hooks/useLocations";
 import { createManualCandidate } from "@/lib/candidate-admin.functions";
+import { searchLeadSuggestions, type LeadSuggestion } from "@/lib/leads.functions";
+import { LOB_LABEL, leadCountryCode, stripDial } from "@/lib/leads";
 
 export const Route = createFileRoute("/_authenticated/candidates/new")({
   head: () => ({
@@ -29,6 +31,7 @@ export const Route = createFileRoute("/_authenticated/candidates/new")({
       { property: "og:description", content: "Manual candidate intake for the E4CC team." },
     ],
   }),
+  validateSearch: (s: Record<string, unknown>) => ({ lead: typeof s.lead === "string" ? s.lead : undefined }),
   component: AddCandidate,
 });
 
@@ -52,6 +55,38 @@ function AddCandidate() {
 
   const { data: cities = [] } = useCities(countryCode || null);
   const dial = countries.find((c) => c.code === countryCode)?.dial_code ?? "";
+
+  // Suggestions from Leads while typing name or email.
+  const { lead: leadId } = Route.useSearch();
+  const suggest = useServerFn(searchLeadSuggestions);
+  const [term, setTerm] = useState("");
+  const [suggestions, setSuggestions] = useState<LeadSuggestion[]>([]);
+  const [filledFrom, setFilledFrom] = useState<LeadSuggestion | null>(null);
+  useEffect(() => {
+    if (term.trim().length < 3) { setSuggestions([]); return; }
+    const t = setTimeout(() => {
+      suggest({ data: { q: term } }).then(setSuggestions).catch(() => setSuggestions([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [term, suggest]);
+  const applyLead = (l: LeadSuggestion) => {
+    const code = leadCountryCode(l.lob, l.lead_country);
+    const d = countries.find((c) => c.code === code)?.dial_code ?? "";
+    setFullName(l.full_name ?? "");
+    setEmail(l.email ?? "");
+    setCountryCode(code);
+    setCityId("");
+    setPhone(stripDial(l.phone, d));
+    setModality(l.lob === "ONLINE" ? "online" : "onsite");
+    setFilledFrom(l);
+    setSuggestions([]);
+    setTerm("");
+  };
+  useEffect(() => {
+    if (!leadId || !countries.length || filledFrom) return;
+    suggest({ data: { q: "", id: leadId } }).then((r) => { if (r[0]) applyLead(r[0]); }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leadId, countries.length]);
 
   const mutation = useMutation({
     mutationFn: (force: boolean) =>
@@ -97,12 +132,37 @@ function AddCandidate() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Full name</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <Input value={fullName} onChange={(e) => { setFullName(e.target.value); setTerm(e.target.value); }} autoComplete="off" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setTerm(e.target.value); }} autoComplete="off" />
             </div>
+            {suggestions.length > 0 && (
+              <div className="sm:col-span-2 overflow-hidden rounded-2xl border border-border bg-popover shadow-md">
+                <p className="px-3 pt-2 text-xs font-semibold text-muted-foreground">Sugerencias desde Leads</p>
+                <ul>
+                  {suggestions.map((l) => (
+                    <li key={l.id}>
+                      <button type="button" onClick={() => applyLead(l)} className="w-full px-3 py-2 text-left text-sm hover:bg-accent">
+                        <span className="font-medium">{l.full_name || "(sin nombre)"}</span>
+                        {l.age ? <span className="text-muted-foreground"> · {l.age}</span> : null}
+                        <span className="block text-xs text-muted-foreground">
+                          {l.email} · {l.phone || "sin teléfono"} · {LOB_LABEL[l.lob]}{l.lob === "ONLINE" && l.lead_country ? ` (${l.lead_country})` : ""}
+                          {l.lead_created_at ? ` · ${new Date(l.lead_created_at).toLocaleDateString("es-SV", { day: "numeric", month: "short" })}` : ""}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {filledFrom && (
+              <p className="sm:col-span-2 rounded-2xl border border-success/40 bg-success/10 px-3 py-2 text-sm">
+                Datos autocompletados desde Leads ({LOB_LABEL[filledFrom.lob]}
+                {filledFrom.lead_created_at ? ` · ${new Date(filledFrom.lead_created_at).toLocaleDateString("es-SV", { day: "numeric", month: "short" })}` : ""}). Elige la ciudad y revisa antes de guardar.
+              </p>
+            )}
             <div className="space-y-1.5">
               <Label>Country</Label>
               <Select
