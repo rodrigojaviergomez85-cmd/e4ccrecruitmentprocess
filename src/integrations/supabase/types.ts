@@ -1186,11 +1186,14 @@ export type Database = {
       }
       recruitment_leads: {
         Row: {
+          age: string
           branch: string
           call_at: string | null
           call_date: string
           call_recruiter: string
           call_time: string
+          cc_exp: string
+          cc_time: string
           comment: string
           created_at: string
           edited_by: string | null
@@ -1215,14 +1218,19 @@ export type Database = {
           phone: string
           source_row: number
           source_sheet: string
+          teaching_exp: string
+          teaching_time: string
           updated_at: string
         }
         Insert: {
+          age?: string
           branch?: string
           call_at?: string | null
           call_date?: string
           call_recruiter?: string
           call_time?: string
+          cc_exp?: string
+          cc_time?: string
           comment?: string
           created_at?: string
           edited_by?: string | null
@@ -1247,14 +1255,19 @@ export type Database = {
           phone?: string
           source_row: number
           source_sheet: string
+          teaching_exp?: string
+          teaching_time?: string
           updated_at?: string
         }
         Update: {
+          age?: string
           branch?: string
           call_at?: string | null
           call_date?: string
           call_recruiter?: string
           call_time?: string
+          cc_exp?: string
+          cc_time?: string
           comment?: string
           created_at?: string
           edited_by?: string | null
@@ -1279,6 +1292,8 @@ export type Database = {
           phone?: string
           source_row?: number
           source_sheet?: string
+          teaching_exp?: string
+          teaching_time?: string
           updated_at?: string
         }
         Relationships: []
