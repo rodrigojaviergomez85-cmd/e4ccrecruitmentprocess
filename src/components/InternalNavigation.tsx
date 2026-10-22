@@ -4,6 +4,7 @@ import {
   BarChart3,
   ClipboardCheck,
   ClipboardList,
+  Inbox,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -36,7 +37,7 @@ type StaffNavigationAccess = {
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/second-filter" | "/evaluations" | "/scorecard" | "/training" | "/referrals" | "/settings" | "/staff";
+  to: "/dashboard" | "/second-filter" | "/evaluations" | "/scorecard" | "/training" | "/referrals" | "/leads" | "/settings" | "/staff";
   icon: typeof ClipboardList;
   active: (pathname: string) => boolean;
   show: (access: StaffNavigationAccess) => boolean;
@@ -80,6 +81,13 @@ const ITEMS: NavItem[] = [
     icon: UsersRound,
     active: (path) => path === "/training",
     show: () => true,
+  },
+  {
+    label: "Leads",
+    to: "/leads",
+    icon: Inbox,
+    active: (path) => path === "/leads",
+    show: canEvaluate,
   },
   {
     label: "Referrals",

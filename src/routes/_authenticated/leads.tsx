@@ -175,7 +175,7 @@ function LeadRow({ row }: { row: Row }) {
     const value = row[field] as string;
     const options = CATALOG[lob][field].includes(value) || !value ? CATALOG[lob][field] : [value, ...CATALOG[lob][field]];
     return (
-      <td className="p-2 align-top">
+      <>
         <select
           className="w-44 rounded border border-input bg-background px-1 py-1 text-xs"
           value={value}
@@ -189,7 +189,7 @@ function LeadRow({ row }: { row: Row }) {
         {stamp && (stamp.rec || stamp.date) && (
           <div className="text-[10px] text-muted-foreground">{canonicalRecruiter(stamp.rec)} {stamp.date} {stamp.time}</div>
         )}
-      </td>
+      </>
     );
   };
 
@@ -205,13 +205,12 @@ function LeadRow({ row }: { row: Row }) {
           {row.edited_in_app_at ? " · editado en plataforma" : ""}
         </div>
       </td>
-      {pick("filtro_lead")}
-      {pick("mensaje", { rec: row.msg_recruiter, date: row.msg_date, time: row.msg_time })}
-      {pick("llamada", { rec: row.call_recruiter, date: row.call_date, time: row.call_time })}
+      <td className="p-2 align-top">{pick("filtro_lead")}</td>
+      <td className="p-2 align-top">{pick("mensaje", { rec: row.msg_recruiter, date: row.msg_date, time: row.msg_time })}</td>
+      <td className="p-2 align-top">{pick("llamada", { rec: row.call_recruiter, date: row.call_date, time: row.call_time })}</td>
       <td className="p-2 align-top">
         <div className="text-[10px] font-medium text-muted-foreground">Histórico hoja</div>
-        <table><tbody>{/* keeps cell compact */}</tbody></table>
-        {pick("interview_result").props.children}
+        {pick("interview_result")}
         {row.interview_date && <div className="text-[10px] text-muted-foreground">Fecha hoja: {row.interview_date}</div>}
       </td>
       <td className="p-2 align-top text-xs">
