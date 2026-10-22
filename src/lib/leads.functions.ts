@@ -5,8 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import {
-  CATALOG, LEAD_LOBS, LOB_SHEET, SHEET_COLUMNS, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
-  type LeadLob,
+  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
+  type ApprovalFilter, type LeadLob,
 } from "./leads";
 
 const SHEET_ID = "1g3n_9HtnADa5jWtFAPrNMF_kZO-cgr9wi11QTd7CCQo";
@@ -95,6 +95,7 @@ export const listLeads = createServerFn({ method: "POST" })
     weekOf: z.number().int(),
     search: z.string().max(100).default(""),
     onlyWeek: z.boolean().default(true),
+    approval: z.enum(["ALL", ...APPROVAL_STAGES]).default("ALL"),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { db } = await requireLeadsAccess(context.userId);
@@ -143,6 +144,7 @@ export const listLeads = createServerFn({ method: "POST" })
     const inWeek = (iso: string | null) => !!iso && Date.parse(iso) >= from && Date.parse(iso) < to;
     const filtered = rows.filter((r) =>
       (s ? `${r.full_name} ${r.email} ${r.phone}`.toLowerCase().includes(s) : true) &&
+      matchesApproval(r, data.approval as ApprovalFilter) &&
       (data.onlyWeek && !s ? inWeek(r.lead_created_at) || inWeek(r.call_at) || inWeek(r.msg_at) || inWeek(r.lovable?.interviewed_at ?? null) : true),
     );
     const { data: lastImport } = await db.from("recruitment_leads").select("imported_at").order("imported_at", { ascending: false }).limit(1).maybeSingle();
