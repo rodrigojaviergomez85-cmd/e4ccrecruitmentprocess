@@ -1184,6 +1184,105 @@ export type Database = {
           },
         ]
       }
+      recruitment_leads: {
+        Row: {
+          branch: string
+          call_at: string | null
+          call_date: string
+          call_recruiter: string
+          call_time: string
+          comment: string
+          created_at: string
+          edited_by: string | null
+          edited_in_app_at: string | null
+          email: string
+          email_norm: string
+          filtro_lead: string
+          full_name: string
+          id: string
+          imported_at: string
+          interview_date: string
+          interview_result: string
+          lead_country: string
+          lead_created_at: string | null
+          llamada: string
+          lob: string
+          mensaje: string
+          msg_at: string | null
+          msg_date: string
+          msg_recruiter: string
+          msg_time: string
+          phone: string
+          source_row: number
+          source_sheet: string
+          updated_at: string
+        }
+        Insert: {
+          branch?: string
+          call_at?: string | null
+          call_date?: string
+          call_recruiter?: string
+          call_time?: string
+          comment?: string
+          created_at?: string
+          edited_by?: string | null
+          edited_in_app_at?: string | null
+          email?: string
+          email_norm?: string
+          filtro_lead?: string
+          full_name?: string
+          id?: string
+          imported_at?: string
+          interview_date?: string
+          interview_result?: string
+          lead_country?: string
+          lead_created_at?: string | null
+          llamada?: string
+          lob: string
+          mensaje?: string
+          msg_at?: string | null
+          msg_date?: string
+          msg_recruiter?: string
+          msg_time?: string
+          phone?: string
+          source_row: number
+          source_sheet: string
+          updated_at?: string
+        }
+        Update: {
+          branch?: string
+          call_at?: string | null
+          call_date?: string
+          call_recruiter?: string
+          call_time?: string
+          comment?: string
+          created_at?: string
+          edited_by?: string | null
+          edited_in_app_at?: string | null
+          email?: string
+          email_norm?: string
+          filtro_lead?: string
+          full_name?: string
+          id?: string
+          imported_at?: string
+          interview_date?: string
+          interview_result?: string
+          lead_country?: string
+          lead_created_at?: string | null
+          llamada?: string
+          lob?: string
+          mensaje?: string
+          msg_at?: string | null
+          msg_date?: string
+          msg_recruiter?: string
+          msg_time?: string
+          phone?: string
+          source_row?: number
+          source_sheet?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       recruitment_progress: {
         Row: {
           application_id: string

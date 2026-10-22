@@ -36,3 +36,5 @@
 - [x] Training: Guardar fijo junto al nombre; editar/agregar referencias
 - [x] Training: la Meta de Reclutamiento se muda al espacio vacío del menú lateral (sigue el país de la pestaña); en celular y tableta sigue apareciendo dentro de la página
 - [x] Training: documentos unificados en 5 columnas (Identidad, Título, Antecedentes, Certificado de Salud solo NI, Convenio firmado para todos)
+- [x] Módulo de Leads: 4 campos independientes por LOB, catálogos originales, grupos, métricas semanales separadas y cruce con Lovable
+- [ ] Leads: escribir cambios de vuelta a la hoja de Google (requiere decidir vía Apps Script)
