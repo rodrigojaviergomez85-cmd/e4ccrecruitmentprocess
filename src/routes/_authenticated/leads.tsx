@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
@@ -246,7 +246,12 @@ function LeadRow({ row }: { row: Row }) {
             ) : <div className="text-muted-foreground">Sin entrevista en plataforma</div>}
             <div className="text-[10px] text-muted-foreground">Estado: {lov.status}</div>
           </div>
-        ) : <span className="text-muted-foreground">No está en plataforma</span>}
+        ) : (
+          <div className="space-y-1">
+            <span className="text-muted-foreground">No está en plataforma</span>
+            <Link to="/candidates/new" search={{ lead: row.id }} className="block text-xs font-semibold text-primary underline underline-offset-2">+ Crear aplicante</Link>
+          </div>
+        )}
       </td>
       <td className="p-2 align-top">
         <textarea

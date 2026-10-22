@@ -37,6 +37,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCountries } from "@/hooks/useLocations";
 import { getApplicantActivity, getMyAccess, listCandidates } from "@/lib/recruiter.functions";
 import { EXPERIENCE_OPTIONS, STATUS_OPTIONS } from "@/lib/recruitment";
+import { searchLeadSuggestions } from "@/lib/leads.functions";
+import { LOB_LABEL } from "@/lib/leads";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -367,6 +369,7 @@ function Dashboard() {
             <div className="p-10 text-center text-sm text-muted-foreground">
               {chips.length ? "No applicants match these filters." : archived ? "No archived applicants." : "No applicants yet."}
               {chips.length > 0 && <div className="mt-3"><Button variant="outline" size="sm" onClick={clearAll}>Clear filters</Button></div>}
+              {debounced && <LeadMatches term={debounced} />}
             </div>
           ) : (
             <>
@@ -662,6 +665,32 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
           {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function LeadMatches({ term }: { term: string }) {
+  const suggest = useServerFn(searchLeadSuggestions);
+  const { data = [] } = useQuery({
+    queryKey: ["lead-matches", term],
+    queryFn: () => suggest({ data: { q: term } }).catch(() => []),
+    enabled: term.length >= 3,
+  });
+  if (!data.length) return null;
+  return (
+    <div className="mx-auto mt-6 max-w-xl space-y-2 text-left">
+      <p className="font-semibold text-foreground">Candidato encontrado en Leads</p>
+      {data.map((l) => (
+        <div key={l.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3">
+          <div>
+            <div className="font-medium text-foreground">{l.full_name || "(sin nombre)"}{l.age ? ` · ${l.age}` : ""}</div>
+            <div className="text-xs">{l.email} · {l.phone || "sin teléfono"} · {LOB_LABEL[l.lob]}{l.lob === "ONLINE" && l.lead_country ? ` (${l.lead_country})` : ""}</div>
+          </div>
+          <Button asChild size="sm" className="rounded-2xl">
+            <Link to="/candidates/new" search={{ lead: l.id }}>+ Convertir en aplicante</Link>
+          </Button>
+        </div>
+      ))}
     </div>
   );
 }
