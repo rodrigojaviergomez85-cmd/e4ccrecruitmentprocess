@@ -262,7 +262,7 @@ function Dashboard() {
             <p className="text-sm text-muted-foreground">Manage applications and candidate follow-up.</p>
           </div>
           <Button asChild>
-            <Link to="/candidates/new"><Plus className="mr-1.5 h-4 w-4" /> Add candidate</Link>
+            <Link to="/candidates/new" search={{ lead: undefined }}><Plus className="mr-1.5 h-4 w-4" /> Add candidate</Link>
           </Button>
         </div>
 
