@@ -246,3 +246,7 @@ function LeadRow({ row }: { row: Row }) {
     </tr>
   );
 }
+
+function humanize(v: string) {
+  return (v || "—").replace(/_/g, " ").trim();
+}
