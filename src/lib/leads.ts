@@ -168,7 +168,7 @@ export function parseSheetDateTime(date: string, time = ""): string | null {
   let h = 12, min = 0;
   const t = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])\.?\s*m\.?$/i.exec(time.trim());
   if (t) {
-    h = Number(t[1]) % 12 + (t[3].toLowerCase() === "p" ? 12 : 0);
+    h = Number(t[1]) % 12 + ((t[3] ?? "").toLowerCase() === "p" ? 12 : 0);
     min = Number(t[2]);
   }
   const ms = Date.UTC(Number(d[3]), Number(d[2]) - 1, Number(d[1]), h + 6, min);
@@ -187,7 +187,7 @@ export function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [], cell = "", q = false;
   for (let i = 0; i < text.length; i++) {
-    const c = text[i];
+    const c = text[i]!;
     if (q) {
       if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
       else cell += c;

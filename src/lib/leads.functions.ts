@@ -174,7 +174,7 @@ export const updateLead = createServerFn({ method: "POST" })
       if (v && !allowed[f].includes(v) && v !== lead[f]) throw new Error(`Valor no permitido para ${lead.lob}: ${v}`);
     }
     const now = SV_NOW();
-    const patch: Record<string, unknown> = { edited_in_app_at: new Date().toISOString(), edited_by: context.userId };
+    const patch: Record<string, unknown> & { filtro_lead?: string; interview_result?: string; comment?: string } = { edited_in_app_at: new Date().toISOString(), edited_by: context.userId };
     if (data.filtro_lead !== undefined) patch.filtro_lead = data.filtro_lead;
     if (data.interview_result !== undefined) patch.interview_result = data.interview_result;
     if (data.comment !== undefined) patch.comment = data.comment;
