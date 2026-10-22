@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CATALOG, LEAD_LOBS, LOB_LABEL, canonicalRecruiter, valueGroup, type LeadField, type LeadLob } from "@/lib/leads";
+import { APPROVAL_LABEL, APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_LABEL, canonicalRecruiter, valueGroup, type ApprovalFilter, type LeadField, type LeadLob } from "@/lib/leads";
 import { importLeadsFromSheet, listLeads, updateLead } from "@/lib/leads.functions";
 import { resultLabel } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -40,9 +40,10 @@ function LeadsPage() {
   const [weekOf, setWeekOf] = useState(() => Date.now());
   const [search, setSearch] = useState("");
   const [onlyWeek, setOnlyWeek] = useState(true);
+  const [approval, setApproval] = useState<ApprovalFilter>("ALL");
   const [importing, setImporting] = useState(false);
-  const key = ["leads", lob, weekOf, search, onlyWeek];
-  const { data, isPending, error } = useQuery({ queryKey: key, queryFn: () => list({ data: { lob, weekOf, search, onlyWeek } }) });
+  const key = ["leads", lob, weekOf, search, onlyWeek, approval];
+  const { data, isPending, error } = useQuery({ queryKey: key, queryFn: () => list({ data: { lob, weekOf, search, onlyWeek, approval } }) });
 
   async function runImport() {
     setImporting(true);
@@ -112,6 +113,18 @@ function LeadsPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Input className="max-w-xs" placeholder="Buscar nombre, correo o teléfono" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <label className="flex items-center gap-2 text-sm">
+          Aprobación
+          <select
+            className="rounded border border-input bg-background px-2 py-1 text-sm"
+            value={approval}
+            onChange={(e) => setApproval(e.target.value as ApprovalFilter)}
+          >
+            {(["ALL", ...APPROVAL_STAGES] as const).map((a) => (
+              <option key={a} value={a}>{APPROVAL_LABEL[a]}</option>
+            ))}
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={onlyWeek} onChange={(e) => setOnlyWeek(e.target.checked)} /> Solo actividad de esta semana
         </label>
