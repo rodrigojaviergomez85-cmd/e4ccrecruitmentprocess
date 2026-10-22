@@ -31,7 +31,7 @@ export const Route = createFileRoute("/_authenticated/candidates/new")({
       { property: "og:description", content: "Manual candidate intake for the E4CC team." },
     ],
   }),
-  validateSearch: (s: Record<string, unknown>) => ({ lead: typeof s.lead === "string" ? s.lead : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ lead: typeof s["lead"] === "string" ? s["lead"] : undefined }),
   component: AddCandidate,
 });
 
