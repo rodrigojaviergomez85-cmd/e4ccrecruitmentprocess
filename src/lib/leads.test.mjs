@@ -88,3 +88,11 @@ describe("Leads rules", () => {
     assert.equal(matchesApproval({ ...base, filtro_lead: "APPROVED", llamada: "NO ANSWER" }, "filtro_y_llamada"), false);
   });
 });
+
+test("lead country: sheet country first, then phone prefix", async () => {
+  const { leadCountryCode, stripDial } = await import("./leads.ts");
+  assert.equal(leadCountryCode("ONLINE", "", "50239959973"), "GT");
+  assert.equal(leadCountryCode("ONLINE", "México", "50239959973"), "MX");
+  assert.equal(leadCountryCode("NICA", "", ""), "NI");
+  assert.equal(stripDial("50239959973", "+502"), "39959973");
+});

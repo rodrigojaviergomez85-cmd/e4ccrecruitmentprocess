@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import {
-  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
+  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
   type ApprovalFilter, type LeadLob,
 } from "./leads";
 
@@ -46,7 +46,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
     const summary: Record<string, number> = {};
     for (const lob of LEAD_LOBS) {
       const sheet = LOB_SHEET[lob];
-      const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`);
+      const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${LOB_GID[lob]}`);
       if (!res.ok) throw new Error(`No se pudo leer la pestaña ${sheet} (${res.status}).`);
       const rows = parseCsv(await res.text());
       const c = SHEET_COLUMNS[lob];
@@ -197,3 +197,27 @@ export const updateLead = createServerFn({ method: "POST" })
     await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "leads.update", entityType: "recruitment_leads", entityId: data.id, oldValue: lead, newValue: patch });
     return { ok: true };
   });
+
+/** Lead suggestions for creating applicants (name/email/phone search, newest first). */
+export const searchLeadSuggestions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ q: z.string().max(100).default(""), id: z.string().uuid().optional() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { db } = await requireLeadsAccess(context.userId);
+    const cols = "id, lob, lead_country, branch, full_name, email, phone, lead_created_at, filtro_lead, age, cc_time, teaching_time";
+    let q = db.from("recruitment_leads").select(cols).order("lead_created_at", { ascending: false, nullsFirst: false }).limit(8);
+    if (data.id) q = q.eq("id", data.id);
+    else {
+      const term = data.q.trim().replace(/[%,()*]/g, " ").trim();
+      if (term.length < 3) return [];
+      q = q.or(`full_name.ilike.%${term}%,email_norm.ilike.%${term.toLowerCase()}%,phone.ilike.%${term.replace(/\D/g, "") || term}%`);
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return (rows ?? []) as LeadSuggestion[];
+  });
+
+export type LeadSuggestion = {
+  id: string; lob: LeadLob; lead_country: string | null; branch: string | null; full_name: string | null; email: string | null;
+  phone: string | null; lead_created_at: string | null; filtro_lead: string | null; age: string | null; cc_time: string | null; teaching_time: string | null;
+};

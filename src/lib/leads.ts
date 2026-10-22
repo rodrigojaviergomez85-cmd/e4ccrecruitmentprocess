@@ -8,6 +8,8 @@ export const LEAD_LOBS = ["ONLINE", "SV", "NICA", "GT"] as const;
 export type LeadLob = (typeof LEAD_LOBS)[number];
 export const LOB_LABEL: Record<LeadLob, string> = { ONLINE: "ONLINE", SV: "EL SALVADOR", NICA: "NICARAGUA", GT: "GUATEMALA" };
 export const LOB_SHEET: Record<LeadLob, string> = { ONLINE: "LEADS ONLINE", SV: "SV", NICA: "NICA", GT: "GT" };
+/** Tab gids for the native CSV export (gviz drops numbers in mixed-type columns like TELEFONO). */
+export const LOB_GID: Record<LeadLob, string> = { ONLINE: "140927548", SV: "864557103", NICA: "2018809868", GT: "348099479" };
 
 /** 0-indexed sheet columns. GT/SV/NICA: O,S,W,Y. LEADS ONLINE: Q,U,Y,AA. */
 const COUNTRY_COLS = { created: 0, country: -1, branch: 4, teachTime: 5, teachExp: 6, ccTime: 7, ccExp: 8, age: 10, email: 11, name: 12, phone: 13, filtro: 14, msgRec: 15, msgDate: 16, msgTime: 17, msg: 18, callRec: 19, callDate: 20, callTime: 21, call: 22, intDate: 23, int: 24, comment: 25 };
@@ -233,4 +235,24 @@ export function parseCsv(text: string): string[][] {
   }
   if (cell || row.length) { row.push(cell); rows.push(row); }
   return rows;
+}
+
+/** Country code for the applicant form from a lead (ONLINE uses the country the lead typed). */
+export function leadCountryCode(lob: LeadLob, leadCountry: string | null, phone: string | null = null): string {
+  if (lob === "SV") return "SV";
+  if (lob === "GT") return "GT";
+  if (lob === "NICA") return "NI";
+  const c = (leadCountry ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const map: Record<string, string> = { "el salvador": "SV", guatemala: "GT", nicaragua: "NI", honduras: "HN", mexico: "MX", colombia: "CO" };
+  if (map[c]) return map[c];
+  const d = (phone ?? "").replace(/\D/g, "");
+  const byDial: [string, string][] = [["503", "SV"], ["502", "GT"], ["505", "NI"], ["504", "HN"], ["57", "CO"], ["52", "MX"]];
+  return byDial.find(([p]) => d.startsWith(p) && d.length >= p.length + 7)?.[1] ?? "OTHER";
+}
+
+/** Local phone digits without the country dial prefix. */
+export function stripDial(phone: string | null, dial: string): string {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  const d = dial.replace(/\D/g, "");
+  return d && digits.startsWith(d) && digits.length > d.length + 6 ? digits.slice(d.length) : digits;
 }
