@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import {
-  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
+  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
   type ApprovalFilter, type LeadLob,
 } from "./leads";
 
