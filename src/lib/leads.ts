@@ -236,3 +236,20 @@ export function parseCsv(text: string): string[][] {
   if (cell || row.length) { row.push(cell); rows.push(row); }
   return rows;
 }
+
+/** Country code for the applicant form from a lead (ONLINE uses the country the lead typed). */
+export function leadCountryCode(lob: LeadLob, leadCountry: string | null): string {
+  if (lob === "SV") return "SV";
+  if (lob === "GT") return "GT";
+  if (lob === "NICA") return "NI";
+  const c = (leadCountry ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const map: Record<string, string> = { "el salvador": "SV", guatemala: "GT", nicaragua: "NI", honduras: "HN", mexico: "MX", colombia: "CO" };
+  return map[c] ?? "OTHER";
+}
+
+/** Local phone digits without the country dial prefix. */
+export function stripDial(phone: string | null, dial: string): string {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  const d = dial.replace(/\D/g, "");
+  return d && digits.startsWith(d) && digits.length > d.length + 6 ? digits.slice(d.length) : digits;
+}
