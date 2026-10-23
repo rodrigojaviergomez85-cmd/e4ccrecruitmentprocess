@@ -78,6 +78,7 @@ function TrainingPage() {
   const listReq = useServerFn(listRequisitions);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
   const [lob, setLob] = useState("ONLINE");
+  const navCollapsed = useNavCollapsed();
   // The goal summary now lives in the sidebar: keep it on the tab being viewed.
   useEffect(() => { publishTrainingLob(lob); }, [lob]);
   const [periodMode, setPeriodMode] = useState<"wave" | "month">("wave");
