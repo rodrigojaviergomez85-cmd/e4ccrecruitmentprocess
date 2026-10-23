@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import {
-  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
+  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, leadAge, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
   type ApprovalFilter, type LeadLob,
 } from "./leads";
 
@@ -56,7 +56,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       rows.slice(1).forEach((r, i) => {
         const rowNo = i + 2;
         if (!g(r, c.email) && !g(r, c.name) && !g(r, c.phone)) return;
-        const exp = { age: g(r, c.age), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
+        const exp = { age: leadAge(g(r, c.age), g(r, c.birth)), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
         if (edited.has(`${sheet}#${rowNo}`)) { expOnly.push({ source_sheet: sheet, source_row: rowNo, ...exp }); return; }
         const created = Date.parse(g(r, c.created));
         batch.push({

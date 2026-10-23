@@ -96,3 +96,10 @@ test("lead country: sheet country first, then phone prefix", async () => {
   assert.equal(leadCountryCode("NICA", "", ""), "NI");
   assert.equal(stripDial("50239959973", "+502"), "39959973");
 });
+
+test("lead age falls back to birth year", () => {
+  const { leadAge } = mod;
+  expect(leadAge("22 años", "26/8/2002")).toBe("22 años");
+  expect(leadAge("", "26/8/2002", new Date("2026-10-23"))).toBe("~24 años");
+  expect(leadAge("", "")).toBe("");
+});
