@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import {
-  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
+  APPROVAL_STAGES, CATALOG, LEAD_LOBS, LOB_GID, LOB_SHEET, SHEET_COLUMNS, leadAge, matchesApproval, parseCsv, parseSheetDateTime, weekStart, weeklyMetrics,
   type ApprovalFilter, type LeadLob,
 } from "./leads";
 
@@ -44,6 +44,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
         .map((r) => `${r.source_sheet}#${r.source_row}`),
     );
     const summary: Record<string, number> = {};
+    const runStart = new Date().toISOString();
     for (const lob of LEAD_LOBS) {
       const sheet = LOB_SHEET[lob];
       const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${LOB_GID[lob]}`);
@@ -56,7 +57,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       rows.slice(1).forEach((r, i) => {
         const rowNo = i + 2;
         if (!g(r, c.email) && !g(r, c.name) && !g(r, c.phone)) return;
-        const exp = { age: g(r, c.age), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
+        const exp = { age: leadAge(g(r, c.age), g(r, c.birth)), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
         if (edited.has(`${sheet}#${rowNo}`)) { expOnly.push({ source_sheet: sheet, source_row: rowNo, ...exp }); return; }
         const created = Date.parse(g(r, c.created));
         batch.push({
@@ -69,7 +70,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
           interview_date: g(r, c.intDate), interview_result: g(r, c.int), comment: g(r, c.comment),
           msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)),
           call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)),
-          imported_at: new Date().toISOString(), ...exp,
+          imported_at: runStart, ...exp,
         });
       });
       for (let i = 0; i < batch.length; i += 500) {
@@ -79,6 +80,12 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       for (const row of expOnly) {
         const { source_sheet, source_row, ...exp } = row;
         await db.from("recruitment_leads").update(exp).eq("source_sheet", source_sheet).eq("source_row", source_row);
+      }
+      // Rows deleted/shifted in the sheet leave stale copies at old row numbers; drop unedited ones not refreshed now.
+      if (batch.length) {
+        const { error: delErr } = await db.from("recruitment_leads").delete()
+          .eq("source_sheet", sheet).is("edited_in_app_at", null).lt("imported_at", runStart);
+        if (delErr) throw new Error(delErr.message);
       }
       summary[lob] = batch.length;
     }
