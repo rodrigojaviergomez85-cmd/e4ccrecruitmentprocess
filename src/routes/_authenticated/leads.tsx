@@ -173,10 +173,15 @@ function LeadRow({ row }: { row: Row }) {
 
   async function save(patch: Partial<Record<LeadField | "comment", string>>) {
     setSaving(true);
+    // Show the new value immediately; no full reload of the list.
+    const apply = (p: Record<string, unknown>) => qc.setQueriesData<Data>({ queryKey: ["leads"] }, (old) =>
+      old ? { ...old, rows: old.rows.map((r) => (r.id === row.id ? { ...r, ...p } : r)) } : old);
+    const prev = Object.fromEntries(Object.keys(patch).map((k) => [k, row[k as keyof Row]]));
+    apply(patch);
     try {
       await update({ data: { id: row.id, ...patch } });
-      qc.invalidateQueries({ queryKey: ["leads"] });
     } catch (e) {
+      apply(prev);
       toast.error((e as Error).message);
     } finally {
       setSaving(false);
