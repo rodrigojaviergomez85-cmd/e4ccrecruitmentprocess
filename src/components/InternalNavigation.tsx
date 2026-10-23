@@ -123,15 +123,9 @@ export function InternalNavigation({ access }: { access: StaffNavigationAccess }
     await navigate({ to: "/auth" });
   }
 
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => {
-    setCollapsed(window.localStorage.getItem("e4cc-nav-collapsed") === "1");
-  }, []);
+  const collapsed = useNavCollapsed();
   function toggle() {
-    setCollapsed((v) => {
-      window.localStorage.setItem("e4cc-nav-collapsed", v ? "0" : "1");
-      return !v;
-    });
+    publishNavCollapsed(!collapsed);
   }
   const home = access.isTrainerOnly ? "/training" : "/dashboard";
 
