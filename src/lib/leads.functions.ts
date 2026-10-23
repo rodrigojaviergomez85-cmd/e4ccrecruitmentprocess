@@ -34,6 +34,37 @@ async function pageAll(build: (from: number, to: number) => any) { // eslint-dis
   return out;
 }
 
+/**
+ * Rows edited in the platform are keyed by sheet row; when the sheet shifts (rows deleted/inserted)
+ * those copies end up at the wrong row and show as duplicates. Move each edited copy to the sheet row
+ * that holds its email (latest edit wins) and drop copies whose lead is already represented.
+ * `emails[i]` is the normalized email at sheet row i+1. Mutates `edited` to the new row keys.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function relocateEditedRows(db: any, sheet: string, emails: string[], edited: Set<string>) {
+  const { data, error } = await db.from("recruitment_leads").select("id, source_row, email_norm, edited_in_app_at")
+    .eq("source_sheet", sheet).not("edited_in_app_at", "is", null).order("edited_in_app_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  const recs = (data ?? []) as Array<{ id: string; source_row: number; email_norm: string | null; edited_in_app_at: string }>;
+  const rowsByEmail = new Map<string, number[]>();
+  emails.forEach((e, i) => { if (i > 0 && e) (rowsByEmail.get(e) ?? rowsByEmail.set(e, []).get(e)!).push(i + 1); });
+  const claimed = new Set<number>();
+  // Copies already at a row with their email keep it.
+  for (const r of recs) if (r.email_norm && emails[r.source_row - 1] === r.email_norm && !claimed.has(r.source_row)) claimed.add(r.source_row);
+  const kept = new Set(recs.filter((r) => r.email_norm && emails[r.source_row - 1] === r.email_norm).map((r) => r.id));
+  for (const r of recs) {
+    if (kept.has(r.id) || !r.email_norm) continue;
+    edited.delete(`${sheet}#${r.source_row}`);
+    const free = (rowsByEmail.get(r.email_norm) ?? []).find((n) => !claimed.has(n));
+    if (free === undefined) { await db.from("recruitment_leads").delete().eq("id", r.id); continue; }
+    await db.from("recruitment_leads").delete().eq("source_sheet", sheet).eq("source_row", free).neq("id", r.id);
+    const { error: upErr } = await db.from("recruitment_leads").update({ source_row: free }).eq("id", r.id);
+    if (upErr) throw new Error(upErr.message);
+    claimed.add(free);
+    edited.add(`${sheet}#${free}`);
+  }
+}
+
 /** Imports the four tabs. Rows already edited in the platform keep their platform values. */
 export const importLeadsFromSheet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -52,6 +83,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       const rows = parseCsv(await res.text());
       const c = SHEET_COLUMNS[lob];
       const g = (r: string[], i: number) => (i >= 0 ? (r[i] ?? "").trim() : "");
+      await relocateEditedRows(db, sheet, rows.map((r) => g(r, c.email).toLowerCase()), edited);
       const batch: Record<string, unknown>[] = [];
       const expOnly: Record<string, unknown>[] = [];
       rows.slice(1).forEach((r, i) => {
