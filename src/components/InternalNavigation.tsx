@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { publishNavCollapsed, useNavCollapsed } from "@/lib/nav-collapsed";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
