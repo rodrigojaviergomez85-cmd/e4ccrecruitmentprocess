@@ -44,6 +44,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
         .map((r) => `${r.source_sheet}#${r.source_row}`),
     );
     const summary: Record<string, number> = {};
+    const runStart = new Date().toISOString();
     for (const lob of LEAD_LOBS) {
       const sheet = LOB_SHEET[lob];
       const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${LOB_GID[lob]}`);
@@ -69,7 +70,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
           interview_date: g(r, c.intDate), interview_result: g(r, c.int), comment: g(r, c.comment),
           msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)),
           call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)),
-          imported_at: new Date().toISOString(), ...exp,
+          imported_at: runStart, ...exp,
         });
       });
       for (let i = 0; i < batch.length; i += 500) {
@@ -79,6 +80,12 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       for (const row of expOnly) {
         const { source_sheet, source_row, ...exp } = row;
         await db.from("recruitment_leads").update(exp).eq("source_sheet", source_sheet).eq("source_row", source_row);
+      }
+      // Rows deleted/shifted in the sheet leave stale copies at old row numbers; drop unedited ones not refreshed now.
+      if (batch.length) {
+        const { error: delErr } = await db.from("recruitment_leads").delete()
+          .eq("source_sheet", sheet).is("edited_in_app_at", null).lt("imported_at", runStart);
+        if (delErr) throw new Error(delErr.message);
       }
       summary[lob] = batch.length;
     }
