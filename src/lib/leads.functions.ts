@@ -106,9 +106,14 @@ export const listLeads = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { db } = await requireLeadsAccess(context.userId);
+    // Weekly view: only load recent leads (created or worked in the last 45 days
+    // before the selected week's end) instead of the full history.
+    const recentOnly = data.onlyWeek && !data.search.trim();
+    const sinceIso = new Date(weekStart(data.weekOf) - 38 * 86400_000).toISOString();
     const leads = await pageAll((f, t) => {
       let q = db.from("recruitment_leads").select(COLS).order("lead_created_at", { ascending: false, nullsFirst: false }).range(f, t);
       if (data.lob !== "ALL") q = q.eq("lob", data.lob);
+      if (recentOnly) q = q.or(`lead_created_at.gte.${sinceIso},call_at.gte.${sinceIso},msg_at.gte.${sinceIso},edited_in_app_at.gte.${sinceIso}`);
       return q;
     });
 
