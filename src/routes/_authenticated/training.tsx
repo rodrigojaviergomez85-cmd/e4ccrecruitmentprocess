@@ -111,7 +111,7 @@ function TrainingPage() {
           <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
           <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
-        {data && <StatusSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} open={open} />}
+        {data && <StatusSummary groups={groupNames} rows={periodRows} open={open} />}
         {/* On phones/tablets the sidebar is hidden; on desktop the goal moves into the page only when the sidebar is collapsed. */}
         <div className={navCollapsed ? undefined : "lg:hidden"}><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
         <div className="flex flex-wrap items-center gap-2">
