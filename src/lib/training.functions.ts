@@ -7,7 +7,7 @@ import { AGREEMENT_KEYS, TRAINING_KEYS, normalizeModality } from "./manager-scor
 import { creditedRecruiterId } from "./recruiter-quota";
 import { staffTier } from "./roles";
 import { trainingGroup as trainingGroupOf } from "./training";
-import { certificationFromStatus, TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions, trainingDocList, compactDocuments } from "./training";
+import { certificationFromStatus, TRAINING_STATUSES, CERTIFICATION_VALUES, DAY1_VALUES, REFERENCE_CALL_VALUES, SPOT_TYPES, trainingPermissions, trainingDocList, compactDocuments, DOC_PAYMENT, EMPTY_PAYMENT, paymentComplete, readPayment } from "./training";
 
 async function ctxFor(userId: string, userDb: { from: typeof import("@/integrations/supabase/client").supabase.from }) {
   const [{ data: roles }, { data: profile }, { data: countries }] = await Promise.all([
@@ -100,7 +100,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         day1Followup: r?.day1_followup ?? "pending",
         day1Notes: r?.day1_notes ?? "",
         documentList: docs,
-        documents: compactDocuments(r?.documents as Record<string, boolean> | null),
+        documents: compactDocuments(r?.documents as Record<string, unknown> | null, docs),
+        payment: (() => { const p = readPayment((r?.documents as Record<string, unknown> | null)?.__payment); return ctx.canEditDocuments || ctx.canEditTraining ? p : { ...EMPTY_PAYMENT, method: p.method }; })(),
         referenceCall: r?.reference_call ?? "pending",
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
@@ -142,6 +143,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
         day1Followup: z.enum(DAY1_VALUES).optional(),
         day1Notes: z.string().max(2000).optional(),
         documents: z.record(z.string().max(200), z.boolean()).optional(),
+        payment: z.object({ method: z.enum(["paypal", "bank", ""]), paypalEmail: z.string().trim().max(200), bankName: z.string().trim().max(120), bankAccount: z.string().trim().max(60) }).optional(),
         referenceCall: z.enum(REFERENCE_CALL_VALUES).optional(),
         referenceDetails: z.string().max(4000).optional(),
       })
@@ -158,9 +160,17 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
     const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
-    if (data.documents) {
+    if (data.payment !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
+    let storedDocuments: Record<string, unknown> | undefined;
+    if (data.documents || data.payment) {
       const allowed = trainingDocList(app.country_code);
-      if (Object.keys(data.documents).some((key) => !allowed.includes(key))) throw new Error("Unknown document for this candidate.");
+      if (data.documents && Object.keys(data.documents).some((key) => !allowed.includes(key) || key === DOC_PAYMENT)) throw new Error("Unknown document for this candidate.");
+      if (data.payment && !allowed.includes(DOC_PAYMENT)) throw new Error("Payment data does not apply to this candidate.");
+      const { data: prev } = await ctx.db.from("training_roster").select("documents").eq("application_id", app.id).maybeSingle();
+      const prevDocs = (prev?.documents ?? {}) as Record<string, unknown>;
+      storedDocuments = { ...prevDocs, ...(data.documents ?? {}) };
+      if (data.payment) storedDocuments.__payment = data.payment;
+      if (allowed.includes(DOC_PAYMENT)) storedDocuments[DOC_PAYMENT] = paymentComplete(readPayment(storedDocuments.__payment));
     }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
     const patch: Record<string, unknown> = {
