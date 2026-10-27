@@ -46,3 +46,9 @@ export function certificationBoard(rows: Row[], from: string) {
  */
 export const creditedRecruiterId = (ev: { decided_by?: string | null; evaluator_id?: string | null } | null | undefined) =>
   ev?.decided_by ?? ev?.evaluator_id ?? null;
+
+/** An edit keeps the original decider only when the same result is re-saved on an interview that was not reopened (retakes credit the new decider). */
+export const keepDecision = (
+  current: { decided_by?: string | null; final_result?: string | null; status?: string | null },
+  finalResult: string | null,
+) => Boolean(current.decided_by) && current.final_result === finalResult && current.status !== "Reopened" && current.status !== "Retake pending";
