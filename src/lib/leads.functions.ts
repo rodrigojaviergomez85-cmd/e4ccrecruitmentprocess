@@ -116,6 +116,29 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
           expOnly.push({ source_sheet: sheet, source_row: rowNo, ...upd });
           return;
         }
+        const created = Date.parse(g(r, c.created));
+        batch.push({
+          lob, source_sheet: sheet, source_row: rowNo,
+          lead_created_at: Number.isNaN(created) ? null : new Date(created).toISOString(),
+          lead_country: lob === "ONLINE" ? g(r, c.country) : lob,
+          branch: g(r, c.branch), full_name: g(r, c.name), email: g(r, c.email), email_norm: g(r, c.email).toLowerCase(), phone: g(r, c.phone),
+          filtro_lead: g(r, c.filtro), mensaje: g(r, c.msg), msg_recruiter: g(r, c.msgRec), msg_date: g(r, c.msgDate), msg_time: g(r, c.msgTime),
+          llamada: g(r, c.call), call_recruiter: g(r, c.callRec), call_date: g(r, c.callDate), call_time: g(r, c.callTime),
+          interview_date: g(r, c.intDate), interview_result: g(r, c.int), comment: g(r, c.comment),
+          msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)),
+          call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)),
+          imported_at: runStart, ...exp,
+        });
+      });
+      for (let i = 0; i < batch.length; i += 500) {
+        const { error } = await db.from("recruitment_leads").upsert(batch.slice(i, i + 500), { onConflict: "source_sheet,source_row" });
+        if (error) throw new Error(error.message);
+      }
+      for (const row of expOnly) {
+        const { source_sheet, source_row, ...upd } = row;
+        await db.from("recruitment_leads").update(upd).eq("source_sheet", source_sheet).eq("source_row", source_row);
+      }
+      // Rows deleted/shifted in the sheet leave stale copies at old row numbers; drop unedited ones not refreshed now.
       if (batch.length) {
         const { error: delErr } = await db.from("recruitment_leads").delete()
           .eq("source_sheet", sheet).is("edited_in_app_at", null).lt("imported_at", runStart);

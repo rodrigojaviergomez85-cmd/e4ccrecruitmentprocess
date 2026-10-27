@@ -29,7 +29,7 @@ export const Route = createFileRoute("/api/public/sheets/lead-edits")({
         for (let from = 0; ; from += 1000) {
           const { data, error } = await db
             .from("recruitment_leads")
-            .select("lob, source_row, email, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_result, comment")
+            .select("lob, source_row, email, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_result, comment, app_pending_fields")
             .gt("edited_in_app_at", since)
             .lte("edited_in_app_at", now)
             .order("edited_in_app_at", { ascending: true })
@@ -39,19 +39,21 @@ export const Route = createFileRoute("/api/public/sheets/lead-edits")({
           if (!data || data.length < 1000) break;
         }
 
+        // Only fields changed in the platform and not yet written back; others stay as the sheet has them.
         const edits = rows
           .filter((r) => (LEAD_LOBS as readonly string[]).includes(r.lob))
           .map((r) => {
             const c = SHEET_COLUMNS[r.lob as LeadLob];
-            const cols: Record<number, string> = {
-              [c.filtro + 1]: r.filtro_lead,
-              [c.msgRec + 1]: r.msg_recruiter, [c.msgDate + 1]: r.msg_date, [c.msgTime + 1]: r.msg_time, [c.msg + 1]: r.mensaje,
-              [c.callRec + 1]: r.call_recruiter, [c.callDate + 1]: r.call_date, [c.callTime + 1]: r.call_time, [c.call + 1]: r.llamada,
-              [c.int + 1]: r.interview_result,
-              [c.comment + 1]: r.comment,
-            };
+            const p = new Set<string>(r.app_pending_fields ?? []);
+            const cols: Record<number, string> = {};
+            if (p.has("filtro_lead")) cols[c.filtro + 1] = r.filtro_lead;
+            if (p.has("mensaje")) Object.assign(cols, { [c.msgRec + 1]: r.msg_recruiter, [c.msgDate + 1]: r.msg_date, [c.msgTime + 1]: r.msg_time, [c.msg + 1]: r.mensaje });
+            if (p.has("llamada")) Object.assign(cols, { [c.callRec + 1]: r.call_recruiter, [c.callDate + 1]: r.call_date, [c.callTime + 1]: r.call_time, [c.call + 1]: r.llamada });
+            if (p.has("interview_result")) cols[c.int + 1] = r.interview_result;
+            if (p.has("comment")) cols[c.comment + 1] = r.comment;
             return { sheet: LOB_SHEET[r.lob as LeadLob], row: r.source_row, email: r.email, emailCol: c.email + 1, cols };
-          });
+          })
+          .filter((e) => Object.keys(e.cols).length > 0);
         return Response.json({ now, edits });
       },
     },
