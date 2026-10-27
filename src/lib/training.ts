@@ -76,18 +76,58 @@ export function approvalBlocked(referenceCall: string) {
   return referenceCall !== "done";
 }
 
-/** Compact document checklist shown in the Training Tracker — the same for every country. */
+/** Compact document checklist shown in the Training Tracker. */
 export const DOC_ID = "Identidad (ambos lados)";
 export const DOC_DIPLOMA = "Título académico";
 export const DOC_RECORDS = "Antecedentes";
 export const DOC_HEALTH = "Certificado de Salud";
+export const DOC_PAYMENT = "Datos de pago";
 export const DOC_AGREEMENT = "Convenio firmado";
 export const TRAINING_DOC_CHECKLIST = [DOC_ID, DOC_DIPLOMA, DOC_RECORDS, DOC_HEALTH, DOC_AGREEMENT] as const;
 
-/** The health certificate is the only document that varies by country (Nicaragua requires it). */
+/** Country-specific solvencias (configurable labels; names taken from the official documentation lists). */
+export const SOLVENCIAS_BY_COUNTRY: Record<string, string[]> = {
+  GT: ["Antecedentes Policíacos", "Antecedentes Judiciales", "RENAS"],
+  SV: ["Antecedentes Penales", "Solvencia Policial"],
+};
+/** Old full-name keys that map onto each solvencia so existing checkmarks are kept. */
+const SOLVENCIA_ALIASES: Record<string, string[]> = {
+  "Antecedentes Policíacos": ["Antecedentes Policíacos"],
+  "Antecedentes Judiciales": ["Antecedentes Judiciales"],
+  RENAS: ["RENAS"],
+  "Antecedentes Penales": ["Antecedentes Penales"],
+  "Solvencia Policial": ["Solvencia Policial"],
+};
+export function solvenciasFor(countryCode: string | null | undefined): string[] {
+  return SOLVENCIAS_BY_COUNTRY[(countryCode ?? "").toUpperCase()] ?? [DOC_RECORDS];
+}
+/** Documents in the "Antecedentes/Solvencias" cell. */
+export function isSolvencia(doc: string) {
+  return doc === DOC_RECORDS || Object.values(SOLVENCIAS_BY_COUNTRY).some((l) => l.includes(doc));
+}
+
+/** Requirements per country: GT 3 solvencias, SV 2, NI adds health certificate + payment data. */
 export function trainingDocList(countryCode: string | null | undefined): string[] {
   const cc = (countryCode ?? "").toUpperCase();
-  return cc === "NI" ? [...TRAINING_DOC_CHECKLIST] : TRAINING_DOC_CHECKLIST.filter((d) => d !== DOC_HEALTH);
+  return [DOC_ID, DOC_DIPLOMA, ...solvenciasFor(cc), ...(cc === "NI" ? [DOC_HEALTH, DOC_PAYMENT] : []), DOC_AGREEMENT];
+}
+
+/** Table columns: solvencias share one column. */
+export const DOC_COLUMNS = [DOC_ID, DOC_DIPLOMA, "Antecedentes/Solvencias", DOC_HEALTH, DOC_PAYMENT, DOC_AGREEMENT] as const;
+export function docColumn(doc: string) { return isSolvencia(doc) ? "Antecedentes/Solvencias" : doc; }
+
+export type PaymentData = { method: "paypal" | "bank" | ""; paypalEmail: string; bankName: string; bankAccount: string };
+export const EMPTY_PAYMENT: PaymentData = { method: "", paypalEmail: "", bankName: "", bankAccount: "" };
+/** One option is enough: a PayPal email, or bank + account number. */
+export function paymentComplete(p: PaymentData | null | undefined) {
+  if (!p) return false;
+  if (p.method === "paypal") return /\S+@\S+\.\S+/.test(p.paypalEmail.trim());
+  if (p.method === "bank") return p.bankName.trim().length > 0 && p.bankAccount.trim().length > 0;
+  return false;
+}
+export function readPayment(raw: unknown): PaymentData {
+  const p = (raw && typeof raw === "object" ? raw : {}) as Partial<PaymentData>;
+  return { method: p.method === "paypal" || p.method === "bank" ? p.method : "", paypalEmail: String(p.paypalEmail ?? ""), bankName: String(p.bankName ?? ""), bankAccount: String(p.bankAccount ?? "") };
 }
 
 /** Maps the old per-country document keys onto the compact checklist so existing checkmarks are kept. */
@@ -98,13 +138,19 @@ const OLD_DOC_GROUPS: [string, string[]][] = [
   [DOC_HEALTH, ["Health certificate", "Certificado de Salud"]],
   [DOC_AGREEMENT, ["Agreement", "Convenio"]],
 ];
-export function compactDocuments(documents: Record<string, boolean> | null | undefined): Record<string, boolean> {
+export function compactDocuments(documents: Record<string, unknown> | null | undefined, list?: string[]): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   if (!documents) return out;
   for (const [newKey, olds] of OLD_DOC_GROUPS) {
-    if (documents[newKey] !== undefined) { out[newKey] = documents[newKey]; continue; }
-    if (Object.entries(documents).some(([k, v]) => v && olds.some((o) => k.includes(o)))) out[newKey] = true;
+    if (documents[newKey] !== undefined) { out[newKey] = documents[newKey] === true; continue; }
+    if (Object.entries(documents).some(([k, v]) => v === true && olds.some((o) => k.includes(o)))) out[newKey] = true;
   }
+  for (const [key, olds] of Object.entries(SOLVENCIA_ALIASES)) {
+    if (documents[key] !== undefined) out[key] = documents[key] === true;
+    else if (Object.entries(documents).some(([k, v]) => v === true && k !== key && olds.some((o) => k.includes(o)))) out[key] = true;
+  }
+  out[DOC_PAYMENT] = paymentComplete(readPayment(documents.__payment));
+  if (list) for (const k of Object.keys(out)) if (!list.includes(k)) delete out[k];
   return out;
 }
 
