@@ -188,7 +188,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       outcome_at: nd(data.outcomeAt),
       outcome_reason: data.outcomeReason,
       canceled_before_start: data.canceledBeforeStart,
-      documents: data.documents,
+      documents: storedDocuments,
       reference_call: data.referenceCall,
       reference_details: data.referenceDetails,
       certification_reason: data.certificationReason,
