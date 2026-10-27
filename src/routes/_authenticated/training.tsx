@@ -18,7 +18,7 @@ import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { publishTrainingLob } from "@/lib/training-lob";
 import { useNavCollapsed } from "@/lib/nav-collapsed";
-import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup } from "@/lib/training";
+import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
 import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
 
@@ -126,7 +126,8 @@ function TrainingPage() {
           const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group);
           const pending = (status === "all" || status === PENDING_SPOT) && !search && (lob === "all" || lob === group) ? open.filter((o) => o.group === group) : [];
           if (!groupRows.length && !pending.length) return null;
-          const docs = [...new Set(groupRows.flatMap((r) => r.documentList))];
+          const usedCols = new Set(groupRows.flatMap((r) => r.documentList.map(docColumn)));
+          const docs: string[] = DOC_COLUMNS.filter((c) => usedCols.has(c));
           return <section key={group} className="space-y-2">
             <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span>{pending.length > 0 && <span className="text-sm font-semibold text-destructive">{pending.length} cupos pendientes de reclutar</span>}</div>
             <div className="max-h-[65vh] overflow-auto border border-border">
@@ -178,7 +179,8 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       await update({ data: {
         applicationId: row.id,
         ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments") } : {}),
-        ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: f.documents } : {}),
+        ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: Object.fromEntries(Object.entries(f.documents).filter(([k]) => k !== DOC_PAYMENT && f.documentList.includes(k))) } : {}),
+        ...(p.canEditDocuments && JSON.stringify(f.payment) !== JSON.stringify(baseline.payment) ? { payment: f.payment } : {}),
         ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails") } : {}),
       } });
       setBaseline(f);
@@ -205,10 +207,15 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
     <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
     <td className={cell}>{!p.canEditReferences && row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}{c.comment && <p className="mt-1 italic text-muted-foreground">{c.comment}</p>}</li>)}</ul></details>}{p.canEditReferences && <ReferencesEditor applicationId={row.id} name={row.fullName} initial={row.applicantRefs} />}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
-    {docs.map((d) => {
-      const required = f.documentList.includes(d);
-      const received = f.documents[d] === true;
-      return <td key={d} className={`${cell} text-center ${required && !received ? "bg-destructive/10" : "bg-card text-foreground"}`}>{required ? <Checkbox aria-label={`${d} — ${row.fullName}`} title={`${d}: ${received ? "Entregado" : "Pendiente"}`} checked={received} disabled={!p.canEditDocuments} onCheckedChange={(v) => setF({ ...f, documents: { ...f.documents, [d]: v === true } })} className="rounded-sm border-foreground/50 data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background disabled:opacity-100" /> : <span className="text-muted-foreground">—</span>}</td>;
+    {docs.map((col) => {
+      const items = f.documentList.filter((d) => docColumn(d) === col);
+      const missing = items.some((d) => f.documents[d] !== true);
+      const box = (d: string) => <Checkbox aria-label={`${d} — ${row.fullName}`} title={`${d}: ${f.documents[d] ? "Entregado" : "Pendiente"}`} checked={f.documents[d] === true} disabled={!p.canEditDocuments} onCheckedChange={(v) => setF({ ...f, documents: { ...f.documents, [d]: v === true } })} className="rounded-sm border-foreground/50 data-[state=checked]:border-foreground data-[state=checked]:bg-foreground data-[state=checked]:text-background disabled:opacity-100" />;
+      let content: React.ReactNode = <span className="text-muted-foreground">—</span>;
+      if (col === DOC_PAYMENT && items.length) content = <PaymentCell row={row} value={f.payment} complete={f.documents[DOC_PAYMENT] === true} canEdit={p.canEditDocuments} canView={p.canEditDocuments || p.canEditTraining} onChange={(payment) => setF({ ...f, payment, documents: { ...f.documents, [DOC_PAYMENT]: paymentComplete(payment) } })} />;
+      else if (items.length > 1 || col === "Antecedentes/Solvencias") content = <ul className="space-y-1 text-left text-xs">{items.map((d) => <li key={d}><label className={`flex items-center gap-2 ${f.documents[d] ? "" : "text-destructive"}`}>{box(d)}<span>{d}</span></label></li>)}</ul>;
+      else if (items.length === 1) content = box(items[0]!);
+      return <td key={col} className={`${cell} text-center ${items.length && missing ? "bg-destructive/10" : "bg-card text-foreground"}`}>{content}</td>;
     })}
     <td className={`${cell} whitespace-nowrap`}>{row.phone}</td><td className={cell}><span className="whitespace-nowrap">{row.email}</span></td>
   </tr>;
@@ -288,4 +295,30 @@ function StatusSummary({ groups, rows, open }: { groups: string[]; rows: { statu
   const cols = lines[0]?.s.items ?? [];
   return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-sm"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-3 py-2">LOB</th><th className="px-3 py-2">Total</th>{cols.map((c) => <th key={c.status} className="px-3 py-2">{c.status}</th>)}</tr></thead>
     <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-3 py-2">{g}</td><td className="px-3 py-2">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-3 py-2"><span className="text-base font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
+}
+
+function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row: Row; value: PaymentData; complete: boolean; canEdit: boolean; canView: boolean; onChange: (p: PaymentData) => void }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const label = value.method === "paypal" ? "PayPal" : value.method === "bank" ? "Cuenta bancaria" : "Sin método";
+  return <div className="space-y-1 text-left text-xs">
+    <p className="font-medium">{label}</p>
+    <p className={complete ? "" : "text-destructive"}>{complete ? "Completo" : "Pendiente"}</p>
+    {canView && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setDraft(value); setOpen(true); }}>Ver/editar</Button>}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Datos de pago — {row.fullName}</DialogTitle></DialogHeader>
+        <fieldset disabled={!canEdit} className="space-y-3">
+          <Select value={draft.method || "none"} onValueChange={(m) => setDraft({ ...draft, method: m === "none" ? "" : (m as "paypal" | "bank") })}>
+            <SelectTrigger aria-label="Método de pago"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="none">Sin método</SelectItem><SelectItem value="paypal">PayPal</SelectItem><SelectItem value="bank">Cuenta bancaria</SelectItem></SelectContent>
+          </Select>
+          {draft.method === "paypal" && <Input type="email" aria-label="Correo de PayPal" placeholder="Correo de PayPal" value={draft.paypalEmail} onChange={(e) => setDraft({ ...draft, paypalEmail: e.target.value })} />}
+          {draft.method === "bank" && <><Input aria-label="Banco" placeholder="Banco" value={draft.bankName} onChange={(e) => setDraft({ ...draft, bankName: e.target.value })} /><Input aria-label="Número de cuenta" placeholder="Número de cuenta" value={draft.bankAccount} onChange={(e) => setDraft({ ...draft, bankAccount: e.target.value })} /></>}
+          <p className="text-xs text-muted-foreground">{paymentComplete(draft) ? "Requisito completo" : "Completa una de las dos opciones"}</p>
+        </fieldset>
+        <DialogFooter>{canEdit ? <Button onClick={() => { onChange(draft); setOpen(false); }}>Aplicar (luego Guardar en la fila)</Button> : <Button variant="outline" onClick={() => setOpen(false)}>Cerrar</Button>}</DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>;
 }
