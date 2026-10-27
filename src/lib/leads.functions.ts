@@ -84,36 +84,38 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
       const c = SHEET_COLUMNS[lob];
       const g = (r: string[], i: number) => (i >= 0 ? (r[i] ?? "").trim() : "");
       await relocateEditedRows(db, sheet, rows.map((r) => g(r, c.email).toLowerCase()), edited);
+      // Current platform values of edited rows: only fields still pending write-back keep the platform value.
+      const editedRecs = new Map<number, any>(); // eslint-disable-line @typescript-eslint/no-explicit-any
+      for (const r of await pageAll((f, t) => db.from("recruitment_leads").select("source_row, filtro_lead, mensaje, llamada, interview_result, comment, app_pending_fields").eq("source_sheet", sheet).not("edited_in_app_at", "is", null).range(f, t))) editedRecs.set(r.source_row, r);
       const batch: Record<string, unknown>[] = [];
       const expOnly: Record<string, unknown>[] = [];
       rows.slice(1).forEach((r, i) => {
         const rowNo = i + 2;
         if (!g(r, c.email) && !g(r, c.name) && !g(r, c.phone)) return;
         const exp = { age: leadAge(g(r, c.age), g(r, c.birth)), teaching_time: g(r, c.teachTime), teaching_exp: g(r, c.teachExp), cc_time: g(r, c.ccTime), cc_exp: g(r, c.ccExp) };
-        if (edited.has(`${sheet}#${rowNo}`)) { expOnly.push({ source_sheet: sheet, source_row: rowNo, ...exp }); return; }
-        const created = Date.parse(g(r, c.created));
-        batch.push({
-          lob, source_sheet: sheet, source_row: rowNo,
-          lead_created_at: Number.isNaN(created) ? null : new Date(created).toISOString(),
-          lead_country: lob === "ONLINE" ? g(r, c.country) : lob,
-          branch: g(r, c.branch), full_name: g(r, c.name), email: g(r, c.email), email_norm: g(r, c.email).toLowerCase(), phone: g(r, c.phone),
-          filtro_lead: g(r, c.filtro), mensaje: g(r, c.msg), msg_recruiter: g(r, c.msgRec), msg_date: g(r, c.msgDate), msg_time: g(r, c.msgTime),
-          llamada: g(r, c.call), call_recruiter: g(r, c.callRec), call_date: g(r, c.callDate), call_time: g(r, c.callTime),
-          interview_date: g(r, c.intDate), interview_result: g(r, c.int), comment: g(r, c.comment),
-          msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)),
-          call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)),
-          imported_at: runStart, ...exp,
-        });
-      });
-      for (let i = 0; i < batch.length; i += 500) {
-        const { error } = await db.from("recruitment_leads").upsert(batch.slice(i, i + 500), { onConflict: "source_sheet,source_row" });
-        if (error) throw new Error(error.message);
-      }
-      for (const row of expOnly) {
-        const { source_sheet, source_row, ...exp } = row;
-        await db.from("recruitment_leads").update(exp).eq("source_sheet", source_sheet).eq("source_row", source_row);
-      }
-      // Rows deleted/shifted in the sheet leave stale copies at old row numbers; drop unedited ones not refreshed now.
+        if (edited.has(`${sheet}#${rowNo}`)) {
+          const rec = editedRecs.get(rowNo);
+          const groups: Record<string, Record<string, unknown>> = {
+            filtro_lead: { filtro_lead: g(r, c.filtro) },
+            mensaje: { mensaje: g(r, c.msg), msg_recruiter: g(r, c.msgRec), msg_date: g(r, c.msgDate), msg_time: g(r, c.msgTime), msg_at: parseSheetDateTime(g(r, c.msgDate), g(r, c.msgTime)) },
+            llamada: { llamada: g(r, c.call), call_recruiter: g(r, c.callRec), call_date: g(r, c.callDate), call_time: g(r, c.callTime), call_at: parseSheetDateTime(g(r, c.callDate), g(r, c.callTime)) },
+            interview_result: { interview_date: g(r, c.intDate), interview_result: g(r, c.int) },
+            comment: { comment: g(r, c.comment) },
+          };
+          const pending = new Set<string>(rec?.app_pending_fields ?? []);
+          const upd: Record<string, unknown> = { ...exp };
+          for (const [k, vals] of Object.entries(groups)) {
+            if (pending.has(k)) {
+              // Sheet already shows the platform value → write-back done; sheet is the source again.
+              if ((vals[k] ?? "") === (rec?.[k] ?? "")) pending.delete(k);
+              continue;
+            }
+            Object.assign(upd, vals);
+          }
+          upd.app_pending_fields = [...pending];
+          expOnly.push({ source_sheet: sheet, source_row: rowNo, ...upd });
+          return;
+        }
       if (batch.length) {
         const { error: delErr } = await db.from("recruitment_leads").delete()
           .eq("source_sheet", sheet).is("edited_in_app_at", null).lt("imported_at", runStart);
@@ -125,7 +127,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
     return summary;
   });
 
-const COLS = "id, lob, source_sheet, source_row, lead_created_at, lead_country, branch, full_name, email, email_norm, phone, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_date, interview_result, comment, msg_at, call_at, edited_in_app_at, age, teaching_time, teaching_exp, cc_time, cc_exp";
+const COLS = "id, lob, source_sheet, source_row, lead_created_at, lead_country, branch, full_name, email, email_norm, phone, filtro_lead, mensaje, msg_recruiter, msg_date, msg_time, llamada, call_recruiter, call_date, call_time, interview_date, interview_result, comment, msg_at, call_at, edited_in_app_at, app_pending_fields, age, teaching_time, teaching_exp, cc_time, cc_exp";
 
 export const listLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -227,15 +229,19 @@ export const updateLead = createServerFn({ method: "POST" })
     }
     const now = SV_NOW();
     const patch: Record<string, unknown> & { filtro_lead?: string; interview_result?: string; comment?: string } = { edited_in_app_at: new Date().toISOString(), edited_by: context.userId };
-    if (data.filtro_lead !== undefined) patch.filtro_lead = data.filtro_lead;
-    if (data.interview_result !== undefined) patch.interview_result = data.interview_result;
-    if (data.comment !== undefined) patch.comment = data.comment;
+    const pending = new Set<string>((lead as { app_pending_fields?: string[] }).app_pending_fields ?? []);
+    if (data.filtro_lead !== undefined && data.filtro_lead !== lead.filtro_lead) { patch.filtro_lead = data.filtro_lead; pending.add("filtro_lead"); }
+    if (data.interview_result !== undefined && data.interview_result !== lead.interview_result) { patch.interview_result = data.interview_result; pending.add("interview_result"); }
+    if (data.comment !== undefined && data.comment !== lead.comment) { patch.comment = data.comment; pending.add("comment"); }
     if (data.mensaje !== undefined && data.mensaje !== lead.mensaje) {
       Object.assign(patch, { mensaje: data.mensaje, msg_recruiter: name, msg_date: now.date, msg_time: now.time, msg_at: new Date().toISOString() });
+      pending.add("mensaje");
     }
     if (data.llamada !== undefined && data.llamada !== lead.llamada) {
       Object.assign(patch, { llamada: data.llamada, call_recruiter: name, call_date: now.date, call_time: now.time, call_at: new Date().toISOString() });
+      pending.add("llamada");
     }
+    patch.app_pending_fields = [...pending];
     const { error: upErr } = await db.from("recruitment_leads").update(patch).eq("id", data.id);
     if (upErr) throw new Error(upErr.message);
     await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "leads.update", entityType: "recruitment_leads", entityId: data.id, oldValue: lead, newValue: patch });
