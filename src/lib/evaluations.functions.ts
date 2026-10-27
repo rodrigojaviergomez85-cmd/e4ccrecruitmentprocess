@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { keepDecision } from "./recruiter-quota";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -686,9 +687,10 @@ export const saveEvaluation = createServerFn({ method: "POST" })
         ...(data.submit
           ? {
               decision_stage: "recruitment_interview",
-              // Edits to an already-decided interview keep the original decider and date.
-              decided_by: current.decided_by && current.final_result === data.finalResult ? current.decided_by : context.userId,
-              decided_at: current.decided_at && current.final_result === data.finalResult ? current.decided_at : new Date().toISOString(),
+              // Edits to an already-decided interview keep the original decider and date;
+              // a reopened interview (e.g. a retake) credits whoever submits the new decision.
+              decided_by: keepDecision(current, data.finalResult) ? current.decided_by : context.userId,
+              decided_at: keepDecision(current, data.finalResult) ? current.decided_at : new Date().toISOString(),
               decision_reason:
                 data.finalResult === "Not approved"
                   ? (data.notApprovedReasons ?? []).join("; ") || null

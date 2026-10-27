@@ -30,3 +30,9 @@ describe("Retake credit", () => {
     assert.equal(creditedRecruiterId({ evaluator_id: "kennia", decided_by: null }), "kennia");
   });
 });
+
+import { keepDecision as kd } from "./recruiter-quota.ts";
+test("retake approved by another recruiter credits the new decider", () => {
+  assert.equal(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Reopened" }, "Approved for last step"), false);
+  assert.equal(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Submitted" }, "Approved for last step"), true);
+});
