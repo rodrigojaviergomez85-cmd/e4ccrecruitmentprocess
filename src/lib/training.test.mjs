@@ -63,3 +63,26 @@ _t2("status summary counts open spots as pending and gives percentages", () => {
   _e2(s.items.find((i) => i.status === "IN TRAINING").pct).toBe(50);
   _e2(s.items.find((i) => i.status === "PENDIENTE DE RECLUTAR").count).toBe(1);
 });
+
+import { trainingDocList as _tdl, paymentComplete as _pc, compactDocuments as _cd } from "./training.ts";
+describe("country document requirements", () => {
+  it("GT has 3 solvencias, SV 2, others 1 record", () => {
+    expect(_tdl("GT").length).toBe(6);
+    expect(_tdl("SV").length).toBe(5);
+    expect(_tdl("HN").length).toBe(4);
+  });
+  it("NI requires health certificate and payment data", () => {
+    expect(_tdl("NI")).toContain("Certificado de Salud");
+    expect(_tdl("NI")).toContain("Datos de pago");
+  });
+  it("one payment option is enough", () => {
+    expect(_pc({ method: "paypal", paypalEmail: "a@b.com", bankName: "", bankAccount: "" })).toBe(true);
+    expect(_pc({ method: "bank", paypalEmail: "", bankName: "BAC", bankAccount: "" })).toBe(false);
+    expect(_pc({ method: "bank", paypalEmail: "", bankName: "BAC", bankAccount: "123" })).toBe(true);
+  });
+  it("solvencias are saved individually", () => {
+    const d = _cd({ RENAS: true, "Antecedentes Judiciales": false }, _tdl("GT"));
+    expect(d.RENAS).toBe(true);
+    expect(d["Antecedentes Judiciales"]).toBe(false);
+  });
+});

@@ -179,7 +179,8 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       await update({ data: {
         applicationId: row.id,
         ...(p.canEditTraining ? { waveStart: changed("waveStart"), requestDate: changed("requestDate"), hiringDate: changed("hiringDate"), status: changed("status") as (typeof TRAINING_STATUSES)[number] | undefined, agreedSchedule: changed("agreedSchedule"), comments: changed("comments") } : {}),
-        ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: f.documents } : {}),
+        ...(p.canEditDocuments && JSON.stringify(f.documents) !== JSON.stringify(baseline.documents) ? { documents: Object.fromEntries(Object.entries(f.documents).filter(([k]) => k !== DOC_PAYMENT && f.documentList.includes(k))) } : {}),
+        ...(p.canEditDocuments && JSON.stringify(f.payment) !== JSON.stringify(baseline.payment) ? { payment: f.payment } : {}),
         ...(p.canEditReferences ? { referenceCall: changed("referenceCall") as "pending" | "done" | "not_recommended" | undefined, referenceDetails: changed("referenceDetails") } : {}),
       } });
       setBaseline(f);
