@@ -101,7 +101,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         day1Notes: r?.day1_notes ?? "",
         documentList: docs,
         documents: compactDocuments(r?.documents as Record<string, unknown> | null, docs),
-        payment: (() => { const p = readPayment((r?.documents as Record<string, unknown> | null)?["__payment"]); return ctx.canEditDocuments || ctx.canEditTraining ? p : { ...EMPTY_PAYMENT, method: p.method }; })(),
+        payment: (() => { const p = readPayment((r?.documents as Record<string, unknown> | null)?.["__payment"]); return ctx.canEditDocuments || ctx.canEditTraining ? p : { ...EMPTY_PAYMENT, method: p.method }; })(),
         referenceCall: r?.reference_call ?? "pending",
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
