@@ -296,3 +296,29 @@ function StatusSummary({ groups, rows, open }: { groups: string[]; rows: { statu
   return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-sm"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-3 py-2">LOB</th><th className="px-3 py-2">Total</th>{cols.map((c) => <th key={c.status} className="px-3 py-2">{c.status}</th>)}</tr></thead>
     <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-3 py-2">{g}</td><td className="px-3 py-2">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-3 py-2"><span className="text-base font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
 }
+
+function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row: Row; value: PaymentData; complete: boolean; canEdit: boolean; canView: boolean; onChange: (p: PaymentData) => void }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const label = value.method === "paypal" ? "PayPal" : value.method === "bank" ? "Cuenta bancaria" : "Sin método";
+  return <div className="space-y-1 text-left text-xs">
+    <p className="font-medium">{label}</p>
+    <p className={complete ? "" : "text-destructive"}>{complete ? "Completo" : "Pendiente"}</p>
+    {canView && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setDraft(value); setOpen(true); }}>Ver/editar</Button>}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Datos de pago — {row.fullName}</DialogTitle></DialogHeader>
+        <fieldset disabled={!canEdit} className="space-y-3">
+          <Select value={draft.method || "none"} onValueChange={(m) => setDraft({ ...draft, method: m === "none" ? "" : (m as "paypal" | "bank") })}>
+            <SelectTrigger aria-label="Método de pago"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="none">Sin método</SelectItem><SelectItem value="paypal">PayPal</SelectItem><SelectItem value="bank">Cuenta bancaria</SelectItem></SelectContent>
+          </Select>
+          {draft.method === "paypal" && <Input type="email" aria-label="Correo de PayPal" placeholder="Correo de PayPal" value={draft.paypalEmail} onChange={(e) => setDraft({ ...draft, paypalEmail: e.target.value })} />}
+          {draft.method === "bank" && <><Input aria-label="Banco" placeholder="Banco" value={draft.bankName} onChange={(e) => setDraft({ ...draft, bankName: e.target.value })} /><Input aria-label="Número de cuenta" placeholder="Número de cuenta" value={draft.bankAccount} onChange={(e) => setDraft({ ...draft, bankAccount: e.target.value })} /></>}
+          <p className="text-xs text-muted-foreground">{paymentComplete(draft) ? "Requisito completo" : "Completa una de las dos opciones"}</p>
+        </fieldset>
+        <DialogFooter>{canEdit ? <Button onClick={() => { onChange(draft); setOpen(false); }}>Aplicar (luego Guardar en la fila)</Button> : <Button variant="outline" onClick={() => setOpen(false)}>Cerrar</Button>}</DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>;
+}
