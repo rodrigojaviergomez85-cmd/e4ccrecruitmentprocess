@@ -131,7 +131,7 @@ function TrainingPage() {
           const docs: string[] = DOC_COLUMNS.filter((c) => usedCols.has(c));
           return <section key={group} className="space-y-2">
             <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span>{pending.length > 0 && <span className="text-sm font-semibold text-destructive">{pending.length} cupos pendientes de reclutar</span>}</div>
-            <div className="max-h-[65vh] overflow-auto border border-border">
+            <div className="max-h-[78vh] overflow-auto border border-border">
               <table className="w-full border-separate border-spacing-0 text-xs">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
                   <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email"].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-2 py-1.5 text-left font-semibold leading-tight ${i === 0 ? "sticky left-0 z-30 min-w-52 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-24 max-w-36 text-center" : (NARROW[h] ?? "min-w-24")}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
