@@ -1187,6 +1187,7 @@ export type Database = {
       recruitment_leads: {
         Row: {
           age: string
+          app_pending_fields: string[]
           branch: string
           call_at: string | null
           call_date: string
@@ -1224,6 +1225,7 @@ export type Database = {
         }
         Insert: {
           age?: string
+          app_pending_fields?: string[]
           branch?: string
           call_at?: string | null
           call_date?: string
@@ -1261,6 +1263,7 @@ export type Database = {
         }
         Update: {
           age?: string
+          app_pending_fields?: string[]
           branch?: string
           call_at?: string | null
           call_date?: string

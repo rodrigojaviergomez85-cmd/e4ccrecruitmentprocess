@@ -1,0 +1,2 @@
+ALTER TABLE public.recruitment_leads ADD COLUMN IF NOT EXISTS app_pending_fields text[] NOT NULL DEFAULT '{}';
+UPDATE public.recruitment_leads SET app_pending_fields = ARRAY['filtro_lead','mensaje','llamada','interview_result','comment'] WHERE edited_in_app_at IS NOT NULL;
