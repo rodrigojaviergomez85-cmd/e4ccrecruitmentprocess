@@ -112,7 +112,7 @@ export const importLeadsFromSheet = createServerFn({ method: "POST" })
             }
             Object.assign(upd, vals);
           }
-          upd.app_pending_fields = [...pending];
+          upd["app_pending_fields"] = [...pending];
           expOnly.push({ source_sheet: sheet, source_row: rowNo, ...upd });
           return;
         }
@@ -264,7 +264,7 @@ export const updateLead = createServerFn({ method: "POST" })
       Object.assign(patch, { llamada: data.llamada, call_recruiter: name, call_date: now.date, call_time: now.time, call_at: new Date().toISOString() });
       pending.add("llamada");
     }
-    patch.app_pending_fields = [...pending];
+    patch["app_pending_fields"] = [...pending];
     const { error: upErr } = await db.from("recruitment_leads").update(patch).eq("id", data.id);
     if (upErr) throw new Error(upErr.message);
     await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "leads.update", entityType: "recruitment_leads", entityId: data.id, oldValue: lead, newValue: patch });
