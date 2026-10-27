@@ -33,6 +33,6 @@ describe("Retake credit", () => {
 
 import { keepDecision as kd } from "./recruiter-quota.ts";
 test("retake approved by another recruiter credits the new decider", () => {
-  expect(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Reopened" }, "Approved for last step")).toBe(false);
-  expect(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Submitted" }, "Approved for last step")).toBe(true);
+  assert.equal(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Reopened" }, "Approved for last step"), false);
+  assert.equal(kd({ decided_by: "kennia", final_result: "Approved for last step", status: "Submitted" }, "Approved for last step"), true);
 });
