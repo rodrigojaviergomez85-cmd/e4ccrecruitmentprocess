@@ -40,10 +40,10 @@ function SchedulePicker({ value, onChange, disabled = false }: { value: string; 
     const label = DAY_PATTERNS.find((d) => d.value === np)?.label;
     if (label && ns && ne && ne > ns) onChange(`${label}: ${fmt12(ns)}–${fmt12(ne)}`);
   };
-  return <div className="mt-1 flex items-center gap-1" title={value}>
-    <Select value={p} disabled={disabled} onValueChange={(v) => emit(v as DayPattern, s, e)}><SelectTrigger className="w-44"><SelectValue placeholder={!parsed && value ? value : "Días"} /></SelectTrigger><SelectContent>{DAY_PATTERNS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent></Select>
-    <Select value={s} disabled={disabled} onValueChange={(v) => emit(p, v, e && e > v ? e : "")}><SelectTrigger className="w-28"><SelectValue placeholder="Inicio" /></SelectTrigger><SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
-    <Select value={e} disabled={disabled} onValueChange={(v) => emit(p, s, v)}><SelectTrigger className="w-28"><SelectValue placeholder="Fin" /></SelectTrigger><SelectContent>{TIME_OPTIONS.filter((t) => !s || t > s).map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
+  return <div className="flex items-center gap-0.5" title={value}>
+    <Select value={p} disabled={disabled} onValueChange={(v) => emit(v as DayPattern, s, e)}><SelectTrigger className="h-7 w-24 px-2 text-xs"><SelectValue placeholder={!parsed && value ? value : "Días"} /></SelectTrigger><SelectContent>{DAY_PATTERNS.map((d) => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent></Select>
+    <Select value={s} disabled={disabled} onValueChange={(v) => emit(p, v, e && e > v ? e : "")}><SelectTrigger className="h-7 w-[88px] px-2 text-xs"><SelectValue placeholder="Inicio" /></SelectTrigger><SelectContent>{TIME_OPTIONS.map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
+    <Select value={e} disabled={disabled} onValueChange={(v) => emit(p, s, v)}><SelectTrigger className="h-7 w-[88px] px-2 text-xs"><SelectValue placeholder="Fin" /></SelectTrigger><SelectContent>{TIME_OPTIONS.filter((t) => !s || t > s).map((t) => <SelectItem key={t} value={t}>{fmt12(t)}</SelectItem>)}</SelectContent></Select>
   </div>;
 }
 
@@ -62,6 +62,7 @@ export const Route = createFileRoute("/_authenticated/training")({
 type Data = Awaited<ReturnType<typeof listTrainingRoster>>;
 type Row = Data["rows"][number];
 type Permissions = Omit<Data, "rows">;
+const NARROW: Record<string, string> = { "Reclutador": "min-w-24", "Sucursal": "min-w-20", "Año / Mes": "min-w-16", "Días restantes": "min-w-14", "Aprobado por Reclutamiento": "min-w-24", "Trainer": "min-w-24", "Horario acordado": "min-w-64", "Inicio de wave": "min-w-28", "Request date": "min-w-28" };
 const daysUntil = (d: string | null) => d ? Math.ceil((new Date(`${d}T00:00:00`).getTime() - Date.now()) / 86400000) : null;
 const documentLabel = (d: string) => {
   if (d.length <= 30) return d;
@@ -95,27 +96,27 @@ function TrainingPage() {
   const groupNames = [...TRAINING_GROUPS, ...(rows.some((r) => trainingGroup(r.modality, r.countryCode) === "OTROS") ? ["OTROS"] : [])];
   return (
     <div className="min-h-screen bg-background">
-      <main className="space-y-5 px-4 py-5 sm:px-6">
+      <main className="space-y-3 px-4 py-3 sm:px-5">
         <h1 className="text-xl font-semibold">Training Tracker</h1>
         <Tabs value={lob} onValueChange={setLob}>
           <div className="overflow-x-auto">
             <TabsList className="h-auto justify-start rounded-none border-b bg-transparent p-0">
-              {[...groupNames, "all"].map((g) => <TabsTrigger key={g} value={g} className="gap-2 rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              {[...groupNames, "all"].map((g) => <TabsTrigger key={g} value={g} className="gap-2 rounded-none border-b-2 border-transparent px-2 py-1 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                 {g === "all" ? "TODOS" : g}<span className="text-xs text-muted-foreground">{periodRows.filter((r) => g === "all" || trainingGroup(r.modality, r.countryCode) === g).length}</span>
               </TabsTrigger>)}
             </TabsList>
           </div>
         </Tabs>
-        <div className="flex flex-wrap items-center gap-3">
-          <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
-          <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="w-48"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
+          <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
         {data && <StatusSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} open={open} />}
         {/* On phones/tablets the sidebar is hidden; on desktop the goal moves into the page only when the sidebar is collapsed. */}
         <div className={navCollapsed ? undefined : "lg:hidden"}><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
-        <div className="-mt-2 flex flex-wrap items-center gap-3">
-          <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full sm:w-80" />
-          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="w-64"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-full text-xs sm:w-64" />
+          <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
           {req?.canManage && <div className="ml-auto"><AddRequisition /></div>}
         </div>
@@ -131,14 +132,14 @@ function TrainingPage() {
           return <section key={group} className="space-y-2">
             <div className="flex items-center gap-3"><h2 className="text-base font-semibold">{group}</h2><span className="text-sm text-muted-foreground">{groupRows.length}</span>{pending.length > 0 && <span className="text-sm font-semibold text-destructive">{pending.length} cupos pendientes de reclutar</span>}</div>
             <div className="max-h-[65vh] overflow-auto border border-border">
-              <table className="w-full border-separate border-spacing-0 text-sm">
+              <table className="w-full border-separate border-spacing-0 text-xs">
                 <thead className="sticky top-0 z-20 bg-muted text-foreground">
-                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email"].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-3 py-3 text-left font-semibold ${i === 0 ? "sticky left-0 z-30 min-w-72 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-32 max-w-40 text-center" : "min-w-36"}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
+                  <tr>{["Candidato", "Reclutador", "Estado en training", "Sucursal", "Año / Mes", "Inicio de wave", "Días restantes", "Request date", "Aprobado por Reclutamiento", "Horario acordado", "Trainer", "Comments", "Llamada de referencia", "Detalles de referencias", "Documentación", ...docs.map(documentLabel), "Teléfono", "Email"].map((h, i) => <th key={`${i}-${h}`} scope="col" className={`border-b border-r border-border px-2 py-1.5 text-left font-semibold leading-tight ${i === 0 ? "sticky left-0 z-30 min-w-52 bg-muted" : i >= 15 && i < 15 + docs.length ? "min-w-24 max-w-36 text-center" : (NARROW[h] ?? "min-w-24")}`} title={i >= 15 && i < 15 + docs.length ? docs[i - 15] : undefined}>{h}</th>)}</tr>
                 </thead>
                 <tbody>{groupRows.map((row) => <RosterRow key={row.id} row={row} docs={docs} permissions={data} />)}{pending.map((o) => <tr key={o.id} className="bg-destructive/5">
-                  <td className="sticky left-0 z-10 min-w-72 border-b border-r border-border bg-card px-3 py-3 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-3 py-3">—</td>
-                  <td className="border-b border-r border-border px-3 py-3"><span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{PENDING_SPOT}</span></td>
-                  <td className="border-b border-r border-border px-3 py-3">{o.branch || "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-3 py-3">—</td><td className="border-b border-r border-border px-3 py-3" colSpan={5 + docs.length}>{o.comments || ""}</td><td className="border-b border-r border-border px-3 py-3">{req?.canManage && <DeleteSpot id={o.id} />}</td>
+                  <td className="sticky left-0 z-10 min-w-52 border-b border-r border-border bg-card px-2 py-1.5 font-semibold text-destructive">Cupo {o.spotType}</td><td className="border-b border-r border-border px-2 py-1.5">—</td>
+                  <td className="border-b border-r border-border px-2 py-1.5"><span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">{PENDING_SPOT}</span></td>
+                  <td className="border-b border-r border-border px-2 py-1.5">{o.branch || "—"}</td><td className="border-b border-r border-border px-2 py-1.5">{o.waveStart ? `${o.waveStart.slice(0, 4)} / ${o.waveStart.slice(5, 7)}` : "—"}</td><td className="border-b border-r border-border px-2 py-1.5">{o.waveStart ?? "—"}</td><td className="border-b border-r border-border px-2 py-1.5">{daysUntil(o.waveStart) ?? "—"}</td><td className="border-b border-r border-border px-2 py-1.5">{o.requestDate ?? "—"}</td><td className="border-b border-r border-border px-2 py-1.5">—</td><td className="border-b border-r border-border px-2 py-1.5">{o.agreedSchedule || "—"}</td><td className="border-b border-r border-border px-2 py-1.5">—</td><td className="border-b border-r border-border px-2 py-1.5" colSpan={5 + docs.length}>{o.comments || ""}</td><td className="border-b border-r border-border px-2 py-1.5">{req?.canManage && <DeleteSpot id={o.id} />}</td>
                 </tr>)}</tbody>
               </table>
             </div>
@@ -188,23 +189,23 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       await qc.invalidateQueries({ queryKey: ["training-roster"] });
     } catch (e) { toast.error((e as Error).message); } finally { setSaving(false); }
   }
-  const cell = "border-b border-r border-border px-3 py-3 align-top";
-  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="w-40" />;
+  const cell = "border-b border-r border-border px-2 py-1.5 align-top";
+  const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="h-7 w-[118px] px-1.5 text-xs" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
-    <td className={`${cell} sticky left-0 z-10 min-w-72 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-56 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-56 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="mt-1 text-xs text-muted-foreground">{row.country}</p></div><Button variant={dirty ? "default" : "outline"} size="sm" className="shrink-0" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
+    <td className={`${cell} sticky left-0 z-10 min-w-52 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-44 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-44 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="text-[11px] text-muted-foreground">{row.country}</p></div><Button variant={dirty ? "default" : "outline"} size="sm" className="h-7 shrink-0 px-2 text-xs" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
     <td className={cell}>{row.recruiter}</td>
-    <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`w-56 ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
+    <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`h-7 w-40 px-2 text-xs ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{row.branch || "—"}</td>
     <td className={cell}>{f.waveStart ? `${f.waveStart.slice(0, 4)} / ${f.waveStart.slice(5, 7)}` : "—"}</td>
     <td className={cell}>{dateInput("waveStart", "Inicio de wave")}</td>
-    <td className={cell}>{daysUntil(f.waveStart) ?? "—"}</td>
+    <td className={`${cell} text-center`}>{daysUntil(f.waveStart) ?? "—"}</td>
     <td className={cell}>{dateInput("requestDate", "Request date")}</td>
     <td className={cell}>{row.recruitmentApprovedAt ?? "—"}</td>
     <td className={cell}><SchedulePicker value={f.agreedSchedule} disabled={!p.canEditTraining} onChange={(agreedSchedule) => setF({ ...f, agreedSchedule })} /></td>
     <td className={cell}>{row.trainer || "—"}</td>
-    <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`w-64 ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
-    <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="w-56"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-2 text-xs">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
+    <td className={cell}><Input aria-label={`Comments — ${row.fullName}`} title={f.comments} placeholder={f.status.startsWith("DROP OUT") ? "Motivo del drop out" : ""} value={f.comments} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, comments: e.target.value })} className={`h-7 w-44 px-2 text-xs ${f.status.startsWith("DROP OUT") && !f.comments ? "border-destructive" : ""}`} /></td>
+    <td className={`${cell} ${blocked ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><Select value={f.referenceCall} disabled={!p.canEditReferences} onValueChange={(referenceCall) => setF({ ...f, referenceCall })}><SelectTrigger aria-label={`Llamada de referencia — ${row.fullName}`} className="h-7 w-40 px-2 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente · Recruitment</SelectItem><SelectItem value="done">Realizada · recomendado</SelectItem><SelectItem value="not_recommended">Realizada · no recomendado</SelectItem></SelectContent></Select><p className="mt-0.5 text-[10px]">{blocked ? "Aprobación pendiente" : "Referencias aprobadas"} · {row.referencesVerified}/{row.referencesOnFile}</p></td>
     <td className={cell}>{!p.canEditReferences && row.referenceContacts.length > 0 && <details className="group relative mb-1 text-xs"><summary className="cursor-pointer list-none rounded border border-border bg-card px-2 py-1 font-medium hover:bg-muted">Contactos ({row.referenceContacts.length}) ▾</summary><ul className="absolute left-0 z-40 mt-1 max-h-72 w-72 space-y-1 overflow-auto rounded border border-border bg-popover p-1.5 text-popover-foreground shadow-lg">{row.referenceContacts.map((c, i) => <li key={i} className="rounded border border-border p-1.5"><p className="font-semibold">{c.supervisor || "Sin nombre"} <span className="font-normal text-muted-foreground">· {c.source}</span></p><p>{c.company}{c.position ? ` · ${c.position}` : ""}</p>{c.contact ? <p className="select-all font-medium">{c.contact}</p> : <p className="text-muted-foreground">Sin contacto</p>}{c.comment && <p className="mt-1 italic text-muted-foreground">{c.comment}</p>}</li>)}</ul></details>}{p.canEditReferences && <ReferencesEditor applicationId={row.id} name={row.fullName} initial={row.applicantRefs} />}</td>
     <td className={`${cell} ${pct < 100 && f.documentList.length ? "bg-destructive/10 text-destructive" : "bg-card text-foreground"}`}><span className="flex items-center gap-1 font-medium">{pct === 100 && <Check className="h-4 w-4" />}{!f.documentList.length ? "Sin lista" : pct === 100 ? "Completa" : `${f.documentList.filter((d) => f.documents[d]).length}/${f.documentList.length} entregados`}</span></td>
     {docs.map((col) => {
@@ -293,8 +294,8 @@ function StatusSummary({ groups, rows, open }: { groups: string[]; rows: { statu
   const lines = groups.map((g) => ({ g, s: statusSummary(rows.filter((r) => trainingGroup(r.modality, r.countryCode) === g), open.filter((o) => o.group === g).length) }));
   if (groups.length > 1) lines.push({ g: "TOTAL", s: statusSummary(rows.filter((r) => groups.includes(trainingGroup(r.modality, r.countryCode))), open.filter((o) => groups.includes(o.group)).length) });
   const cols = lines[0]?.s.items ?? [];
-  return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-sm"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-3 py-2">LOB</th><th className="px-3 py-2">Total</th>{cols.map((c) => <th key={c.status} className="px-3 py-2">{c.status}</th>)}</tr></thead>
-    <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-3 py-2">{g}</td><td className="px-3 py-2">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-3 py-2"><span className="text-base font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-xs"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-2 py-1">LOB</th><th className="px-2 py-1">Total</th>{cols.map((c) => <th key={c.status} className="px-2 py-1">{c.status}</th>)}</tr></thead>
+    <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-2 py-1">{g}</td><td className="px-2 py-1">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-2 py-1"><span className="text-sm font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
 }
 
 function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row: Row; value: PaymentData; complete: boolean; canEdit: boolean; canView: boolean; onChange: (p: PaymentData) => void }) {
