@@ -18,7 +18,7 @@ import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { publishTrainingLob } from "@/lib/training-lob";
 import { useNavCollapsed } from "@/lib/nav-collapsed";
-import { PENDING_SPOT, SPOT_TYPES, openSpots, statusSummary, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
+import { PENDING_SPOT, SPOT_TYPES, openSpots, shiftOf, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
 import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
 
@@ -111,7 +111,7 @@ function TrainingPage() {
           <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
           <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
-        {data && <StatusSummary groups={groupNames} rows={periodRows} open={open} />}
+        {data && <BranchSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} spots={(req?.spots ?? []).filter((x) => inPeriod(x.waveStart))} open={open} />}
         {/* On phones/tablets the sidebar is hidden; on desktop the goal moves into the page only when the sidebar is collapsed. */}
         <div className={navCollapsed ? undefined : "lg:hidden"}><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
         <div className="flex flex-wrap items-center gap-2">
@@ -290,12 +290,29 @@ function AddRequisition() {
   </div>;
 }
 
-function StatusSummary({ groups, rows, open }: { groups: string[]; rows: { status: string; modality: string | null; countryCode: string | null }[]; open: { group: string }[] }) {
-  const lines = groups.map((g) => ({ g, s: statusSummary(rows.filter((r) => trainingGroup(r.modality, r.countryCode) === g), open.filter((o) => o.group === g).length) }));
-  if (groups.length > 1) lines.push({ g: "TOTAL", s: statusSummary(rows.filter((r) => groups.includes(trainingGroup(r.modality, r.countryCode))), open.filter((o) => groups.includes(o.group)).length) });
-  const cols = lines[0]?.s.items ?? [];
-  return <div className="overflow-x-auto border border-border bg-card"><table className="w-full text-xs"><thead><tr className="bg-muted/50 text-left text-xs"><th className="px-2 py-1">LOB</th><th className="px-2 py-1">Total</th>{cols.map((c) => <th key={c.status} className="px-2 py-1">{c.status}</th>)}</tr></thead>
-    <tbody>{lines.map(({ g, s }) => <tr key={g} className={`border-t border-border ${g === "TOTAL" ? "font-semibold" : ""}`}><td className="px-2 py-1">{g}</td><td className="px-2 py-1">{s.total}</td>{s.items.map((i) => <td key={i.status} className="px-2 py-1"><span className="text-sm font-semibold">{i.count}</span> <span className="text-xs text-muted-foreground">· {i.pct}%</span></td>)}</tr>)}</tbody></table></div>;
+function BranchSummary({ groups, rows, spots, open }: { groups: string[]; rows: { status: string; branch: string | null; modality: string | null; countryCode: string | null }[]; spots: { group: string; branch: string; agreedSchedule: string }[]; open: { group: string; branch: string }[] }) {
+  const norm = (b: string | null | undefined) => String(b ?? "").trim().toLowerCase();
+  const th = "px-2 py-1 text-left font-semibold";
+  return <div className="grid gap-2 lg:grid-cols-2">{groups.map((g) => {
+    const gRows = rows.filter((r) => trainingGroup(r.modality, r.countryCode) === g);
+    const gSpots = spots.filter((s) => s.group === g);
+    const gOpen = open.filter((o) => o.group === g);
+    const names = new Map<string, string>();
+    for (const b of branchOptions(g)) names.set(norm(b), b);
+    for (const x of [...gSpots, ...gRows]) if (x.branch && !names.has(norm(x.branch))) names.set(norm(x.branch), x.branch);
+    const calc = (key: string | null) => {
+      const m = <T extends { branch: string | null }>(l: T[]) => key === null ? l : l.filter((x) => norm(x.branch) === key);
+      const sp = m(gSpots);
+      return { req: sp.length, am: sp.filter((s) => shiftOf(s.agreedSchedule) === "AM").length, pm: sp.filter((s) => shiftOf(s.agreedSchedule) === "PM").length, rec: m(gRows).filter((r) => r.status === "RECLUTADO").length, tr: m(gRows).filter((r) => r.status === "IN TRAINING").length, pend: m(gOpen).length };
+    };
+    const lines = [...names].map(([k, label]) => ({ label, v: calc(k) })).filter((l) => g !== "ONLINE" || l.v.req || l.v.rec || l.v.tr);
+    lines.push({ label: "TOTAL", v: calc(null) });
+    return <div key={g} className="overflow-x-auto border border-border bg-card">
+      <p className="bg-muted px-2 py-1 text-xs font-bold">{g}</p>
+      <table className="w-full text-xs"><thead><tr className="bg-muted/50">{["SUCURSAL", "REQUISICIÓN", "AM", "PM", "RECLUTADOS", "IN TRAINING", "PENDIENTES DE RECLUTAR"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+        <tbody>{lines.map(({ label, v }) => <tr key={label} className={`border-t border-border ${label === "TOTAL" ? "font-semibold" : ""}`}><td className="px-2 py-1">{label}</td><td className="px-2 py-1">{v.req}</td><td className="px-2 py-1">{v.am}</td><td className="px-2 py-1">{v.pm}</td><td className="px-2 py-1">{v.rec}</td><td className="px-2 py-1">{v.tr}</td><td className={`px-2 py-1 ${v.pend ? "font-semibold text-destructive" : ""}`}>{v.pend}</td></tr>)}</tbody></table>
+    </div>;
+  })}</div>;
 }
 
 function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row: Row; value: PaymentData; complete: boolean; canEdit: boolean; canView: boolean; onChange: (p: PaymentData) => void }) {

@@ -176,3 +176,9 @@ export function statusSummary(rows: { status: string }[], pendingSpots: number) 
   for (const r of rows) if (r.status in counts) counts[r.status] = (counts[r.status] ?? 0) + 1;
   return { total, items: SUMMARY_STATUSES.map((s) => ({ status: s, count: counts[s] ?? 0, pct: total ? Math.round(((counts[s] ?? 0) / total) * 100) : 0 })) };
 }
+
+/** Shift of a schedule text: first AM/PM marker wins ("AM + WKNDS", "Lunes a viernes: 9:00 AM–6:00 PM"). */
+export function shiftOf(schedule: string | null | undefined): "AM" | "PM" | "" {
+  const m = String(schedule ?? "").toUpperCase().match(/\b(AM|PM)\b/);
+  return (m?.[1] as "AM" | "PM" | undefined) ?? "";
+}
