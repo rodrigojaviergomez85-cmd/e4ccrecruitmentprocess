@@ -149,7 +149,7 @@ export function compactDocuments(documents: Record<string, unknown> | null | und
     if (documents[key] !== undefined) out[key] = documents[key] === true;
     else if (Object.entries(documents).some(([k, v]) => v === true && k !== key && olds.some((o) => k.includes(o)))) out[key] = true;
   }
-  out[DOC_PAYMENT] = paymentComplete(readPayment(documents.__payment));
+  out[DOC_PAYMENT] = paymentComplete(readPayment(documents["__payment"]));
   if (list) for (const k of Object.keys(out)) if (!list.includes(k)) delete out[k];
   return out;
 }

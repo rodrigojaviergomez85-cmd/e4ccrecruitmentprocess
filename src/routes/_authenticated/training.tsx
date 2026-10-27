@@ -214,7 +214,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
       let content: React.ReactNode = <span className="text-muted-foreground">—</span>;
       if (col === DOC_PAYMENT && items.length) content = <PaymentCell row={row} value={f.payment} complete={f.documents[DOC_PAYMENT] === true} canEdit={p.canEditDocuments} canView={p.canEditDocuments || p.canEditTraining} onChange={(payment) => setF({ ...f, payment, documents: { ...f.documents, [DOC_PAYMENT]: paymentComplete(payment) } })} />;
       else if (items.length > 1 || col === "Antecedentes/Solvencias") content = <ul className="space-y-1 text-left text-xs">{items.map((d) => <li key={d}><label className={`flex items-center gap-2 ${f.documents[d] ? "" : "text-destructive"}`}>{box(d)}<span>{d}</span></label></li>)}</ul>;
-      else if (items.length === 1) content = box(items[0]);
+      else if (items.length === 1) content = box(items[0]!);
       return <td key={col} className={`${cell} text-center ${items.length && missing ? "bg-destructive/10" : "bg-card text-foreground"}`}>{content}</td>;
     })}
     <td className={`${cell} whitespace-nowrap`}>{row.phone}</td><td className={cell}><span className="whitespace-nowrap">{row.email}</span></td>

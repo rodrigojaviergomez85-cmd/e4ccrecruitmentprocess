@@ -101,7 +101,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         day1Notes: r?.day1_notes ?? "",
         documentList: docs,
         documents: compactDocuments(r?.documents as Record<string, unknown> | null, docs),
-        payment: (() => { const p = readPayment((r?.documents as Record<string, unknown> | null)?.__payment); return ctx.canEditDocuments || ctx.canEditTraining ? p : { ...EMPTY_PAYMENT, method: p.method }; })(),
+        payment: (() => { const p = readPayment((r?.documents as Record<string, unknown> | null)?["__payment"]); return ctx.canEditDocuments || ctx.canEditTraining ? p : { ...EMPTY_PAYMENT, method: p.method }; })(),
         referenceCall: r?.reference_call ?? "pending",
         referenceDetails: r?.reference_details ?? "",
         referencesOnFile: refs.length,
@@ -169,8 +169,8 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       const { data: prev } = await ctx.db.from("training_roster").select("documents").eq("application_id", app.id).maybeSingle();
       const prevDocs = (prev?.documents ?? {}) as Record<string, unknown>;
       storedDocuments = { ...prevDocs, ...(data.documents ?? {}) };
-      if (data.payment) storedDocuments.__payment = data.payment;
-      if (allowed.includes(DOC_PAYMENT)) storedDocuments[DOC_PAYMENT] = paymentComplete(readPayment(storedDocuments.__payment));
+      if (data.payment) storedDocuments["__payment"] = data.payment;
+      if (allowed.includes(DOC_PAYMENT)) storedDocuments[DOC_PAYMENT] = paymentComplete(readPayment(storedDocuments["__payment"]));
     }
     const nd = (v: string | null | undefined) => (v === undefined ? undefined : v || null);
     const patch: Record<string, unknown> = {
