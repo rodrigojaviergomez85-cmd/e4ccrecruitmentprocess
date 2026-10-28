@@ -1956,6 +1956,7 @@ export type Database = {
         Row: {
           agreed_schedule: string
           application_id: string
+          branch: string | null
           canceled_before_start: boolean
           certification: string
           certification_reason: string
@@ -1982,6 +1983,7 @@ export type Database = {
         Insert: {
           agreed_schedule?: string
           application_id: string
+          branch?: string | null
           canceled_before_start?: boolean
           certification?: string
           certification_reason?: string
@@ -2008,6 +2010,7 @@ export type Database = {
         Update: {
           agreed_schedule?: string
           application_id?: string
+          branch?: string | null
           canceled_before_start?: boolean
           certification?: string
           certification_reason?: string
