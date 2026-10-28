@@ -78,7 +78,7 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         countryCode: a.country_code,
         lob: (t[AGREEMENT_KEYS.lob] || "").trim() || "Sin LOB",
         modality,
-        branch: (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
+        branch: ((r as { branch?: string | null } | null)?.branch || "").trim() || (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
         trainer: (t[TRAINING_KEYS.trainer] || "").trim(),
         approvedAt: ev?.decided_at ?? null,
         waveStart: r?.wave_start ?? (t[TRAINING_KEYS.startDate] || null),
@@ -131,6 +131,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
         requestDate: z.string().max(20).nullable().optional(),
         hiringDate: z.string().max(20).nullable().optional(),
         status: z.enum(TRAINING_STATUSES).optional(),
+        branch: z.string().trim().min(1).max(200).optional(),
         agreedSchedule: z.string().max(300).optional(),
         comments: z.string().max(4000).optional(),
         incorporationConfirmed: z.boolean().optional(),
@@ -158,7 +159,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
     const touchesRefs = [data.referenceCall, data.referenceDetails, data.day1Followup, data.day1Notes].some((v) => v !== undefined);
     if (touchesRefs && !ctx.canEditReferences) throw new Error("Only Recruitment can record reference calls.");
     if (data.documents !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
-    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
+    const touchesTraining = [data.waveStart, data.requestDate, data.hiringDate, data.status, data.agreedSchedule, data.branch, data.comments, data.incorporationConfirmed, data.startedAt, data.outcomeAt, data.outcomeReason, data.canceledBeforeStart, data.certification, data.certificationReason].some((v) => v !== undefined);
     if (touchesTraining && !ctx.canEditTraining) throw new Error("You can only verify documents.");
     if (data.payment !== undefined && !ctx.canEditDocuments) throw new Error("Only Generalistas can verify documents.");
     let storedDocuments: Record<string, unknown> | undefined;
@@ -182,6 +183,7 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       status: data.status,
       certification: data.status !== undefined ? certificationFromStatus(data.status) : undefined,
       agreed_schedule: data.agreedSchedule,
+      branch: data.branch,
       comments: data.comments,
       incorporation_confirmed: data.incorporationConfirmed,
       started_at: nd(data.startedAt),

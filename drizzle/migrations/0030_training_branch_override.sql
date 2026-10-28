@@ -1,0 +1,1 @@
+ALTER TABLE public.training_roster ADD COLUMN IF NOT EXISTS branch text;

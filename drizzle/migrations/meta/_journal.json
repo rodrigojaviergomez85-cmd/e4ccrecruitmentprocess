@@ -211,6 +211,13 @@
       "when": 1793116195918,
       "tag": "0029_lead_pending_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793201277545,
+      "tag": "0030_training_branch_override",
+      "breakpoints": true
     }
   ]
 }
