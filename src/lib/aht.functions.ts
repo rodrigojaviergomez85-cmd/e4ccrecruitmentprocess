@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { staffTier } from "./roles";
+import { segmentSeconds, validHandleSeconds } from "./aht-rules";
 
 const TABLES = { recruitment: "interview_evaluations", manager: "manager_evaluations" } as const;
 
@@ -26,7 +27,7 @@ export const startInterviewTimer = createServerFn({ method: "POST" })
     // Resume keeps any previously accumulated handle_seconds (paused time is not counted).
     const { error } = await db
       .from(TABLES[data.kind])
-      .update({ timer_started_at: now, timer_ended_at: null })
+      .update({ timer_started_at: now, timer_ended_at: null, timer_last_seen_at: now, timer_owner_id: context.userId })
       .eq("id", data.evaluationId)
       .is("timer_started_at", null);
     if (error) throw new Error(error.message);
@@ -46,11 +47,11 @@ export const pauseInterviewTimer = createServerFn({ method: "POST" })
     if (!ok) throw new Error("You cannot pause this interview timer.");
     const { data: row } = await db
       .from(TABLES[data.kind])
-      .select("timer_started_at, timer_ended_at, handle_seconds")
+      .select("timer_started_at, timer_ended_at, timer_last_seen_at, handle_seconds")
       .eq("id", data.evaluationId)
       .maybeSingle();
     if (!row?.timer_started_at || row.timer_ended_at) return { paused: false };
-    const elapsed = Math.max(0, Math.round((Date.now() - new Date(row.timer_started_at).getTime()) / 1000));
+    const elapsed = segmentSeconds(row.timer_started_at, row.timer_last_seen_at, Date.now());
     const total = (row.handle_seconds ?? 0) + elapsed;
     const { error } = await db
       .from(TABLES[data.kind])
@@ -58,6 +59,25 @@ export const pauseInterviewTimer = createServerFn({ method: "POST" })
       .eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
     return { paused: true, handleSeconds: total };
+  });
+
+/** Heartbeat while the interview page is visible; lets the server cut abandoned timers. */
+export const heartbeatInterviewTimer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ kind: z.enum(["recruitment", "manager"]), evaluationId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { db, tier } = await roles(context.userId);
+    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
+    if (!ok) return { ok: false };
+    await db
+      .from(TABLES[data.kind])
+      .update({ timer_last_seen_at: new Date().toISOString(), timer_owner_id: context.userId })
+      .eq("id", data.evaluationId)
+      .not("timer_started_at", "is", null)
+      .is("timer_ended_at", null);
+    return { ok: true };
   });
 
 export const getAhtReport = createServerFn({ method: "POST" })
@@ -73,15 +93,16 @@ export const getAhtReport = createServerFn({ method: "POST" })
       return r;
     };
     const [rec, man, { data: profiles }] = await Promise.all([
-      range(db.from("interview_evaluations").select("evaluator_id, decided_by, handle_seconds").not("handle_seconds", "is", null) as never) as unknown as Promise<{ data: Array<{ evaluator_id: string | null; decided_by: string | null; handle_seconds: number }> | null }>,
-      range(db.from("manager_evaluations").select("evaluator_id, decided_by, handle_seconds").not("handle_seconds", "is", null) as never) as unknown as Promise<{ data: Array<{ evaluator_id: string | null; decided_by: string | null; handle_seconds: number }> | null }>,
+      range(db.from("interview_evaluations").select("evaluator_id, decided_by, timer_owner_id, handle_seconds").not("handle_seconds", "is", null) as never) as unknown as Promise<{ data: Array<{ evaluator_id: string | null; decided_by: string | null; timer_owner_id: string | null; handle_seconds: number }> | null }>,
+      range(db.from("manager_evaluations").select("evaluator_id, decided_by, timer_owner_id, handle_seconds").not("handle_seconds", "is", null) as never) as unknown as Promise<{ data: Array<{ evaluator_id: string | null; decided_by: string | null; timer_owner_id: string | null; handle_seconds: number }> | null }>,
       db.from("staff_profiles").select("user_id, full_name, email"),
     ]);
     const name = new Map((profiles ?? []).map((p) => [p.user_id, p.full_name || p.email]));
-    const summarize = (rows: Array<{ evaluator_id: string | null; decided_by: string | null; handle_seconds: number }> | null) => {
+    const summarize = (rows: Array<{ evaluator_id: string | null; decided_by: string | null; timer_owner_id: string | null; handle_seconds: number }> | null) => {
       const by = new Map<string, number[]>();
       for (const r of rows ?? []) {
-        const id = r.decided_by ?? r.evaluator_id ?? "unknown";
+        if (!validHandleSeconds(r.handle_seconds)) continue;
+        const id = r.timer_owner_id ?? r.decided_by ?? r.evaluator_id ?? "unknown";
         by.set(id, [...(by.get(id) ?? []), r.handle_seconds]);
       }
       return [...by.entries()]

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Timer } from "lucide-react";
 
-import { pauseInterviewTimer, startInterviewTimer } from "@/lib/aht.functions";
+import { heartbeatInterviewTimer, pauseInterviewTimer, startInterviewTimer } from "@/lib/aht.functions";
 
 export function formatDuration(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -24,6 +24,7 @@ export function InterviewTimer(props: {
 }) {
   const start = useServerFn(startInterviewTimer);
   const pause = useServerFn(pauseInterviewTimer);
+  const beat = useServerFn(heartbeatInterviewTimer);
   const [startedAt, setStartedAt] = useState<string | null>(props.startedAt ?? null);
   const [accumulated, setAccumulated] = useState<number>(props.handleSeconds ?? 0);
   const [now, setNow] = useState(() => Date.now());
@@ -39,8 +40,18 @@ export function InterviewTimer(props: {
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [running]);
+    const id = props.evaluationId;
+    const hb = id
+      ? setInterval(() => {
+          if (document.visibilityState === "visible") beat({ data: { kind: props.kind, evaluationId: id } }).catch(() => {});
+        }, 60_000)
+      : null;
+    return () => {
+      clearInterval(t);
+      if (hb) clearInterval(hb);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, props.evaluationId, props.kind]);
 
   // Serialize start/pause requests so they never race on the server.
   const queue = useRef<Promise<unknown>>(Promise.resolve());

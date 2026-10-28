@@ -1,0 +1,2 @@
+ALTER TABLE public.interview_evaluations ADD COLUMN IF NOT EXISTS timer_last_seen_at timestamptz, ADD COLUMN IF NOT EXISTS timer_owner_id uuid;
+ALTER TABLE public.manager_evaluations ADD COLUMN IF NOT EXISTS timer_last_seen_at timestamptz, ADD COLUMN IF NOT EXISTS timer_owner_id uuid;
