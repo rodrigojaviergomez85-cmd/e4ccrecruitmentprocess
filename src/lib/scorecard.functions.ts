@@ -335,7 +335,7 @@ export const getScorecard = createServerFn({ method: "POST" })
         const mine = rows.filter((r) => r.evaluatorId === e.id);
         const fin = mine.filter(done);
         const sched = mine.filter((r) => r.scheduled);
-        const ahts = fin.map((r) => r.handleSeconds).filter((v): v is number => typeof v === "number" && v > 0);
+        const ahts = fin.map((r) => r.handleSeconds).filter((v): v is number => typeof v === "number" && v > 0 && v <= 10800);
         const ap = mine.filter(isApproved).length;
         return {
           evaluator: e.name,
