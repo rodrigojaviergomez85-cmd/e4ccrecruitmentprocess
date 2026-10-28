@@ -899,13 +899,18 @@ export const reopenManagerEvaluation = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ evaluationId: z.string().uuid(), reason: z.string().max(500).default("") }).parse(d))
   .handler(async ({ context, data }) => {
     const ctx = await managerCtx(context.userId);
-    if (!ctx.isAdmin) throw new Error("Only Admin can reopen a Manager evaluation.");
+    if (!ctx.canDecide) throw new Error("Only a Manager or Admin can reopen a Manager evaluation.");
     const { data: ev } = await ctx.db
       .from("manager_evaluations")
       .select("id, application_id, status, final_decision")
       .eq("id", data.evaluationId)
       .maybeSingle();
     if (!ev) throw new Error("Evaluation not found.");
+    // Managers may re-evaluate a No Show (candidate reconnected); other decisions stay Admin-only.
+    if (!ctx.isAdmin && ev.final_decision !== "No Show") {
+      throw new Error("Only Admin can reopen a Manager evaluation.");
+    }
+    await assertAccess(ctx, ev.application_id);
     await ctx.db
       .from("manager_evaluations")
       .update({ status: "Reopened", reopened_at: new Date().toISOString() })

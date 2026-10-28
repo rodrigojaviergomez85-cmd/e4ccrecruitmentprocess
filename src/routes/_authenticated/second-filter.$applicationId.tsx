@@ -617,7 +617,26 @@ function ReviewPage() {
             <div className="min-w-0 space-y-4">
               {locked && (
                 <p className="flex items-center gap-2 rounded-lg bg-muted p-3 text-sm">
-                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked. Only Admin can reopen it.
+                  <Lock className="h-4 w-4" /> Finished {fmt(current?.submitted_at)} — locked.{" "}
+                  {current?.final_decision === "No Show" && d.access.canDecide ? (
+                    <Button
+                      size="sm"
+                      className="ml-auto"
+                      onClick={async () => {
+                        try {
+                          await reopen({ data: { evaluationId: current.id, reason: "Candidate reconnected after No Show" } });
+                          toast.success("Reopened — you can start the interview");
+                          await refresh();
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Could not reopen");
+                        }
+                      }}
+                    >
+                      Re-evaluate (candidate connected)
+                    </Button>
+                  ) : (
+                    "Only Admin can reopen it."
+                  )}
                 </p>
               )}
               {!current && (
@@ -835,17 +854,21 @@ function ReviewPage() {
             <div className="space-y-2 rounded-2xl border border-border bg-card p-4 text-sm">
               <p>Final decision: <strong>{current.final_decision ?? "—"}</strong></p>
               <p className="text-xs text-muted-foreground">Manager: {managerName} · {fmt(current.decided_at ?? current.updated_at)}</p>
-              {d.access.isAdmin && locked && (
+              {locked && (d.access.isAdmin || (d.access.canDecide && current.final_decision === "No Show")) && (
                 <Button
-                  variant="outline"
+                  variant={current.final_decision === "No Show" ? "default" : "outline"}
                   size="sm"
                   onClick={async () => {
-                    await reopen({ data: { evaluationId: current.id, reason: "" } });
-                    toast.success("Reopened");
-                    await refresh();
+                    try {
+                      await reopen({ data: { evaluationId: current.id, reason: current.final_decision === "No Show" ? "Candidate reconnected after No Show" : "" } });
+                      toast.success("Reopened — you can start the interview");
+                      await refresh();
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Could not reopen");
+                    }
                   }}
                 >
-                  Reopen (Admin)
+                  {current.final_decision === "No Show" ? "Re-evaluate (candidate connected)" : "Reopen (Admin)"}
                 </Button>
               )}
             </div>
