@@ -801,6 +801,8 @@ export type Database = {
           status: string
           submitted_at: string | null
           timer_ended_at: string | null
+          timer_last_seen_at: string | null
+          timer_owner_id: string | null
           timer_started_at: string | null
           total_score: number | null
           updated_at: string
@@ -842,6 +844,8 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           timer_ended_at?: string | null
+          timer_last_seen_at?: string | null
+          timer_owner_id?: string | null
           timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
@@ -883,6 +887,8 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           timer_ended_at?: string | null
+          timer_last_seen_at?: string | null
+          timer_owner_id?: string | null
           timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
@@ -1089,6 +1095,8 @@ export type Database = {
           status: string
           submitted_at: string | null
           timer_ended_at: string | null
+          timer_last_seen_at: string | null
+          timer_owner_id: string | null
           timer_started_at: string | null
           total_score: number | null
           updated_at: string
@@ -1129,6 +1137,8 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           timer_ended_at?: string | null
+          timer_last_seen_at?: string | null
+          timer_owner_id?: string | null
           timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
@@ -1169,6 +1179,8 @@ export type Database = {
           status?: string
           submitted_at?: string | null
           timer_ended_at?: string | null
+          timer_last_seen_at?: string | null
+          timer_owner_id?: string | null
           timer_started_at?: string | null
           total_score?: number | null
           updated_at?: string
