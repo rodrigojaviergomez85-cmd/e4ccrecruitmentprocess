@@ -71,8 +71,8 @@ async function evaluatorContext(userId: string) {
   if (!tier.isStaff) throw new Error("You do not have staff access.");
   if (profile && profile.active === false) throw new Error("Your account is deactivated.");
   const isAdmin = tier.isAdmin;
-  // Recruitment runs the first interview; Managers can read it (their own filter is Phase 2).
-  const isEvaluator = isAdmin || tier.isRecruitment;
+  // Recruitment runs the first interview; Managers also run first-filter interviews when volume is high.
+  const isEvaluator = isAdmin || tier.isRecruitment || tier.isManager;
   const canView = tier.isStaff;
   return {
     db,
@@ -420,7 +420,7 @@ export const openEvaluation = createServerFn({ method: "POST" })
             interviewer: one(mgrAppt.interviewers)?.full_name ?? null,
           }
         : null,
-      access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView },
+      access: { canEvaluate: ctx.isEvaluator, isAdmin: ctx.isAdmin, canView: ctx.canView, isManager: ctx.roles.includes("manager"), userId: context.userId },
       weights: await loadWeights(db),
       candidate: {
         id: app.id,

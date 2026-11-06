@@ -53,7 +53,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
       roles,
       role: tier.primary,
       isAdmin: tier.isAdmin,
-      canEvaluate: tier.isAdmin || tier.isRecruitment,
+      canEvaluate: tier.isAdmin || tier.isRecruitment || tier.isManager,
     };
   });
 

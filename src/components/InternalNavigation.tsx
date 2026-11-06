@@ -32,6 +32,7 @@ import { cn } from "@/lib/utils";
 type StaffNavigationAccess = {
   isAdmin: boolean;
   isRecruitment: boolean;
+  isManager?: boolean;
   isTrainerOnly: boolean;
 };
 
@@ -45,6 +46,7 @@ type NavItem = {
 
 const fullStaff = (access: StaffNavigationAccess) => !access.isTrainerOnly;
 const canEvaluate = (access: StaffNavigationAccess) => access.isAdmin || access.isRecruitment;
+const canInterview = (access: StaffNavigationAccess) => canEvaluate(access) || Boolean(access.isManager);
 
 const ITEMS: NavItem[] = [
   {
@@ -66,7 +68,7 @@ const ITEMS: NavItem[] = [
     to: "/evaluations",
     icon: ClipboardCheck,
     active: (path) => path.startsWith("/evaluations") || path === "/interviews",
-    show: canEvaluate,
+    show: canInterview,
   },
   {
     label: "Scorecard",

@@ -75,6 +75,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
         access={{
           isAdmin: data.isAdmin,
           isRecruitment: data.isRecruitment,
+          isManager: data.isManager,
           isTrainerOnly: data.isTrainerOnly,
         }}
       />

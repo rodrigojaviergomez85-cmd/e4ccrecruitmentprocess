@@ -21,7 +21,7 @@ export const startInterviewTimer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db, tier } = await roles(context.userId);
-    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
+    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment || tier.isManager;
     if (!ok) throw new Error("You cannot start this interview timer.");
     const now = new Date().toISOString();
     // The interviewer who first started the timer keeps ownership; a resume by someone
@@ -55,7 +55,7 @@ export const pauseInterviewTimer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db, tier } = await roles(context.userId);
-    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
+    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment || tier.isManager;
     if (!ok) throw new Error("You cannot pause this interview timer.");
     const { data: row } = await db
       .from(TABLES[data.kind])
@@ -81,7 +81,7 @@ export const heartbeatInterviewTimer = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { db, tier } = await roles(context.userId);
-    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
+    const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment || tier.isManager;
     if (!ok) return { ok: false };
     // Only the timer owner may heartbeat; a supervisor or another recruiter merely
     // viewing the page must not take over the interview's time. Legacy rows with no

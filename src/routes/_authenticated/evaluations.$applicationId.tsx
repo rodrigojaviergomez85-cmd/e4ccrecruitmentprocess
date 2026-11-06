@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProfileTierPicker } from "@/components/ProfileTierPicker";
 import { branchesFor, ONLINE_COUNTRIES, ONSITE_LOB } from "@/lib/branches";
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, Check, Loader2, Lock, Save, Unlock } from "lucide-react";
@@ -136,6 +136,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
 
 function EvaluationForm() {
   const { applicationId } = useParams({ from: "/_authenticated/evaluations/$applicationId" });
+  const navigate = useNavigate();
   const openFn = useServerFn(openEvaluation);
   const saveFn = useServerFn(saveEvaluation);
   const reopenFn = useServerFn(reopenEvaluation);
@@ -397,6 +398,11 @@ function EvaluationForm() {
       }
       setSaveState("saved");
       setFinishOpen(false);
+      if (data?.access.isManager && finalResult === "Approved for last step" && str("result", "ff_self") === "yes") {
+        toast.success("Recruitment interview finished. Continuing with the Second Filter.");
+        void navigate({ to: "/second-filter/$applicationId", params: { applicationId } });
+        return;
+      }
       const email = res.email;
       if (email) {
         setEmailState(email.ok ? (email.status === "duplicate" ? "duplicate" : "sent") : "failed");
@@ -1685,6 +1691,25 @@ function EvaluationForm() {
             )}
             {finalResult === "Approved for last step" && (
               <div className="space-y-3 rounded-2xl border border-border p-3">
+                {data?.access.isManager && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Will you do the Second Filter yourself?</Label>
+                    <div className="flex gap-2">
+                      {[["yes", "Yes, continue now"], ["no", "No, save for Second Filter"]].map(([v, label]) => (
+                        <Button key={v} type="button" size="sm" variant={str("result", "ff_self") === v ? "default" : "outline"} onClick={() => {
+                          set("result", "ff_self", v);
+                          if (v === "yes") {
+                            const me = data.managers.find((m) => m.id === data.access.userId);
+                            set("result", "ff_manager_id", data.access.userId);
+                            set("result", "ff_interviewer", me?.name ?? "");
+                            set("result", "ff_known", "no");
+                          }
+                        }}>{label}</Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!(data?.access.isManager && str("result", "ff_self") === "yes") && (<>
                 <Field label="Which Manager will see the candidate in the Second Filter?">
                   <Select
                     value={str("result", "ff_manager_id")}
@@ -1739,6 +1764,7 @@ function EvaluationForm() {
                     )}
                   </div>
                 )}
+                </>)}
                 {ffCheck.state === "incomplete" && (
                   <p className="text-xs text-destructive">Complete the {ffCheck.missing.join(", ")} to finish. The approval email will include these details.</p>
                 )}
