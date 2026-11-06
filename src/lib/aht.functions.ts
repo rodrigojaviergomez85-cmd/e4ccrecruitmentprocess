@@ -24,10 +24,22 @@ export const startInterviewTimer = createServerFn({ method: "POST" })
     const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
     if (!ok) throw new Error("You cannot start this interview timer.");
     const now = new Date().toISOString();
+    // The interviewer who first started the timer keeps ownership; a resume by someone
+    // else must not re-attribute the interview's time to them.
+    const { data: current } = await db
+      .from(TABLES[data.kind])
+      .select("timer_owner_id")
+      .eq("id", data.evaluationId)
+      .maybeSingle();
     // Resume keeps any previously accumulated handle_seconds (paused time is not counted).
     const { error } = await db
       .from(TABLES[data.kind])
-      .update({ timer_started_at: now, timer_ended_at: null, timer_last_seen_at: now, timer_owner_id: context.userId })
+      .update({
+        timer_started_at: now,
+        timer_ended_at: null,
+        timer_last_seen_at: now,
+        timer_owner_id: current?.timer_owner_id ?? context.userId,
+      })
       .eq("id", data.evaluationId)
       .is("timer_started_at", null);
     if (error) throw new Error(error.message);
@@ -71,10 +83,21 @@ export const heartbeatInterviewTimer = createServerFn({ method: "POST" })
     const { db, tier } = await roles(context.userId);
     const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment;
     if (!ok) return { ok: false };
+    // Only the timer owner may heartbeat; a supervisor or another recruiter merely
+    // viewing the page must not take over the interview's time. Legacy rows with no
+    // owner yet are claimed by the first heartbeat.
     await db
       .from(TABLES[data.kind])
-      .update({ timer_last_seen_at: new Date().toISOString(), timer_owner_id: context.userId })
+      .update({ timer_owner_id: context.userId })
       .eq("id", data.evaluationId)
+      .is("timer_owner_id", null)
+      .not("timer_started_at", "is", null)
+      .is("timer_ended_at", null);
+    await db
+      .from(TABLES[data.kind])
+      .update({ timer_last_seen_at: new Date().toISOString() })
+      .eq("id", data.evaluationId)
+      .eq("timer_owner_id", context.userId)
       .not("timer_started_at", "is", null)
       .is("timer_ended_at", null);
     return { ok: true };

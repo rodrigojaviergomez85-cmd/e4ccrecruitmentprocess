@@ -41,7 +41,8 @@ export function InterviewTimer(props: {
     if (!running) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     const id = props.evaluationId;
-    const hb = id
+    // Only editors heartbeat; read-only viewers must not claim the interview's time.
+    const hb = id && props.canStart
       ? setInterval(() => {
           if (document.visibilityState === "visible") beat({ data: { kind: props.kind, evaluationId: id } }).catch(() => {});
         }, 60_000)
