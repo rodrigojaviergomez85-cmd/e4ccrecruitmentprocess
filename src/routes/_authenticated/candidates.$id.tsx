@@ -49,6 +49,8 @@ export const Route = createFileRoute("/_authenticated/candidates/$id")({
       },
       { property: "og:title", content: "Candidate Review — E4CC" },
       { property: "og:description", content: "Detailed candidate review for E4CC staff." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: CandidateDetail,

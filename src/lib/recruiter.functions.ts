@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { STATUS_OPTIONS } from "./recruitment";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
+import { canAccessCandidate } from "./candidate-access";
 
 async function assertStaff(userId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -185,10 +186,10 @@ export const getApplicantActivity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { db, allowedCountries } = await staffContext(context.userId);
-    const { data: app } = await db.from("applications").select("country_code").eq("id", data.id).maybeSingle();
+    const { db, allowedCountries, roles } = await staffContext(context.userId);
+    const { data: app } = await db.from("applications").select("country_code, source").eq("id", data.id).maybeSingle();
     if (!app) throw new Error("Candidate not found.");
-    if (allowedCountries && !allowedCountries.includes(app.country_code ?? "")) throw new Error("You do not have access to this candidate.");
+    if (!canAccessCandidate(allowedCountries, roles, app)) throw new Error("You do not have access to this candidate.");
     const { data: rows, error } = await db
       .from("audit_logs")
       .select("id, action, actor_email, actor_role, created_at")
@@ -203,14 +204,14 @@ export const getCandidate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { db, allowedCountries } = await staffContext(context.userId);
+    const { db, allowedCountries, roles } = await staffContext(context.userId);
     const { data: app, error } = await db
       .from("applications")
       .select("*, cities(name), countries(name)")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    if (allowedCountries && !allowedCountries.includes(app.country_code ?? "")) {
+    if (!canAccessCandidate(allowedCountries, roles, app)) {
       throw new Error("You do not have access to this candidate.");
     }
 
@@ -375,13 +376,13 @@ export const updateCandidateInfo = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { db, allowedCountries, isAdmin } = await staffContext(context.userId);
+    const { db, allowedCountries, isAdmin, roles } = await staffContext(context.userId);
     const { data: app } = await db
       .from("applications")
-      .select("country_code, full_name, email, phone, city, teaching_experience, callcenter_experience_level, taught_children")
+      .select("country_code, source, full_name, email, phone, city, teaching_experience, callcenter_experience_level, taught_children")
       .eq("id", data.id)
       .single();
-    if (!app || (allowedCountries && !allowedCountries.includes(app.country_code ?? "")))
+    if (!app || !canAccessCandidate(allowedCountries, roles, app))
       throw new Error("You do not have access to this candidate.");
     const { id, ...patch } = data;
     const update = {
@@ -391,7 +392,7 @@ export const updateCandidateInfo = createServerFn({ method: "POST" })
     };
     const { error } = await db.from("applications").update(update).eq("id", id);
     if (error) throw new Error(error.message);
-    const { country_code: _c, ...old } = app;
+    const { country_code: _c, source: _source, ...old } = app;
     await writeAudit(db as never, {
       actorId: context.userId,
       action: isAdmin ? "application.info_edited_by_admin" : "application.info_edited",
@@ -410,13 +411,13 @@ export const updateCandidateStatus = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), status: z.enum(STATUS_OPTIONS) }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { db, allowedCountries, isAdmin } = await staffContext(context.userId);
+    const { db, allowedCountries, isAdmin, roles } = await staffContext(context.userId);
     const { data: app } = await db
       .from("applications")
-      .select("country_code, status")
+      .select("country_code, source, status")
       .eq("id", data.id)
       .single();
-    if (!app || (allowedCountries && !allowedCountries.includes(app.country_code ?? ""))) {
+    if (!app || !canAccessCandidate(allowedCountries, roles, app)) {
       throw new Error("You do not have access to this candidate.");
     }
     const { error } = await db
