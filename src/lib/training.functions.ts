@@ -29,7 +29,7 @@ async function ctxFor(userId: string, userDb: { from: typeof import("@/integrati
     db,
     tier,
     email: fullProfile?.email ?? null,
-    allowedCountries: tier.isAdmin ? null : (fullCountries ?? countries ?? []).map((c) => c.country_code),
+    allowedCountries: tier.isAdmin || tier.isManager ? null : (fullCountries ?? countries ?? []).map((c) => c.country_code),
     ...trainingPermissions((roles ?? []).map((r) => r.role as string)),
   };
 }

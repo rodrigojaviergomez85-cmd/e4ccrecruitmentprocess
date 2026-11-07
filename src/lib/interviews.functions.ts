@@ -21,7 +21,7 @@ async function staffCtx(userId: string) {
     isAdmin,
     isViewer: false,
     email: profile?.email ?? null,
-    allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+    allowedCountries: isAdmin || roleNames.includes("manager") ? null : (countries ?? []).map((c) => c.country_code),
   };
 }
 

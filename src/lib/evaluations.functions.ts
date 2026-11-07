@@ -82,7 +82,7 @@ async function evaluatorContext(userId: string) {
     canView,
     email: profile?.email ?? null,
     fullName: profile?.full_name ?? "",
-    allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+    allowedCountries: isAdmin || roleNames.includes("manager") ? null : (countries ?? []).map((c) => c.country_code),
   };
 }
 

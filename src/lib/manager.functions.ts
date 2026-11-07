@@ -35,7 +35,7 @@ async function managerCtx(userId: string) {
     canDecide: tier.isAdmin || tier.isManager,
     email: profile?.email ?? null,
     fullName: profile?.full_name ?? "",
-    allowedCountries: tier.isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+    allowedCountries: tier.isAdmin || tier.isManager ? null : (countries ?? []).map((c) => c.country_code),
   };
 }
 type Ctx = Awaited<ReturnType<typeof managerCtx>>;

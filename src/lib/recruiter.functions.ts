@@ -34,7 +34,7 @@ async function staffContext(userId: string) {
     db,
     roles,
     isAdmin,
-    allowedCountries: isAdmin ? null : assigned,
+    allowedCountries: isAdmin || roles.includes("manager") ? null : assigned,
   };
 }
 

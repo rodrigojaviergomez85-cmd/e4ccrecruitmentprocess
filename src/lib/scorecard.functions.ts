@@ -46,7 +46,7 @@ async function staffCtx(userId: string) {
   return {
     db,
     isAdmin,
-    allowedCountries: isAdmin ? null : (countries ?? []).map((c) => c.country_code),
+    allowedCountries: isAdmin || roleNames.includes("manager") ? null : (countries ?? []).map((c) => c.country_code),
   };
 }
 

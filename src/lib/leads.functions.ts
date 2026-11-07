@@ -19,7 +19,7 @@ async function requireLeadsAccess(userId: string) {
     db.from("staff_profiles").select("active, email, full_name").eq("user_id", userId).maybeSingle(),
   ]);
   const tier = staffTier(((roles ?? []) as { role: string }[]).map((r) => r.role));
-  if (!(tier.isAdmin || tier.isRecruitment) || profile?.active === false) throw new Error("Recruitment or Admin access required.");
+  if (!(tier.isAdmin || tier.isRecruitment || tier.isManager) || profile?.active === false) throw new Error("Recruitment or Admin access required.");
   return { db, email: (profile?.email as string) ?? null, name: ((profile?.full_name as string) ?? "").toUpperCase() };
 }
 
