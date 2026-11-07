@@ -52,7 +52,7 @@ export function InterviewTimer(props: {
       if (hb) clearInterval(hb);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, props.evaluationId, props.kind]);
+  }, [running, props.evaluationId, props.kind, props.canStart]);
 
   // Serialize start/pause requests so they never race on the server.
   const queue = useRef<Promise<unknown>>(Promise.resolve());

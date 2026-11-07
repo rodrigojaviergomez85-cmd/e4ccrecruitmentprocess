@@ -17,5 +17,6 @@ export async function stopInterviewTimer(
   const end = new Date();
   const elapsed = data.timer_started_at ? segmentSeconds(data.timer_started_at, data.timer_last_seen_at, end.getTime()) : 0;
   const seconds = (data.handle_seconds ?? 0) + elapsed;
-  await db.from(table).update({ timer_ended_at: end.toISOString(), handle_seconds: seconds }).eq("id", id);
+  const update = db.from(table).update({ timer_ended_at: end.toISOString(), timer_active_user_id: null, handle_seconds: seconds }).eq("id", id).is("timer_ended_at", null);
+  await (data.timer_started_at ? update.eq("timer_started_at", data.timer_started_at) : update.is("timer_started_at", null));
 }

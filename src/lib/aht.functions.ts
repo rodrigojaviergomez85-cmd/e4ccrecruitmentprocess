@@ -13,7 +13,7 @@ async function roles(userId: string) {
   return { db: supabaseAdmin, tier: staffTier((data ?? []).map((r) => r.role as string)) };
 }
 
-/** Starts the interview timer once (Iniciar button). Ignored if already started or finished. */
+/** Acquires a paused segment without changing the interview's original attribution. */
 export const startInterviewTimer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -24,27 +24,32 @@ export const startInterviewTimer = createServerFn({ method: "POST" })
     const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment || tier.isManager;
     if (!ok) throw new Error("You cannot start this interview timer.");
     const now = new Date().toISOString();
-    // The interviewer who first started the timer keeps ownership; a resume by someone
-    // else must not re-attribute the interview's time to them.
     const { data: current } = await db
       .from(TABLES[data.kind])
       .select("timer_owner_id")
       .eq("id", data.evaluationId)
       .maybeSingle();
+    if (!current) throw new Error("Interview not found.");
     // Resume keeps any previously accumulated handle_seconds (paused time is not counted).
-    const { error } = await db
+    const update = db
       .from(TABLES[data.kind])
       .update({
         timer_started_at: now,
         timer_ended_at: null,
         timer_last_seen_at: now,
         timer_owner_id: current?.timer_owner_id ?? context.userId,
+        timer_active_user_id: context.userId,
       })
       .eq("id", data.evaluationId)
-      .is("timer_started_at", null);
+      .is("timer_started_at", null)
+      .is("timer_ended_at", null);
+    // Compare attribution as well as state: a concurrent first start must not be overwritten.
+    const { error } = await (current.timer_owner_id
+      ? update.eq("timer_owner_id", current.timer_owner_id)
+      : update.is("timer_owner_id", null));
     if (error) throw new Error(error.message);
-    const { data: row } = await db.from(TABLES[data.kind]).select("timer_started_at").eq("id", data.evaluationId).maybeSingle();
-    return { startedAt: row?.timer_started_at ?? now };
+    const { data: row } = await db.from(TABLES[data.kind]).select("timer_started_at, timer_ended_at, timer_active_user_id").eq("id", data.evaluationId).maybeSingle();
+    return { startedAt: row?.timer_ended_at ? null : row?.timer_started_at ?? null };
   });
 
 /** Pauses a running timer (user left the interview page). Accumulates elapsed time into handle_seconds so it can resume later. */
@@ -59,16 +64,19 @@ export const pauseInterviewTimer = createServerFn({ method: "POST" })
     if (!ok) throw new Error("You cannot pause this interview timer.");
     const { data: row } = await db
       .from(TABLES[data.kind])
-      .select("timer_started_at, timer_ended_at, timer_last_seen_at, handle_seconds")
+      .select("timer_started_at, timer_ended_at, timer_last_seen_at, handle_seconds, timer_active_user_id")
       .eq("id", data.evaluationId)
       .maybeSingle();
-    if (!row?.timer_started_at || row.timer_ended_at) return { paused: false };
+    if (!row?.timer_started_at || row.timer_ended_at || row.timer_active_user_id !== context.userId) return { paused: false };
     const elapsed = segmentSeconds(row.timer_started_at, row.timer_last_seen_at, Date.now());
     const total = (row.handle_seconds ?? 0) + elapsed;
     const { error } = await db
       .from(TABLES[data.kind])
-      .update({ timer_started_at: null, timer_ended_at: null, handle_seconds: total })
-      .eq("id", data.evaluationId);
+      .update({ timer_started_at: null, timer_ended_at: null, timer_active_user_id: null, handle_seconds: total })
+      .eq("id", data.evaluationId)
+      .eq("timer_active_user_id", context.userId)
+      .eq("timer_started_at", row.timer_started_at)
+      .is("timer_ended_at", null);
     if (error) throw new Error(error.message);
     return { paused: true, handleSeconds: total };
   });
@@ -83,21 +91,13 @@ export const heartbeatInterviewTimer = createServerFn({ method: "POST" })
     const { db, tier } = await roles(context.userId);
     const ok = data.kind === "manager" ? tier.isAdmin || tier.isManager : tier.isAdmin || tier.isRecruitment || tier.isManager;
     if (!ok) return { ok: false };
-    // Only the timer owner may heartbeat; a supervisor or another recruiter merely
-    // viewing the page must not take over the interview's time. Legacy rows with no
-    // owner yet are claimed by the first heartbeat.
-    await db
-      .from(TABLES[data.kind])
-      .update({ timer_owner_id: context.userId })
-      .eq("id", data.evaluationId)
-      .is("timer_owner_id", null)
-      .not("timer_started_at", "is", null)
-      .is("timer_ended_at", null);
+    // Only the user who acquired this running segment may keep it alive.
+    // Heartbeats never claim ownership or change the original AHT attribution.
     await db
       .from(TABLES[data.kind])
       .update({ timer_last_seen_at: new Date().toISOString() })
       .eq("id", data.evaluationId)
-      .eq("timer_owner_id", context.userId)
+      .eq("timer_active_user_id", context.userId)
       .not("timer_started_at", "is", null)
       .is("timer_ended_at", null);
     return { ok: true };

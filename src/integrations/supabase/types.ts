@@ -800,6 +800,7 @@ export type Database = {
           started_at: string
           status: string
           submitted_at: string | null
+          timer_active_user_id: string | null
           timer_ended_at: string | null
           timer_last_seen_at: string | null
           timer_owner_id: string | null
@@ -843,6 +844,7 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_active_user_id?: string | null
           timer_ended_at?: string | null
           timer_last_seen_at?: string | null
           timer_owner_id?: string | null
@@ -886,6 +888,7 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_active_user_id?: string | null
           timer_ended_at?: string | null
           timer_last_seen_at?: string | null
           timer_owner_id?: string | null
@@ -1094,6 +1097,7 @@ export type Database = {
           started_at: string
           status: string
           submitted_at: string | null
+          timer_active_user_id: string | null
           timer_ended_at: string | null
           timer_last_seen_at: string | null
           timer_owner_id: string | null
@@ -1136,6 +1140,7 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_active_user_id?: string | null
           timer_ended_at?: string | null
           timer_last_seen_at?: string | null
           timer_owner_id?: string | null
@@ -1178,6 +1183,7 @@ export type Database = {
           started_at?: string
           status?: string
           submitted_at?: string | null
+          timer_active_user_id?: string | null
           timer_ended_at?: string | null
           timer_last_seen_at?: string | null
           timer_owner_id?: string | null
