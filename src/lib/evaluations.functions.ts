@@ -835,12 +835,21 @@ export const reopenEvaluation = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const ctx = await evaluatorContext(context.userId);
-    if (!ctx.isAdmin) throw new Error("Only an admin can reopen a submitted evaluation.");
     const { data: prior } = await ctx.db
       .from("interview_evaluations")
-      .select("status, application_id, final_result")
+      .select("status, application_id, final_result, applications(country_code, source, status)")
       .eq("id", data.evaluationId)
       .maybeSingle();
+    if (!prior) throw new Error("Evaluation not found.");
+    // Retakes may be run by any evaluator in scope; other submitted results stay admin-only.
+    const priorApp = (prior as { applications?: { country_code: string | null; source: string | null; status: string } | null }).applications;
+    const isRetake = prior.status === "Retake pending";
+    if (!ctx.isAdmin) {
+      if (!isRetake || !ctx.isEvaluator) throw new Error("Only an admin can reopen a submitted evaluation.");
+      if (!countryAllowed(ctx, priorApp?.country_code, priorApp?.source))
+        throw new Error("This candidate is outside the countries assigned to your account.");
+      if (priorApp?.status === "Approved for Training") throw new Error("Candidate already approved.");
+    }
     const { error } = await ctx.db
       .from("interview_evaluations")
       .update({

@@ -552,6 +552,11 @@ function EvaluationForm() {
                 <Unlock className="mr-2 h-4 w-4" /> Reopen
               </Button>
             )}
+            {!data.access.isAdmin && data.access.canEvaluate && evaluation.status === "Retake pending" && !approvedReadOnly && (
+              <Button size="sm" onClick={() => void reopen()}>
+                <Unlock className="mr-2 h-4 w-4" /> Start retake
+              </Button>
+            )}
             <Button asChild size="sm" variant="ghost">
               <Link to="/evaluations">Close</Link>
             </Button>
