@@ -9,6 +9,8 @@
  * created (no screening required).
  */
 
+import { countryFromCalendlyAnswers } from "./calendly-country";
+
 const API = "https://api.calendly.com";
 
 type CalendlyEvent = {
@@ -30,6 +32,7 @@ type CalendlyInvitee = {
   timezone?: string | null;
   status: string;
   rescheduled?: boolean | null;
+  questions_and_answers?: { question?: string | null; answer?: string | null }[] | null;
 };
 
 function token() {
@@ -207,6 +210,7 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
       if (!canceled) result.activeInvitees += 1;
 
       const existing = existingByUri.get(invitee.uri);
+      const bookedCountry = countryFromCalendlyAnswers(invitee.questions_and_answers);
       const marker = `calendly:${event.uri}`;
       const payloadBase = {
         starts_at: event.start_time,
@@ -223,6 +227,10 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
 
       if (existing) {
         if (options.applicationId && existing.application_id !== options.applicationId) continue;
+        if (bookedCountry) {
+          await db.from("applications").update({ country_code: bookedCountry.code, country: bookedCountry.name })
+            .eq("id", existing.application_id).is("country_code", null);
+        }
         // Staff outcomes (No-show, Completed…) are kept unless Calendly canceled the booking.
         const syncable = ["Scheduled", "Confirmed", "Canceled", "Rescheduled"].includes(existing.status);
         const status = syncable || canceled ? payloadBase.status : existing.status;
@@ -286,7 +294,8 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
             full_name: (invitee.name ?? "").trim() || email,
             email,
             phone: "",
-            country: "",
+            country: bookedCountry?.name ?? "",
+            country_code: bookedCountry?.code ?? null,
             city: "",
             teaching_experience: "",
             taught_children: null,
@@ -300,6 +309,10 @@ async function runSync(db: Db, options: SyncOptions): Promise<CalendlySyncResult
         result.candidatesCreated += 1;
       }
       if (options.applicationId && application.id !== options.applicationId) continue;
+      if (bookedCountry && !createdFromCalendly) {
+        await db.from("applications").update({ country_code: bookedCountry.code, country: bookedCountry.name })
+          .eq("id", application.id).is("country_code", null);
+      }
 
       // Candidates approved for (or returning to) the Manager final filter book that stage.
       const currentStatus = application.status ?? "";
