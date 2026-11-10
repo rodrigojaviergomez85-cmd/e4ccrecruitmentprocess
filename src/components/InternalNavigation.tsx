@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserRoundSearch,
   UsersRound,
+  Download,
 } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -38,7 +39,7 @@ type StaffNavigationAccess = {
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/second-filter" | "/evaluations" | "/scorecard" | "/training" | "/referrals" | "/leads" | "/settings" | "/staff";
+  to: "/dashboard" | "/second-filter" | "/evaluations" | "/export-interviews" | "/scorecard" | "/training" | "/referrals" | "/leads" | "/settings" | "/staff";
   icon: typeof ClipboardList;
   active: (pathname: string) => boolean;
   show: (access: StaffNavigationAccess) => boolean;
@@ -68,6 +69,13 @@ const ITEMS: NavItem[] = [
     to: "/evaluations",
     icon: ClipboardCheck,
     active: (path) => path.startsWith("/evaluations") || path === "/interviews",
+    show: canInterview,
+  },
+  {
+    label: "Exportar entrevistas",
+    to: "/export-interviews",
+    icon: Download,
+    active: (path) => path === "/export-interviews",
     show: canInterview,
   },
   {

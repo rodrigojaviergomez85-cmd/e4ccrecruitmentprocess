@@ -782,6 +782,7 @@ export type Database = {
           hiring_bonus: string | null
           id: string
           interview_date: string | null
+          is_test: boolean
           last_edited_by: string | null
           last_roleplay_date: string | null
           live_cefr: string | null
@@ -826,6 +827,7 @@ export type Database = {
           hiring_bonus?: string | null
           id?: string
           interview_date?: string | null
+          is_test?: boolean
           last_edited_by?: string | null
           last_roleplay_date?: string | null
           live_cefr?: string | null
@@ -870,6 +872,7 @@ export type Database = {
           hiring_bonus?: string | null
           id?: string
           interview_date?: string | null
+          is_test?: boolean
           last_edited_by?: string | null
           last_roleplay_date?: string | null
           live_cefr?: string | null

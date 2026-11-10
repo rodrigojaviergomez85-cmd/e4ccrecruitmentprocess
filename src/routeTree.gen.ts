@@ -20,6 +20,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as SpeedTestRouteImport } from './routes/speed-test'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedExportInterviewsRouteImport } from './routes/_authenticated/export-interviews'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedReferralsRouteImport } from './routes/_authenticated/referrals'
@@ -97,6 +98,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedExportInterviewsRoute =
+  AuthenticatedExportInterviewsRouteImport.update({
+    id: '/export-interviews',
+    path: '/export-interviews',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInterviewsRoute = AuthenticatedInterviewsRouteImport.update({
   id: '/interviews',
   path: '/interviews',
@@ -228,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/referrals': typeof AuthenticatedReferralsRoute
@@ -262,6 +270,7 @@ export interface FileRoutesByTo {
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/referrals': typeof AuthenticatedReferralsRoute
@@ -298,6 +307,7 @@ export interface FileRoutesById {
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/referrals': typeof AuthenticatedReferralsRoute
@@ -334,6 +344,7 @@ export interface FileRouteTypes {
     | '/retake'
     | '/speed-test'
     | '/dashboard'
+    | '/export-interviews'
     | '/interviews'
     | '/leads'
     | '/referrals'
@@ -368,6 +379,7 @@ export interface FileRouteTypes {
     | '/retake'
     | '/speed-test'
     | '/dashboard'
+    | '/export-interviews'
     | '/interviews'
     | '/leads'
     | '/referrals'
@@ -403,6 +415,7 @@ export interface FileRouteTypes {
     | '/retake'
     | '/speed-test'
     | '/_authenticated/dashboard'
+    | '/_authenticated/export-interviews'
     | '/_authenticated/interviews'
     | '/_authenticated/leads'
     | '/_authenticated/referrals'
@@ -525,6 +538,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/export-interviews': {
+      id: '/_authenticated/export-interviews'
+      path: '/export-interviews'
+      fullPath: '/export-interviews'
+      preLoaderRoute: typeof AuthenticatedExportInterviewsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/interviews': {
@@ -686,6 +706,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedExportInterviewsRoute: typeof AuthenticatedExportInterviewsRoute
   AuthenticatedInterviewsRoute: typeof AuthenticatedInterviewsRoute
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedReferralsRoute: typeof AuthenticatedReferralsRoute
@@ -703,6 +724,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedExportInterviewsRoute: AuthenticatedExportInterviewsRoute,
   AuthenticatedInterviewsRoute: AuthenticatedInterviewsRoute,
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedReferralsRoute: AuthenticatedReferralsRoute,

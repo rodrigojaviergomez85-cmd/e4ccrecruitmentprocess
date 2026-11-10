@@ -65,7 +65,9 @@ import {
   saveEvaluation,
   sendResultEmail,
   updateInterviewCandidateContact,
+  setEvaluationTest,
 } from "@/lib/evaluations.functions";
+import { missingInterviewData } from "@/lib/interview-export";
 
 export const Route = createFileRoute("/_authenticated/evaluations/$applicationId")({
   head: () => ({
@@ -142,6 +144,7 @@ function EvaluationForm() {
   const reopenFn = useServerFn(reopenEvaluation);
   const sendResultFn = useServerFn(sendResultEmail);
   const contactFn = useServerFn(updateInterviewCandidateContact);
+  const testFn = useServerFn(setEvaluationTest);
   const queryClient = useQueryClient();
   const [contact, setContact] = useState({ full_name: "", email: "", phone: "", country_code: "", city_id: "", city_other: "" });
   const [contactSaving, setContactSaving] = useState(false);
@@ -527,6 +530,31 @@ function EvaluationForm() {
             <Badge variant={isLockedStatus(evaluation.status) ? "default" : "secondary"}>
               {evaluation.status}
             </Badge>
+            {(() => {
+              const miss = missingInterviewData({
+                countryCode: contact.country_code || String(sections["candidate"]?.["country"] ?? ""),
+                lob: lobRaw,
+                branch: String(sections["candidate"]?.["branch"] ?? ""),
+              });
+              return miss.length ? (
+                <Badge variant="destructive" title={`Missing: ${miss.join(", ")}`}>Incompleta: {miss.join(", ")}</Badge>
+              ) : null;
+            })()}
+            {data.access.canEvaluate && (
+              <Button
+                size="sm"
+                variant={evaluation.is_test ? "secondary" : "ghost"}
+                onClick={async () => {
+                  try {
+                    await testFn({ data: { evaluationId: evaluation.id, isTest: !evaluation.is_test } });
+                    await queryClient.invalidateQueries({ queryKey: ["evaluation", applicationId] });
+                    toast.success(evaluation.is_test ? "Ya no es prueba" : "Marcada como prueba");
+                  } catch (e) { toast.error((e as Error).message); }
+                }}
+              >
+                {evaluation.is_test ? "Es prueba ✓" : "Marcar como prueba"}
+              </Button>
+            )}
             {approvedReadOnly && (
               <Badge variant="outline">Candidate approved — view only</Badge>
             )}
@@ -647,7 +675,7 @@ function EvaluationForm() {
                 <Input aria-label="Candidate email" type="email" autoComplete="email" maxLength={255} value={contact.email} disabled={contactSaving} onChange={(e) => setContact((v) => ({ ...v, email: e.target.value }))} />
               </Field>
               <Field label="Candidate country">
-                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => setContact((c) => ({ ...c, country_code: v, city_id: "", city_other: "" }))}>
+                <Select value={contact.country_code} disabled={contactSaving} onValueChange={(v) => { setContact((c) => ({ ...c, country_code: v, city_id: "", city_other: "" })); set("candidate", "country", v); }}>
                   <SelectTrigger aria-label="Candidate country">
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>

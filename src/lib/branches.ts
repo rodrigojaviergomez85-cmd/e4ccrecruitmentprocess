@@ -1,9 +1,12 @@
 /** Official E4CC onsite branches per country, and countries accepted for Online. */
 export const ONSITE_BRANCHES: Record<string, string[]> = {
-  NI: ["Las Americas", "Metrocentro Nicaragua", "Las Brisas", "Masaya"],
-  SV: ["Plaza Mundo", "Metrosur", "San Marcos", "Plaza Merliot", "Plaza Lourdes", "Santa Ana"],
-  GT: ["Metronorte", "Metrocentro Villanueva", "San Jose Pinula", "Galerias Primma"],
+  NI: ["Metrocentro Nicaragua", "Las Americas", "Las Brisas", "Masaya"],
+  SV: ["Merliot", "San Marcos", "Salvador del Mundo", "Santa Ana", "Lourdes", "Metrosur", "Plaza Mundo"],
+  GT: ["Galerias Primma", "Zona 13", "Metronorte", "Metrocentro Villanueva", "San Jose Pinula", "Portales Mall"],
 };
+
+/** Older branch names still stored on existing records. */
+const LEGACY_BRANCHES: Record<string, string> = { "plaza merliot": "SV", "plaza lourdes": "SV" };
 
 export const ONSITE_LOB: Record<string, string> = { NI: "NICARAGUA", SV: "EL SALVADOR", GT: "GUATEMALA" };
 
@@ -24,5 +27,5 @@ export function countryForBranch(branch: unknown): string | null {
   for (const [code, list] of Object.entries(ONSITE_BRANCHES)) {
     if (list.some((x) => x.toLowerCase() === b)) return code;
   }
-  return null;
+  return LEGACY_BRANCHES[b] ?? null;
 }

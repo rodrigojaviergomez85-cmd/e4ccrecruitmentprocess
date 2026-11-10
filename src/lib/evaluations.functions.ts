@@ -609,10 +609,11 @@ export const saveEvaluation = createServerFn({ method: "POST" })
     }
 
     const sections = { ...(current.sections as Record<string, Record<string, unknown>>), ...data.sections };
-    // Fill a missing candidate country from the official onsite branch chosen in the interview.
+    // Fill a missing candidate country from the interview's country dropdown, else its official onsite branch.
     if (app && !app.country_code) {
       const { countryForBranch } = await import("./branches");
-      const code = countryForBranch(sections["candidate"]?.["branch"]);
+      const picked = String(sections["candidate"]?.["country"] ?? "");
+      const code = picked || countryForBranch(sections["candidate"]?.["branch"]);
       if (code) {
         const { data: c } = await db.from("countries").select("code, name").eq("code", code).maybeSingle();
         if (c) {
@@ -652,6 +653,15 @@ export const saveEvaluation = createServerFn({ method: "POST" })
       const ff = readFinalFilter(sections["result"]);
       if (ff.state === "incomplete") missing.push(...ff.missing.map((m) => `Final filter ${m}`));
       if (!String(sections["result"]?.["ff_manager_id"] ?? "")) missing.push("Second filter Manager");
+    }
+    if (data.submit) {
+      const { missingInterviewData } = await import("./interview-export");
+      const cand = sections["candidate"] ?? {};
+      missing.push(...missingInterviewData({
+        countryCode: app?.country_code || String(cand["country"] ?? ""),
+        lob: String(cand["lob"] ?? ""),
+        branch: String(cand["branch"] ?? ""),
+      }));
     }
     if (data.submit && missing.length) return { ok: false as const, missing };
 
@@ -1241,4 +1251,100 @@ export const searchApplicantsForEvaluation = createServerFn({ method: "POST" })
       .filter((a) => countryAllowed(ctx, a.country_code, a.source))
       .slice(0, 10)
       .map((a) => ({ id: a.id, fullName: a.full_name, email: a.email, country: a.country, status: a.status }));
+  });
+
+
+/** Staff mark/unmark an interview as an internal test record (kept, flagged in exports). */
+export const setEvaluationTest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ evaluationId: z.string().uuid(), isTest: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("Evaluator permission is required.");
+    const { error } = await ctx.db.from("interview_evaluations").update({ is_test: data.isTest }).eq("id", data.evaluationId);
+    if (error) throw new Error(error.message);
+    await audit(ctx.db, { evaluationId: data.evaluationId, actorId: context.userId, actorEmail: ctx.email, action: data.isTest ? "marked_test" : "unmarked_test", details: {} });
+    return { ok: true };
+  });
+
+const exportInput = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  country: z.string().max(10).optional().default(""),
+  modality: z.enum(["", "ONLINE", "PRESENCIAL"]).optional().default(""),
+});
+
+/** One row per interview evaluation, in the exact export column contract. */
+export const exportInterviewRows = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => exportInput.parse(d))
+  .handler(async ({ context, data }) => {
+    const ctx = await evaluatorContext(context.userId);
+    if (!ctx.isEvaluator) throw new Error("You do not have access to interview exports.");
+    const { db } = ctx;
+    const X = await import("./interview-export");
+    type Row = {
+      id: string; application_id: string; appointment_id: string | null; status: string; interview_date: string | null;
+      submitted_at: string | null; started_at: string; final_result: string | null; not_approved_reasons: unknown;
+      not_approved_other: string | null; retake_reason: string | null; evaluator_id: string; decided_by: string | null;
+      sections: Record<string, Record<string, unknown>> | null; is_test: boolean;
+      applications: { full_name: string; email: string; phone: string; country_code: string | null; source: string; recruitment_progress: { work_modality: string | null } | { work_modality: string | null }[] | null } | null;
+      appointments: { starts_at: string; calendly_event_uri: string | null } | null;
+    };
+    const rows: Row[] = [];
+    for (let page = 0; page < 50; page++) {
+      const { data: chunk, error } = await db
+        .from("interview_evaluations")
+        .select("id, application_id, appointment_id, status, interview_date, submitted_at, started_at, final_result, not_approved_reasons, not_approved_other, retake_reason, evaluator_id, decided_by, sections, is_test, applications(full_name, email, phone, country_code, source, recruitment_progress(work_modality)), appointments(starts_at, calendly_event_uri)")
+        .order("started_at", { ascending: true })
+        .range(page * 1000, page * 1000 + 999);
+      if (error) throw new Error(error.message);
+      rows.push(...((chunk ?? []) as unknown as Row[]));
+      if (!chunk || chunk.length < 1000) break;
+    }
+    const ids = [...new Set(rows.flatMap((r) => [r.decided_by, r.evaluator_id]).filter(Boolean))] as string[];
+    const { data: staff } = ids.length ? await db.from("staff_profiles").select("user_id, full_name").in("user_id", ids) : { data: [] };
+    const names = new Map((staff ?? []).map((s) => [s.user_id, s.full_name]));
+    const out = [];
+    for (const r of rows) {
+      const a = r.applications;
+      if (!a) continue;
+      if (ctx.allowedCountries && a.country_code && !ctx.allowedCountries.includes(a.country_code)) continue;
+      const cand = r.sections?.["candidate"] ?? {};
+      const country = a.country_code || String(cand["country"] ?? "") || null;
+      const prog = Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress;
+      const modalidad = X.exportModality(String(cand["lob"] ?? "") || prog?.work_modality);
+      const fecha = r.interview_date || (r.appointments?.starts_at ?? r.started_at).slice(0, 10);
+      if (data.from && fecha < data.from) continue;
+      if (data.to && fecha > data.to) continue;
+      if (data.country && country !== data.country) continue;
+      if (data.modality && modalidad !== data.modality) continue;
+      const resultado = X.exportResult(r.final_result, r.status);
+      const reasons = Array.isArray(r.not_approved_reasons) ? (r.not_approved_reasons as string[]) : [];
+      const razon = resultado === "Not approved" ? [...reasons, r.not_approved_other ?? ""].filter((x) => String(x).trim()).join("; ")
+        : resultado === "Retake required" ? (r.retake_reason ?? "") : "";
+      const referred = String(cand["referred"] ?? "") === "Yes";
+      const origen = referred ? "referido" : String(cand["referral_source"] ?? "") || (a.source === "calendly" ? "campaña" : a.source === "manual" ? "otro" : a.source);
+      const uri = r.appointments?.calendly_event_uri ?? "";
+      out.push({
+        evaluation_id: r.id,
+        application_id: r.application_id,
+        event_id: uri ? uri.split("/").pop() ?? "" : r.appointment_id ?? "",
+        fecha_entrevista: fecha,
+        submitted_at: r.submitted_at ? new Date(r.submitted_at).toISOString() : "",
+        nombre_completo: a.full_name,
+        correo: a.email.trim().toLowerCase(),
+        telefono: a.phone.replace(/\D/g, ""),
+        pais: country ? X.COUNTRY_NAMES_ES[country] ?? country : "",
+        modalidad,
+        sucursal: modalidad === "ONLINE" ? "" : String(cand["branch"] ?? ""),
+        resultado,
+        razon_no_aprobado: razon,
+        entrevistador: names.get(r.decided_by ?? r.evaluator_id) ?? names.get(r.evaluator_id) ?? "",
+        origen_lead: origen,
+        es_prueba: r.is_test ? "TRUE" : "FALSE",
+      });
+    }
+    out.sort((x, y) => (x.fecha_entrevista + x.submitted_at).localeCompare(y.fecha_entrevista + y.submitted_at));
+    return { rows: out, incomplete: out.filter((o) => !o.pais || !o.modalidad || (o.modalidad === "PRESENCIAL" && !o.sucursal)).length };
   });
