@@ -81,8 +81,8 @@ export const listCandidates = createServerFn({ method: "POST" })
       .select(
         "id, full_name, email, phone, assigned_manager_id, country, country_code, city, city_other, city_id, teaching_experience, callcenter_experience, callcenter_experience_level, taught_children, status, submitted_at, created_at, archived_at, source, cities(name), ai_evaluations(cefr, overall_score, state, grammar_evidence), appointments(id, starts_at, status, stage, calendly_host_name, interviewers(full_name)), recruitment_progress(work_modality, internet_test_passed, internet_override, grammar_test_verified, resume_path), candidate_emails(kind, status)",
       )
-      .not("submitted_at", "is", null)
-      .order("submitted_at", { ascending: false })
+      .or("submitted_at.not.is.null,source.eq.calendly")
+      .order("created_at", { ascending: false })
       .limit(500);
 
     // Archived candidates are hidden unless the Archived filter is on.
@@ -106,8 +106,8 @@ export const listCandidates = createServerFn({ method: "POST" })
     if (data.experience) query = query.eq("teaching_experience", data.experience);
     if (data.callcenterExperience)
       query = query.eq("callcenter_experience_level", data.callcenterExperience);
-    if (data.from) query = query.gte("submitted_at", data.from);
-    if (data.to) query = query.lte("submitted_at", data.to);
+    if (data.from) query = query.gte("created_at", data.from);
+    if (data.to) query = query.lte("created_at", data.to);
 
     const [{ data: rows, error }, { data: staff }] = await Promise.all([
       query,
