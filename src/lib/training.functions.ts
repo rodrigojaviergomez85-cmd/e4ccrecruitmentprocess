@@ -201,6 +201,10 @@ export const updateTrainingRow = createServerFn({ method: "POST" })
       patch["reference_called_by"] = context.userId;
       patch["reference_called_at"] = new Date().toISOString();
     }
+    if (data.status === "CERTIFIED" && data.outcomeAt === undefined) {
+      const { data: prevCert } = await ctx.db.from("training_roster").select("outcome_at").eq("application_id", app.id).maybeSingle();
+      if (!prevCert?.outcome_at) patch["outcome_at"] = new Date(Date.now() - 6 * 3600_000).toISOString().slice(0, 10);
+    }
     for (const k of Object.keys(patch)) if (patch[k] === undefined) delete patch[k];
     if (data.waveStart !== undefined) {
       const { data: prev } = await ctx.db.from("training_roster").select("wave_start").eq("application_id", app.id).maybeSingle();

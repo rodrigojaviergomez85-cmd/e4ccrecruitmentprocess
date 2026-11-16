@@ -19,6 +19,7 @@ import { Route as MisReferidosRouteImport } from './routes/mis-referidos'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as SpeedTestRouteImport } from './routes/speed-test'
+import { Route as AuthenticatedBonusesRouteImport } from './routes/_authenticated/bonuses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExportInterviewsRouteImport } from './routes/_authenticated/export-interviews'
 import { Route as AuthenticatedInterviewsRouteImport } from './routes/_authenticated/interviews'
@@ -92,6 +93,11 @@ const SpeedTestRoute = SpeedTestRouteImport.update({
   id: '/speed-test',
   path: '/speed-test',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBonusesRoute = AuthenticatedBonusesRouteImport.update({
+  id: '/bonuses',
+  path: '/bonuses',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/bonuses': typeof AuthenticatedBonusesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
@@ -269,6 +276,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/bonuses': typeof AuthenticatedBonusesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/interviews': typeof AuthenticatedInterviewsRoute
@@ -306,6 +314,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/_authenticated/bonuses': typeof AuthenticatedBonusesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/export-interviews': typeof AuthenticatedExportInterviewsRoute
   '/_authenticated/interviews': typeof AuthenticatedInterviewsRoute
@@ -343,6 +352,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/bonuses'
     | '/dashboard'
     | '/export-interviews'
     | '/interviews'
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/bonuses'
     | '/dashboard'
     | '/export-interviews'
     | '/interviews'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/_authenticated/bonuses'
     | '/_authenticated/dashboard'
     | '/_authenticated/export-interviews'
     | '/_authenticated/interviews'
@@ -532,6 +544,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/speed-test'
       preLoaderRoute: typeof SpeedTestRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/bonuses': {
+      id: '/_authenticated/bonuses'
+      path: '/bonuses'
+      fullPath: '/bonuses'
+      preLoaderRoute: typeof AuthenticatedBonusesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -705,6 +724,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBonusesRoute: typeof AuthenticatedBonusesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExportInterviewsRoute: typeof AuthenticatedExportInterviewsRoute
   AuthenticatedInterviewsRoute: typeof AuthenticatedInterviewsRoute
@@ -723,6 +743,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBonusesRoute: AuthenticatedBonusesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExportInterviewsRoute: AuthenticatedExportInterviewsRoute,
   AuthenticatedInterviewsRoute: AuthenticatedInterviewsRoute,
