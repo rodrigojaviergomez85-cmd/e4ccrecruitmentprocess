@@ -360,7 +360,7 @@ function ResendAgreementButton({ row }: { row: { id: string; fullName: string; e
         </div>
         <DialogFooter><Button disabled={busy || !f.fullName.trim() || !f.email.trim() || !f.startDate} onClick={async () => {
           setBusy(true);
-          try { await resend({ data: f }); toast.success("Convenio corregido enviado a Make"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
+          try { await resend({ data: { ...f, applicationId: row.id } }); toast.success("Convenio corregido enviado a Make"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
           catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo reenviar"); } finally { setBusy(false); }
         }}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Reenviar convenio</Button></DialogFooter>
       </DialogContent>
