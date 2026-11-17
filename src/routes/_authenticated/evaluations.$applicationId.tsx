@@ -411,7 +411,7 @@ function EvaluationForm() {
         setEmailState(email.ok ? (email.status === "duplicate" ? "duplicate" : "sent") : "failed");
         setEmailDetail(email.detail);
         if (email.ok && email.status !== "duplicate") {
-          toast.success("Evaluation submitted and the result email was sent to the candidate.");
+          toast.success(email.status === "accepted" ? "Evaluation submitted. Email request received by Make (delivery pending confirmation)." : "Evaluation submitted and the result email was sent to the candidate.");
         } else if (email.ok) {
           toast.success("Evaluation submitted. The result email was already sent.");
         } else {
@@ -437,7 +437,7 @@ function EvaluationForm() {
       if (res.ok && res.status === "duplicate") {
         toast.info("This result email was already sent. Use Resend email to send it again.");
       } else if (res.ok) {
-        toast.success("Result email sent to the candidate.");
+        toast.success(res.status === "accepted" ? "Email request received by Make (delivery pending confirmation)." : "Result email sent to the candidate.");
       } else {
         toast.error("The email could not be sent. You can retry.");
       }
@@ -1517,7 +1517,7 @@ function EvaluationForm() {
           was sent, this button sends only the appointment confirmation.
         </p>
         {emailState === "sent" && (
-          <p className="mt-2 text-xs text-emerald-600">Result email sent successfully.</p>
+          <p className="mt-2 text-xs text-emerald-600">Solicitud recibida por Make. {emailDetail}</p>
         )}
         {emailState === "duplicate" && (
           <p className="mt-2 text-xs text-muted-foreground">

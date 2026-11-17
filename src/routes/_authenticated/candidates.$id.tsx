@@ -1,3 +1,4 @@
+import { emailStatusLabel } from "@/lib/email-status";
 import { readFinalFilter } from "@/lib/evaluations";
 import { EditCandidateInfo } from "@/components/EditCandidateInfo";
 import { useState } from "react";
@@ -630,10 +631,12 @@ function CandidateManagementPanel({
                   className={
                     emails.data[0]!.status === "sent"
                       ? "text-emerald-600"
-                      : "text-destructive"
+                      : emails.data[0]!.status === "accepted"
+                        ? "text-amber-600"
+                        : "text-destructive"
                   }
                 >
-                  {emails.data[0]!.status === "sent" ? "Sent" : "Failed"}
+                  {emailStatusLabel(emails.data[0]!.status)}
                 </span>{" "}
                 <span className="font-normal text-muted-foreground">
                   · {emails.data[0]!.to_email} ·{" "}
@@ -643,7 +646,7 @@ function CandidateManagementPanel({
               <ul className="space-y-1 pt-1 text-xs text-muted-foreground">
                 {emails.data.slice(0, 5).map((e) => (
                   <li key={e.id}>
-                    {new Date(e.created_at).toLocaleString()} · {e.kind} · {e.status}
+                    {new Date(e.created_at).toLocaleString()} · {e.kind} · {emailStatusLabel(e.status)}
                     {e.http_status != null ? ` · HTTP ${e.http_status}` : ""}
                     {e.response_message ? ` · ${e.response_message}` : ""}
                   </li>

@@ -1,3 +1,4 @@
+import { emailStatusLabel } from "@/lib/email-status";
 import { ONLINE_FIXED, ONSITE_TRAINING_HOURS } from "@/lib/agreements/constants";
 import { branchesFor, onsiteLobFor, ONSITE_LOB } from "@/lib/branches";
 import { ProfileTierPicker } from "@/components/ProfileTierPicker";
@@ -878,11 +879,11 @@ function ReviewPage() {
               <p className="font-semibold">Notification</p>
               {managerEmails.map((e) => (
                 <p key={e.id} className="text-xs">
-                  {fmt(e.created_at)} · {e.kind} · {e.to_email} · <span className={e.status === "sent" ? "text-success" : e.status === "failed" ? "text-destructive" : ""}>{e.status}</span>
+                  {fmt(e.created_at)} · {e.kind} · {e.to_email} · <span className={e.status === "sent" ? "text-success" : e.status === "failed" ? "text-destructive" : ""}>{emailStatusLabel(e.status)}</span>
                   {e.http_status != null ? ` · HTTP ${e.http_status}` : ""}{e.response_message ? ` · ${e.response_message}` : ""}
                 </p>
               ))}
-              {locked && d.access.canDecide && lastEmail.status === "failed" && !managerEmails.some((e) => e.status === "sent") && (
+              {locked && d.access.canDecide && lastEmail.status === "failed" && !managerEmails.some((e) => e.status === "sent" || e.status === "accepted") && (
                 <Button
                   size="sm"
                   onClick={async () => {

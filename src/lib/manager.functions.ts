@@ -1,3 +1,4 @@
+import { emailRowStatus, QUEUED_OR_SENT } from "./email-status";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -703,7 +704,7 @@ async function applyDecision(
           : {}),
       },
     });
-    let r: { ok: boolean; status: "sent" | "skipped" | "failed"; detail: string; httpStatus?: number | null };
+    let r: { ok: boolean; status: "sent" | "accepted" | "skipped" | "failed"; detail: string; httpStatus?: number | null | undefined };
     if (!prepared.ok) {
       r = { ok: false, status: "failed", detail: `Pending agreement: ${prepared.reason}`, httpStatus: null };
     } else {
@@ -715,7 +716,7 @@ async function applyDecision(
         result: "training_welcome",
         attachment: { url: prepared.url, name: prepared.name },
       });
-      await ag.markAgreementEmail(prepared.agreementId, r.ok ? "sent" : "failed", r.detail);
+      await ag.markAgreementEmail(prepared.agreementId, r.status === "sent" ? "sent" : r.status === "accepted" ? "uncertain" : "failed", r.detail);
     }
     await db.from("candidate_emails").insert({
       application_id: d.applicationId,
@@ -724,7 +725,7 @@ async function applyDecision(
       to_email: d.applicantEmail,
       subject,
       body: html,
-      status: r.status === "sent" ? "sent" : "failed",
+      status: emailRowStatus(r),
       error_message: r.ok ? null : r.detail,
       http_status: r.httpStatus ?? null,
       response_message: r.detail,
@@ -841,7 +842,7 @@ async function sendTokenEmail(
     to_email: d.applicantEmail,
     subject,
     body: html,
-    status: result.status === "sent" ? "sent" : "failed",
+    status: emailRowStatus(result),
     error_message: result.ok ? null : result.detail,
     http_status: result.httpStatus ?? null,
     response_message: result.detail,
@@ -870,7 +871,7 @@ export const retryManagerEmail = createServerFn({ method: "POST" })
       .eq("manager_evaluation_id", ev.id)
       .order("created_at", { ascending: false });
     const last = emails?.[0];
-    if (emails?.some((e) => e.status === "sent"))
+    if (emails?.some((e) => (QUEUED_OR_SENT as string[]).includes(e.status)))
       return { ok: false, status: "duplicate", detail: "This notification was already sent." };
     if (last && last.status !== "failed")
       return { ok: false, status: "uncertain", detail: "The last attempt has an uncertain result. Check the mailbox before retrying." };

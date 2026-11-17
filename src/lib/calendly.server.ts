@@ -1,3 +1,4 @@
+import { emailRowStatus, QUEUED_OR_SENT } from "./email-status";
 /**
  * Calendly sync (server only).
  *
@@ -414,7 +415,7 @@ async function applyBookingEffects(db: any, p: { applicationId: string; appointm
           to_email: candidate.email,
           subject: message.subject,
           body: message.html,
-          status: delivery.ok ? "sent" : "failed",
+          status: emailRowStatus(delivery),
           error_message: delivery.ok ? null : delivery.detail,
           http_status: delivery.httpStatus ?? null,
           response_message: delivery.detail,

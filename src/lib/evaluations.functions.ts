@@ -1,3 +1,4 @@
+import { emailRowStatus, QUEUED_OR_SENT } from "./email-status";
 import { createServerFn } from "@tanstack/react-start";
 import { keepDecision } from "./recruiter-quota";
 import { z } from "zod";
@@ -503,7 +504,7 @@ async function deliverApproved(
     .select("id, body")
     .eq("evaluation_id", input.evaluationId)
     .eq("kind", "approved")
-    .eq("status", "sent")
+    .in("status", QUEUED_OR_SENT)
     .limit(1)
     .maybeSingle();
   if (!approvedSent || input.force) {

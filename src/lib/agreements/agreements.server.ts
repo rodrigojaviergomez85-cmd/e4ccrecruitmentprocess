@@ -93,7 +93,7 @@ export async function prepareAgreement(opts: {
   return { ok: true, agreementId: row.id, url: signed.data.signedUrl, name, path };
 }
 
-export async function markAgreementEmail(agreementId: string | null, status: "sent" | "failed" | "pending_agreement", detail?: string) {
+export async function markAgreementEmail(agreementId: string | null, status: "sent" | "uncertain" | "failed" | "pending_agreement", detail?: string) {
   if (!agreementId) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await (supabaseAdmin as any)
@@ -108,7 +108,7 @@ export async function agreementAlreadySent(applicationId: string): Promise<boole
     .from("candidate_agreements")
     .select("id")
     .eq("application_id", applicationId)
-    .eq("email_status", "sent")
+    .in("email_status", ["sent", "uncertain"])
     .eq("is_test", false)
     .limit(1);
   return Boolean(data?.length);

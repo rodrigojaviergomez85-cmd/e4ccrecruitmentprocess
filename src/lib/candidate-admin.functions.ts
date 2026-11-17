@@ -1,3 +1,4 @@
+import { emailRowStatus, QUEUED_OR_SENT } from "./email-status";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -362,7 +363,7 @@ export async function sendFollowUp(
       .select("id")
       .eq("evaluation_id", input.evaluationId)
       .eq("kind", input.kind)
-      .eq("status", "sent")
+      .in("status", QUEUED_OR_SENT)
       .limit(1)
       .maybeSingle();
     if (already) {
@@ -400,7 +401,7 @@ export async function sendFollowUp(
     to_email: app.email,
     subject,
     body: html,
-    status: result.status === "sent" ? "sent" : result.status === "skipped" ? "skipped" : "failed",
+    status: emailRowStatus(result),
     error_message: result.ok ? null : result.detail,
     http_status: result.httpStatus ?? null,
     manager_evaluation_id: input.managerEvaluationId ?? null,

@@ -2,7 +2,8 @@
 
 export type SendResult = {
   ok: boolean;
-  status: "sent" | "skipped" | "failed";
+  /** "accepted" = Make received the request; delivery not confirmed yet. */
+  status: "sent" | "accepted" | "skipped" | "failed";
   detail: string;
   httpStatus?: number | null;
 };
@@ -50,7 +51,7 @@ async function sendViaMake(opts: {
     });
     const text = (await res.text()).slice(0, 300);
     if (!res.ok) return { ok: false, status: "failed", detail: `mail relay ${res.status}: ${text}`, httpStatus: res.status };
-    return { ok: true, status: "sent", detail: text ? `email accepted by mail relay: ${text}` : "email accepted by mail relay", httpStatus: res.status };
+    return { ok: true, status: "accepted", detail: text ? `Solicitud recibida por Make: ${text}` : "Solicitud recibida por Make", httpStatus: res.status };
   } catch (err) {
     return {
       ok: false,
