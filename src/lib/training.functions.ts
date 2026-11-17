@@ -427,3 +427,89 @@ export const saveTrainingReferences = createServerFn({ method: "POST" })
     await writeAudit(ctx.db, { actorId: context.userId, action: "training_references_updated", entityType: "application", entityId: app.id, details: { count: rows.length } } as never).catch(() => undefined);
     return { ok: true };
   });
+
+/** Corrects name / email / Training start date and re-sends the welcome email with a regenerated agreement PDF. */
+export const resendAgreement = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      applicationId: z.string().uuid(),
+      fullName: z.string().trim().min(3).max(200),
+      email: z.string().trim().toLowerCase().email().max(200),
+      startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (!ctx.canEditTraining) throw new Error("No tienes permiso para reenviar convenios.");
+    const db = ctx.db as any;
+    const { data: app } = await db.from("applications").select("id, full_name, email, country_code, status, manager_evaluations(id, attempt_number, final_decision, evidence)").eq("id", data.applicationId).maybeSingle();
+    if (!app || app.status !== "Approved for Training") throw new Error("Candidate not found in Training.");
+    if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) throw new Error("This candidate is outside your countries.");
+    const ev = [...(app.manager_evaluations ?? [])].filter((e: any) => e.final_decision === "Approved for Training").sort((x: any, y: any) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
+    if (!ev) throw new Error("No hay aprobación de Training para este candidato.");
+    const evidence: Record<string, string> = { ...((ev.evidence ?? {}) as Record<string, string>), [TRAINING_KEYS.startDate]: data.startDate };
+    const t = (k: string) => (evidence[k] ?? "").trim();
+    const { confirmedModality } = await import("./manager-scorecard");
+    const confirmed = confirmedModality(evidence);
+    const kind = confirmed ?? "onsite";
+    const isOnline = kind === "online";
+
+    await db.from("applications").update({ full_name: data.fullName, email: data.email }).eq("id", app.id);
+    await db.from("manager_evaluations").update({ evidence }).eq("id", ev.id);
+    const { data: prevRoster } = await db.from("training_roster").select("wave_start").eq("application_id", app.id).maybeSingle();
+    if (prevRoster?.wave_start && prevRoster.wave_start !== data.startDate)
+      await db.from("training_cohort_changes").insert({ application_id: app.id, old_wave_start: prevRoster.wave_start, new_wave_start: data.startDate, changed_by: context.userId });
+    await db.from("training_roster").upsert({ application_id: app.id, wave_start: data.startDate, updated_by: context.userId }, { onConflict: "application_id" });
+
+    const { sendEmail } = await import("./notify.server");
+    const { buildTrainingWelcomeEmail } = await import("./candidate-emails");
+    const { emailRowStatus } = await import("./email-status");
+    const { subject, html } = buildTrainingWelcomeEmail({
+      fullName: data.fullName,
+      countryCode: app.country_code,
+      isOnline,
+      startDate: data.startDate,
+      schedule: isOnline ? (t(TRAINING_KEYS.schedule) || "Lunes a viernes: 5:00 PM–9:00 PM (UTC-6)") : t(TRAINING_KEYS.schedule),
+      trainer: t(TRAINING_KEYS.trainer),
+      trainerContact: t(TRAINING_KEYS.trainerContact),
+      branch: t(TRAINING_KEYS.branch),
+      zoom: t(TRAINING_KEYS.zoom),
+    } as never);
+    const ag = await import("./agreements/agreements.server");
+    const sameBranch = t(AGREEMENT_KEYS.classSameBranch) === "yes";
+    const prepared = await ag.prepareAgreement({
+      applicationId: app.id,
+      managerEvaluationId: ev.id,
+      kind,
+      expectedKind: confirmed,
+      actorId: context.userId,
+      data: {
+        fullName: data.fullName,
+        startDate: data.startDate,
+        trainer: t(TRAINING_KEYS.trainer),
+        ...(kind === "onsite"
+          ? { trainingSchedule: t(TRAINING_KEYS.schedule), lob: t(AGREEMENT_KEYS.lob), trainingBranch: t(TRAINING_KEYS.branch), classBranch: sameBranch ? t(TRAINING_KEYS.branch) : t(AGREEMENT_KEYS.classBranch), classSchedule: t(AGREEMENT_KEYS.classSchedule) }
+          : {}),
+      },
+    });
+    let r: { ok: boolean; status: "sent" | "accepted" | "skipped" | "failed"; detail: string; httpStatus?: number | null };
+    if (!prepared.ok) r = { ok: false, status: "failed", detail: `Pending agreement: ${prepared.reason}`, httpStatus: null };
+    else {
+      r = await sendEmail({ to: data.email, subject, html, candidateName: data.fullName, result: "training_welcome", attachment: { url: prepared.url, name: prepared.name } });
+      await ag.markAgreementEmail(prepared.agreementId, r.status === "sent" ? "sent" : r.status === "accepted" ? "uncertain" : "failed", r.detail);
+    }
+    await db.from("candidate_emails").insert({
+      application_id: app.id, manager_evaluation_id: ev.id, kind: "training_welcome", to_email: data.email,
+      subject, body: html, status: emailRowStatus(r), error_message: r.ok ? null : r.detail,
+      http_status: r.httpStatus ?? null, response_message: r.detail, sent_by: context.userId,
+    });
+    await writeAudit(ctx.db as never, {
+      actorId: context.userId, actorEmail: ctx.email, action: "application.agreement_resent",
+      entityType: "application", entityId: app.id, applicationId: app.id,
+      oldValue: { full_name: app.full_name, email: app.email, start_date: prevRoster?.wave_start ?? null },
+      newValue: { full_name: data.fullName, email: data.email, start_date: data.startDate, result: r.detail },
+    });
+    if (!r.ok) throw new Error(r.detail);
+    return { ok: true, detail: r.detail };
+  });

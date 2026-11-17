@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createRequisition, listRequisitions, listTrainingRoster, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
+import { resendAgreement, createRequisition, listRequisitions, listTrainingRoster, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
 import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { publishTrainingLob } from "@/lib/training-lob";
@@ -193,7 +193,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="h-7 w-[118px] px-1.5 text-xs" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
-    <td className={`${cell} sticky left-0 z-10 min-w-52 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-44 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-44 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="text-[11px] text-muted-foreground">{row.country}</p></div><Button variant={dirty ? "default" : "outline"} size="sm" className="h-7 shrink-0 px-2 text-xs" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
+    <td className={`${cell} sticky left-0 z-10 min-w-52 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-44 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-44 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="text-[11px] text-muted-foreground">{row.country}</p>{p.canEditTraining && <ResendAgreementButton row={row} />}</div><Button variant={dirty ? "default" : "outline"} size="sm" className="h-7 shrink-0 px-2 text-xs" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
     <td className={cell}>{row.recruiter}</td>
     <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`h-7 w-40 px-2 text-xs ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{(() => { const opts = row.modality === "online" ? ["Online"] : branchOptions(trainingGroup(row.modality, row.countryCode)); const list = f.branch && !opts.includes(f.branch) ? [f.branch, ...opts] : opts; return <Select value={f.branch ?? ""} disabled={!p.canEditTraining} onValueChange={(branch) => setF({ ...f, branch })}><SelectTrigger aria-label={`Sucursal — ${row.fullName}`} className="h-7 w-36 px-2 text-xs"><SelectValue placeholder="Elegir" /></SelectTrigger><SelectContent>{list.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select>; })()}</td>
@@ -339,4 +339,31 @@ function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row
       </DialogContent>
     </Dialog>
   </div>;
+}
+
+function ResendAgreementButton({ row }: { row: { id: string; fullName: string; email: string; waveStart: string | null } }) {
+  const resend = useServerFn(resendAgreement);
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [f, setF] = useState({ fullName: row.fullName, email: row.email, startDate: row.waveStart ?? "" });
+  return <>
+    <button type="button" className="mt-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline" onClick={() => { setF({ fullName: row.fullName, email: row.email, startDate: row.waveStart ?? "" }); setOpen(true); }}>Reenviar convenio corregido</button>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>Reenviar convenio corregido</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <label className="block">Nombre completo<Input className="mt-1" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} /></label>
+          <label className="block">Correo<Input className="mt-1" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
+          <label className="block">Fecha de inicio de Training<Input className="mt-1" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></label>
+          <p className="text-xs text-muted-foreground">Se actualiza el candidato, se genera un convenio nuevo y se envía el correo de bienvenida con el PDF corregido.</p>
+        </div>
+        <DialogFooter><Button disabled={busy || !f.fullName.trim() || !f.email.trim() || !f.startDate} onClick={async () => {
+          setBusy(true);
+          try { await resend({ data: f }); toast.success("Convenio corregido enviado a Make"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
+          catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo reenviar"); } finally { setBusy(false); }
+        }}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Reenviar convenio</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>;
 }

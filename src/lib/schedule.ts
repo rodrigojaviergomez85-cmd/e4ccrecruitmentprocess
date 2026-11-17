@@ -1,17 +1,18 @@
 /** Structured Training / Class schedules picked by the Manager (no free text). */
 
-export type DayPattern = "weekdays" | "weekdays_sat" | "weekdays_sun" | "weekends";
+export type DayPattern = "weekdays" | "weekdays_sat" | "weekdays_sun" | "weekdays_weekend" | "weekends";
 export type TimeBlock = { start: string; end: string };
-export type ScheduleStruct = { pattern: DayPattern | ""; weekday?: TimeBlock; sat?: TimeBlock; sun?: TimeBlock };
+export type ScheduleStruct = { pattern: DayPattern | ""; weekday?: TimeBlock; sat?: TimeBlock; sun?: TimeBlock; wknd?: TimeBlock };
 
 export const DAY_PATTERNS: { value: DayPattern; label: string }[] = [
   { value: "weekdays", label: "Lunes a viernes" },
   { value: "weekdays_sat", label: "Lunes a viernes + sábado" },
   { value: "weekdays_sun", label: "Lunes a viernes + domingo" },
+  { value: "weekdays_weekend", label: "Lunes a viernes + 1 día de fin de semana" },
   { value: "weekends", label: "Weekends: sábado y domingo" },
 ];
 
-export const BLOCK_LABEL = { weekday: "Lunes a viernes", sat: "Sábado", sun: "Domingo" } as const;
+export const BLOCK_LABEL = { weekday: "Lunes a viernes", sat: "Sábado", sun: "Domingo", wknd: "1 día de fin de semana" } as const;
 export type BlockKey = keyof typeof BLOCK_LABEL;
 
 export function blocksFor(p: DayPattern | ""): BlockKey[] {
@@ -19,6 +20,7 @@ export function blocksFor(p: DayPattern | ""): BlockKey[] {
     case "weekdays": return ["weekday"];
     case "weekdays_sat": return ["weekday", "sat"];
     case "weekdays_sun": return ["weekday", "sun"];
+    case "weekdays_weekend": return ["weekday", "wknd"];
     case "weekends": return ["sat", "sun"];
     default: return [];
   }
