@@ -437,6 +437,7 @@ export const resendAgreement = createServerFn({ method: "POST" })
       fullName: z.string().trim().min(3).max(200),
       email: z.string().trim().toLowerCase().email().max(200),
       startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      modality: z.enum(["online", "onsite"]),
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
@@ -448,11 +449,11 @@ export const resendAgreement = createServerFn({ method: "POST" })
     if (ctx.allowedCountries && !ctx.allowedCountries.includes(app.country_code ?? "")) throw new Error("This candidate is outside your countries.");
     const ev = [...(app.manager_evaluations ?? [])].filter((e: any) => e.final_decision === "Approved for Training").sort((x: any, y: any) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
     if (!ev) throw new Error("No hay aprobación de Training para este candidato.");
-    const evidence: Record<string, string> = { ...((ev.evidence ?? {}) as Record<string, string>), [TRAINING_KEYS.startDate]: data.startDate };
+    const evidence: Record<string, string> = { ...((ev.evidence ?? {}) as Record<string, string>), [TRAINING_KEYS.startDate]: data.startDate, [AGREEMENT_KEYS.modality]: data.modality };
     const t = (k: string) => (evidence[k] ?? "").trim();
     const { confirmedModality } = await import("./manager-scorecard");
     const confirmed = confirmedModality(evidence);
-    const kind = confirmed ?? "onsite";
+    const kind = data.modality;
     const isOnline = kind === "online";
 
     await db.from("applications").update({ full_name: data.fullName, email: data.email }).eq("id", app.id);

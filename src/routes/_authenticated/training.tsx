@@ -341,14 +341,15 @@ function PaymentCell({ row, value, complete, canEdit, canView, onChange }: { row
   </div>;
 }
 
-function ResendAgreementButton({ row }: { row: { id: string; fullName: string; email: string; waveStart: string | null } }) {
+function ResendAgreementButton({ row }: { row: { id: string; fullName: string; email: string; waveStart: string | null; modality: string | null } }) {
   const resend = useServerFn(resendAgreement);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [f, setF] = useState({ fullName: row.fullName, email: row.email, startDate: row.waveStart ?? "" });
+  const initial = () => ({ fullName: row.fullName, email: row.email, startDate: row.waveStart ?? "", modality: (row.modality === "online" || row.modality === "onsite" ? row.modality : "") as "" | "online" | "onsite" });
+  const [f, setF] = useState(initial);
   return <>
-    <button type="button" className="mt-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline" onClick={() => { setF({ fullName: row.fullName, email: row.email, startDate: row.waveStart ?? "" }); setOpen(true); }}>Reenviar convenio corregido</button>
+    <button type="button" className="mt-1 text-[11px] font-medium text-primary underline-offset-2 hover:underline" onClick={() => { setF(initial()); setOpen(true); }}>Reenviar convenio corregido</button>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Reenviar convenio corregido</DialogTitle></DialogHeader>
@@ -356,11 +357,17 @@ function ResendAgreementButton({ row }: { row: { id: string; fullName: string; e
           <label className="block">Nombre completo<Input className="mt-1" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} /></label>
           <label className="block">Correo<Input className="mt-1" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
           <label className="block">Fecha de inicio de Training<Input className="mt-1" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></label>
+          <label className="block">Modalidad
+            <Select value={f.modality} onValueChange={(modality) => setF({ ...f, modality: modality as "online" | "onsite" })}>
+              <SelectTrigger aria-label="Modalidad" className="mt-1"><SelectValue placeholder="Elegir" /></SelectTrigger>
+              <SelectContent><SelectItem value="online">Online</SelectItem><SelectItem value="onsite">Onsite (presencial)</SelectItem></SelectContent>
+            </Select>
+          </label>
           <p className="text-xs text-muted-foreground">Se actualiza el candidato, se genera un convenio nuevo y se envía el correo de bienvenida con el PDF corregido.</p>
         </div>
-        <DialogFooter><Button disabled={busy || !f.fullName.trim() || !f.email.trim() || !f.startDate} onClick={async () => {
+        <DialogFooter><Button disabled={busy || !f.fullName.trim() || !f.email.trim() || !f.startDate || !f.modality} onClick={async () => {
           setBusy(true);
-          try { await resend({ data: { ...f, applicationId: row.id } }); toast.success("Convenio corregido enviado a Make"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
+          try { await resend({ data: { ...f, modality: f.modality as "online" | "onsite", applicationId: row.id } }); toast.success("Convenio corregido enviado a Make"); setOpen(false); await qc.invalidateQueries({ queryKey: ["training-roster"] }); }
           catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo reenviar"); } finally { setBusy(false); }
         }}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Reenviar convenio</Button></DialogFooter>
       </DialogContent>
