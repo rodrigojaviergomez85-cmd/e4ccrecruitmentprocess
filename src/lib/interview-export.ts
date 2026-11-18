@@ -54,8 +54,8 @@ export function csvCell(v: unknown): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function toCsv(rows: ExportRow[]): string {
-  const lines = [EXPORT_COLUMNS.join(","), ...rows.map((r) => EXPORT_COLUMNS.map((c) => csvCell(r[c])).join(","))];
+export function toCsv(rows: Record<string, string>[], columns: readonly string[] = EXPORT_COLUMNS): string {
+  const lines = [columns.join(","), ...rows.map((r) => columns.map((c) => csvCell(r[c])).join(","))];
   return "\uFEFF" + lines.join("\r\n") + "\r\n";
 }
 

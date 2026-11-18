@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -21,6 +21,19 @@ import { useNavCollapsed } from "@/lib/nav-collapsed";
 import { PENDING_SPOT, SPOT_TYPES, openSpots, shiftOf, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
 import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
+import { toCsv } from "@/lib/interview-export";
+import { TRAINING_EXPORT_COLUMNS, trainingExportRows } from "@/lib/training-export";
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
 
 const GROUP_CODE: Record<string, string> = { "EL SALVADOR": "SV", NICARAGUA: "NI", GUATEMALA: "GT" };
 function branchOptions(group: string) {
@@ -118,6 +131,11 @@ function TrainingPage() {
           <Input aria-label="Buscar candidato" placeholder="Buscar nombre, correo o sucursal" value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-full text-xs sm:w-64" />
           <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Filtrar estado" className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos los estados</SelectItem><SelectItem value={PENDING_SPOT}>{PENDING_SPOT}</SelectItem>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select>
           <span className="text-sm text-muted-foreground">{filtered.length} candidatos</span>
+          {data && !data.trainingOnly && <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Descargar lista de training en Excel" disabled={!filtered.length} onClick={() => {
+            const csv = toCsv(trainingExportRows(filtered), TRAINING_EXPORT_COLUMNS);
+            downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }), `training-${lob === "all" ? "todos" : lob.toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`);
+            toast.success(`${filtered.length} candidatos descargados`);
+          }}><Download className="h-3.5 w-3.5" />Descargar Excel</Button>}
           {req?.canManage && <div className="ml-auto"><AddRequisition /></div>}
         </div>
         {isLoading && <Skeleton className="h-40 w-full" />}
