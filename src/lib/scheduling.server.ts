@@ -1,3 +1,4 @@
+import { reminderRowStatus } from "./email-status";
 /** Server-only scheduling core: settings, slots, tokens, booking, notifications. */
 import {
   ACTIVE_APPOINTMENT_STATUSES,
@@ -464,8 +465,8 @@ export async function notifyBooking(appointmentId: string, kind: NotifyKind, rem
     await client
       .from("reminder_logs")
       .update({
-        status: emailResult.status === "sent" ? "sent" : emailResult.status,
-        sent_at: new Date().toISOString(),
+        status: reminderRowStatus(emailResult),
+        sent_at: emailResult.status === "sent" ? new Date().toISOString() : null,
         provider_response: emailResult.detail,
       })
       .eq("appointment_id", appointmentId)

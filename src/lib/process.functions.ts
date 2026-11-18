@@ -428,6 +428,9 @@ export const resendPreparationEmail = createServerFn({ method: "POST" })
       db.from("recruitment_progress").select("work_modality").eq("application_id", data.applicationId).maybeSingle(),
     ]);
     if (!appointment) throw new Error("No confirmed interview was found.");
+    const { data: last } = await db.from("candidate_emails").select("status").eq("application_id", data.applicationId).eq("kind", "preparation").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { alreadyRequested } = await import("./email-status");
+    if (alreadyRequested(last?.status)) return { ok: true, status: last!.status, detail: "Already requested; not sent again.", httpStatus: null };
     const timezone = appointment.candidate_timezone || "UTC";
     const format = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options }).format(new Date(appointment.starts_at));
     const { buildPreparationEmail } = await import("./candidate-emails");

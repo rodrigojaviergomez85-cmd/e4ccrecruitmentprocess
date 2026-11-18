@@ -31,6 +31,7 @@ export const Route = createFileRoute("/api/public/cron/reminders")({
         let sent = 0;
         let skipped = 0;
         let failed = 0;
+        let accepted = 0;
 
         for (const row of due ?? []) {
           const appt = Array.isArray(row.appointments) ? row.appointments[0] : row.appointments;
@@ -52,8 +53,18 @@ export const Route = createFileRoute("/api/public/cron/reminders")({
           }
 
           if (row.channel === "email") {
+            // Claim the row first so an overlapping run cannot dispatch it twice.
+            const { data: claimed } = await client
+              .from("reminder_logs")
+              .update({ attempts: (row.attempts ?? 0) + 1 })
+              .eq("id", row.id)
+              .eq("status", "pending")
+              .eq("attempts", row.attempts ?? 0)
+              .select("id");
+            if (!claimed?.length) continue;
             const result = await notifyBooking(row.appointment_id, "reminder", row.kind);
             if (result.email?.status === "sent") sent += 1;
+            else if (result.email?.status === "accepted") accepted += 1;
             else failed += 1;
             continue;
           }
@@ -101,7 +112,7 @@ export const Route = createFileRoute("/api/public/cron/reminders")({
           else failed += 1;
         }
 
-        return Response.json({ processed: (due ?? []).length, sent, skipped, failed });
+        return Response.json({ processed: (due ?? []).length, sent, accepted, skipped, failed });
       },
     },
   },

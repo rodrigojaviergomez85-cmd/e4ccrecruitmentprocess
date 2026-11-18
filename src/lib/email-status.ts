@@ -16,10 +16,20 @@ export function emailRowStatus(r: { ok: boolean; status: string }): EmailRowStat
 }
 
 export function emailStatusLabel(status: string): string {
-  if (status === "accepted") return "Solicitud recibida por Make";
+  if (status === "accepted") return "Solicitud recibida por Make; envío pendiente de confirmación";
   if (status === "sent") return "Enviado";
   if (status === "resent") return "Reenviado";
   if (status === "skipped") return "No enviado (sin configuración)";
   if (status === "failed") return "Falló";
   return status;
+}
+
+/** Reminder row status from a provider result: accepted is kept for review, never upgraded to sent. */
+export function reminderRowStatus(r: { ok: boolean; status: string }): EmailRowStatus {
+  return emailRowStatus(r);
+}
+
+/** True when a reminder/preparation email must not be dispatched again automatically. */
+export function alreadyRequested(status: string | null | undefined): boolean {
+  return status === "accepted" || status === "sent" || status === "resent";
 }

@@ -604,7 +604,7 @@ function ApplicantPanel({ c, canEvaluate }: { c: Candidate; canEvaluate: boolean
               <Tag tone={c.resume_uploaded ? "green" : "amber"}>Resume: {c.resume_uploaded ? "Uploaded" : "Pending"}</Tag>
               <Tag tone={c.grammar_pending ? "amber" : "green"}>Grammar test: {c.grammar_pending ? "Pending" : "Verified"}</Tag>
               {c.work_modality === "online" && <Tag tone={c.internet_ready ? "green" : "amber"}>Internet: {c.internet_ready ? "Passed" : "Review needed"}</Tag>}
-              {c.preparation_email_status && <Tag tone={c.preparation_email_status === "failed" ? "red" : "green"}>Preparation email: {emailStatusLabel(c.preparation_email_status)}</Tag>}
+              {c.preparation_email_status && <Tag tone={c.preparation_email_status === "failed" ? "red" : c.preparation_email_status === "accepted" ? "amber" : "green"}>Preparation email: {emailStatusLabel(c.preparation_email_status)}</Tag>}
             </div>
             {pending.length === 0 && <p className="text-xs text-success">No pending requirements.</p>}
           </div>

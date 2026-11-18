@@ -1,0 +1,2 @@
+ALTER TABLE public.reminder_logs DROP CONSTRAINT IF EXISTS reminder_logs_status_check;
+ALTER TABLE public.reminder_logs ADD CONSTRAINT reminder_logs_status_check CHECK (status IN ('pending','accepted','sent','failed','skipped'));

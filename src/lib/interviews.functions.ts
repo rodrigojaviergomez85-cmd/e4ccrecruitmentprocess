@@ -1,3 +1,4 @@
+import { reminderRowStatus } from "./email-status";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
@@ -267,7 +268,7 @@ export const listAppointments = createServerFn({ method: "POST" })
             ((application?.interview_evaluations ?? [])[0]?.status as string | undefined) ?? null,
           city: application?.city_other ?? application?.city ?? null,
           reminder_status: own.length
-            ? `${own.filter((r) => r.status === "sent").length}/${own.length} sent`
+            ? `${own.filter((r) => r.status === "sent").length}/${own.length} sent${own.some((r) => r.status === "accepted") ? ` · ${own.filter((r) => r.status === "accepted").length} recibidos por Make` : ""}`
             : "none",
         };
       })
@@ -333,8 +334,8 @@ export const sendManualReminder = createServerFn({ method: "POST" })
         channel: "email",
         kind: `manual-${Date.now()}`,
         scheduled_for: new Date().toISOString(),
-        sent_at: new Date().toISOString(),
-        status: result.email?.status === "sent" ? "sent" : (result.email?.status ?? "failed"),
+        sent_at: result.email?.status === "sent" ? new Date().toISOString() : null,
+        status: result.email ? reminderRowStatus(result.email) : "failed",
         provider_response: result.email?.detail ?? "",
         attempts: 1,
       },
