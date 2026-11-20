@@ -96,14 +96,20 @@ function TrainingPage() {
   // The goal summary now lives in the sidebar: keep it on the tab being viewed.
   useEffect(() => { publishTrainingLob(lob); }, [lob]);
   const [periodMode, setPeriodMode] = useState<"wave" | "month">("wave");
-  const [period, setPeriod] = useState("all");
+  const [period, setPeriod] = useState("active");
   const periodOf = (w: string | null) => (w ? (periodMode === "wave" ? w : w.slice(0, 7)) : "Sin fecha");
-  const inPeriod = (w: string | null) => period === "all" || periodOf(w) === period;
-  const periods = [...new Set([...(data?.rows ?? []).map((r) => r.waveStart), ...(req?.spots ?? []).map((x) => x.waveStart)].map(periodOf))].sort();
-  const open = openSpots(req?.spots ?? [], data?.rows ?? []).filter((o) => inPeriod(o.waveStart));
+  const rows = data?.rows ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const allOpen = openSpots(req?.spots ?? [], rows);
+  // Active requisition: the nearest upcoming wave that still has open spots (or the nearest upcoming wave).
+  const waveDates = [...new Set([...(req?.spots ?? []).map((x) => x.waveStart), ...rows.map((r) => r.waveStart)].filter((w): w is string => Boolean(w)))].sort();
+  const openWaveDates = [...new Set(allOpen.map((o) => o.waveStart).filter((w): w is string => Boolean(w)))].sort();
+  const activeWave = openWaveDates.find((w) => w >= today) ?? waveDates.find((w) => w >= today) ?? waveDates[waveDates.length - 1] ?? null;
+  const inPeriod = (w: string | null) => period === "all" || periodOf(w) === (period === "active" ? (activeWave ? periodOf(activeWave) : "__none__") : period);
+  const periods = [...new Set([...rows.map((r) => r.waveStart), ...(req?.spots ?? []).map((x) => x.waveStart)].map(periodOf))].sort();
+  const open = allOpen.filter((o) => inPeriod(o.waveStart));
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
-  const rows = data?.rows ?? [];
   const periodRows = rows.filter((r) => inPeriod(r.waveStart));
   const filtered = periodRows.filter((r) => (lob === "all" || trainingGroup(r.modality, r.countryCode) === lob) && (status === "all" || r.status === status) && `${r.fullName} ${r.email} ${r.branch}`.toLowerCase().includes(search.toLowerCase()));
   const groupNames = [...TRAINING_GROUPS, ...(rows.some((r) => trainingGroup(r.modality, r.countryCode) === "OTROS") ? ["OTROS"] : [])];
@@ -121,8 +127,8 @@ function TrainingPage() {
           </div>
         </Tabs>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("all"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
-          <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">Todos</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+          <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("active"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
+          <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Requisición activa{activeWave ? ` (${activeWave})` : ""}</SelectItem><SelectItem value="all">Todas las waves</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
         {data && <BranchSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} spots={(req?.spots ?? []).filter((x) => inPeriod(x.waveStart))} open={open} />}
         {/* On phones/tablets the sidebar is hidden; on desktop the goal moves into the page only when the sidebar is collapsed. */}
@@ -142,7 +148,8 @@ function TrainingPage() {
         {error && <p className="text-destructive">{(error as Error).message}</p>}
         {data && !filtered.length && <p className="py-8 text-muted-foreground">No hay candidatos en esta lista.</p>}
         {data && groupNames.map((group) => {
-          const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group);
+          const shiftRank = (s: string | null) => shiftOf(s) === "AM" ? 0 : shiftOf(s) === "PM" ? 1 : 2;
+          const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group).sort((a, b) => shiftRank(a.agreedSchedule) - shiftRank(b.agreedSchedule) || a.fullName.localeCompare(b.fullName));
           const pending = (status === "all" || status === PENDING_SPOT) && !search && (lob === "all" || lob === group) ? open.filter((o) => o.group === group) : [];
           if (!groupRows.length && !pending.length) return null;
           const usedCols = new Set(groupRows.flatMap((r) => r.documentList.map(docColumn)));
