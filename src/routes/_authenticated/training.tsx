@@ -330,7 +330,7 @@ function BranchSummary({ groups, rows, spots, open }: { groups: string[]; rows: 
       const sp = m(gSpots);
       return { req: sp.length, am: sp.filter((s) => shiftOf(s.agreedSchedule) === "AM").length, pm: sp.filter((s) => shiftOf(s.agreedSchedule) === "PM").length, rec: m(gRows).filter((r) => r.status === "RECLUTADO").length, tr: m(gRows).filter((r) => r.status === "IN TRAINING").length, pend: m(gOpen).length };
     };
-    const lines = [...names].map(([k, label]) => ({ label, v: calc(k) })).filter((l) => g !== "ONLINE" || l.v.req || l.v.rec || l.v.tr);
+    const lines = [...names].map(([k, label]) => ({ label, v: calc(k) })).filter((l) => l.v.req || l.v.rec || l.v.tr || l.v.pend);
     lines.push({ label: "TOTAL", v: calc(null) });
     return <div key={g} className="overflow-x-auto border border-border bg-card">
       <p className="bg-muted px-2 py-1 text-xs font-bold">{g}</p>
