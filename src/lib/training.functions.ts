@@ -78,7 +78,8 @@ export const listTrainingRoster = createServerFn({ method: "POST" })
         countryCode: a.country_code,
         lob: (t[AGREEMENT_KEYS.lob] || "").trim() || "Sin LOB",
         modality,
-        branch: ((r as { branch?: string | null } | null)?.branch || "").trim() || (t[TRAINING_KEYS.branch] || "").trim() || (modality === "online" ? "Online" : a.city),
+        // Work branch (where they will teach), never the training venue: roster > Recruitment's assigned branch > Manager's class branch.
+        branch: modality === "online" ? (((r as { branch?: string | null } | null)?.branch || "").trim() || "Online") : (((r as { branch?: string | null } | null)?.branch || "").trim() || String(((latestEval(a)?.sections as Record<string, Record<string, unknown>> | null)?.["candidate"]?.["branch"]) ?? "").trim() || (t[AGREEMENT_KEYS.classSameBranch] !== "yes" ? (t[AGREEMENT_KEYS.classBranch] || "").trim() : "") || (t[TRAINING_KEYS.branch] || "").trim() || a.city),
         trainer: (t[TRAINING_KEYS.trainer] || "").trim(),
         approvedAt: ev?.decided_at ?? null,
         waveStart: r?.wave_start ?? (t[TRAINING_KEYS.startDate] || null),
