@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { resendAgreement, createRequisition, listRequisitions, listTrainingRoster, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
+import { resendAgreement, createRequisition, listRequisitions, listTrainingRoster, listPendingSecondFilter, saveTrainingReferences, updateRequisition, updateTrainingRow } from "@/lib/training.functions";
 import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { publishTrainingLob } from "@/lib/training-lob";
@@ -91,6 +91,8 @@ function TrainingPage() {
   const { data, isLoading, error } = useQuery({ queryKey: ["training-roster"], queryFn: () => list() });
   const listReq = useServerFn(listRequisitions);
   const { data: req } = useQuery({ queryKey: ["requisitions"], queryFn: () => listReq() });
+  const listPending = useServerFn(listPendingSecondFilter);
+  const { data: pendingSF } = useQuery({ queryKey: ["pending-second-filter"], queryFn: () => listPending() });
   const [lob, setLob] = useState("ONLINE");
   const navCollapsed = useNavCollapsed();
   // The goal summary now lives in the sidebar: keep it on the tab being viewed.
@@ -101,9 +103,10 @@ function TrainingPage() {
   const rows = data?.rows ?? [];
   const today = new Date().toISOString().slice(0, 10);
   const allOpen = openSpots(req?.spots ?? [], rows);
+  const inLob = (g: string) => lob === "all" || g === lob;
   // Active requisition: the nearest upcoming wave that still has open spots (or the nearest upcoming wave).
-  const waveDates = [...new Set([...(req?.spots ?? []).map((x) => x.waveStart), ...rows.map((r) => r.waveStart)].filter((w): w is string => Boolean(w)))].sort();
-  const openWaveDates = [...new Set(allOpen.map((o) => o.waveStart).filter((w): w is string => Boolean(w)))].sort();
+  const waveDates = [...new Set([...(req?.spots ?? []).filter((x) => inLob(x.group)).map((x) => x.waveStart), ...rows.filter((r) => inLob(r.group)).map((r) => r.waveStart)].filter((w): w is string => Boolean(w)))].sort();
+  const openWaveDates = [...new Set(allOpen.filter((o) => inLob(o.group)).map((o) => o.waveStart).filter((w): w is string => Boolean(w)))].sort();
   const activeWave = openWaveDates.find((w) => w >= today) ?? waveDates.find((w) => w >= today) ?? waveDates[waveDates.length - 1] ?? null;
   const inPeriod = (w: string | null) => period === "all" || periodOf(w) === (period === "active" ? (activeWave ? periodOf(activeWave) : "__none__") : period);
   const periods = [...new Set([...rows.map((r) => r.waveStart), ...(req?.spots ?? []).map((x) => x.waveStart)].map(periodOf))].sort();
@@ -130,7 +133,7 @@ function TrainingPage() {
           <Select value={periodMode} onValueChange={(v) => { setPeriodMode(v as "wave" | "month"); setPeriod("active"); }}><SelectTrigger aria-label="Agrupar por" className="h-8 w-32 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="wave">Por wave</SelectItem><SelectItem value="month">Por mes</SelectItem></SelectContent></Select>
           <Select value={period} onValueChange={setPeriod}><SelectTrigger aria-label="Periodo" className="h-8 w-52 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Requisición activa{activeWave ? ` (${activeWave})` : ""}</SelectItem><SelectItem value="all">Todas las waves</SelectItem>{periods.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
         </div>
-        {data && <BranchSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} spots={(req?.spots ?? []).filter((x) => inPeriod(x.waveStart))} open={open} />}
+        {data && <BranchSummary groups={lob === "all" ? groupNames : [lob]} rows={periodRows} spots={(req?.spots ?? []).filter((x) => inPeriod(x.waveStart))} open={open} secondFilter={pendingSF?.rows ?? []} />}
         {/* On phones/tablets the sidebar is hidden; on desktop the goal moves into the page only when the sidebar is collapsed. */}
         <div className={navCollapsed ? undefined : "lg:hidden"}><RecruitmentGoal group={lob === "all" ? undefined : lob} /></div>
         <div className="flex flex-wrap items-center gap-2">
@@ -151,7 +154,8 @@ function TrainingPage() {
           const shiftRank = (s: string | null) => shiftOf(s) === "AM" ? 0 : shiftOf(s) === "PM" ? 1 : 2;
           const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group).sort((a, b) => shiftRank(a.agreedSchedule) - shiftRank(b.agreedSchedule) || a.fullName.localeCompare(b.fullName));
           const pending = (status === "all" || status === PENDING_SPOT) && !search && (lob === "all" || lob === group) ? open.filter((o) => o.group === group) : [];
-          if (!groupRows.length && !pending.length) return null;
+          const sf = (status === "all") && (lob === "all" || lob === group) ? (pendingSF?.rows ?? []).filter((x) => x.group === group && `${x.fullName} ${x.email} ${x.branch}`.toLowerCase().includes(search.toLowerCase())) : [];
+          if (!groupRows.length && !pending.length && !sf.length) return null;
           const usedCols = new Set(groupRows.flatMap((r) => r.documentList.map(docColumn)));
           const docs: string[] = DOC_COLUMNS.filter((c) => usedCols.has(c));
           return <section key={group} className="space-y-2">
@@ -168,6 +172,11 @@ function TrainingPage() {
                 </tr>)}</tbody>
               </table>
             </div>
+            {sf.length > 0 && <div className="border border-border">
+              <p className="bg-warning/10 px-2 py-1 text-xs font-semibold">Pendientes de segundo filtro ({sf.length}) — aprobados por Reclutamiento, esperando al Manager</p>
+              <table className="w-full text-xs"><thead><tr className="bg-muted/50">{["Candidato", "Turno", "Horario", "Sucursal", "País", "Email"].map((h) => <th key={h} className="px-2 py-1 text-left font-semibold">{h}</th>)}</tr></thead>
+                <tbody>{[...sf].sort((a, b) => shiftOf(a.schedule).localeCompare(shiftOf(b.schedule)) || a.fullName.localeCompare(b.fullName)).map((x) => <tr key={x.id} className="border-t border-border"><td className="px-2 py-1 font-medium">{x.fullName}</td><td className="px-2 py-1"><ShiftBadge schedule={x.schedule} /></td><td className="px-2 py-1">{x.schedule || "—"}</td><td className="px-2 py-1">{x.branch || "—"}</td><td className="px-2 py-1">{x.country}</td><td className="px-2 py-1">{x.email}</td></tr>)}</tbody></table>
+            </div>}
           </section>;
         })}
       </main>
@@ -218,7 +227,7 @@ function RosterRow({ row, docs, permissions: p }: { row: Row; docs: string[]; pe
   const dateInput = (key: "waveStart" | "requestDate" | "hiringDate", label: string) => <Input type="date" aria-label={`${label} — ${row.fullName}`} value={f[key] ?? ""} disabled={!p.canEditTraining} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} className="h-7 w-[118px] px-1.5 text-xs" />;
   const textInput = (key: "agreedSchedule" | "comments" | "referenceDetails", label: string, enabled: boolean) => <Input aria-label={`${label} — ${row.fullName}`} title={f[key]} value={f[key]} disabled={!enabled} onChange={(e) => setF({ ...f, [key]: e.target.value })} className="w-64" />;
   return <tr className="bg-card">
-    <td className={`${cell} sticky left-0 z-10 min-w-52 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-44 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-44 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="text-[11px] text-muted-foreground">{row.country}</p>{p.canEditTraining && <ResendAgreementButton row={row} />}</div><Button variant={dirty ? "default" : "outline"} size="sm" className="h-7 shrink-0 px-2 text-xs" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
+    <td className={`${cell} sticky left-0 z-10 min-w-52 bg-card`}><div className="flex items-start justify-between gap-2"><div className="min-w-0">{p.trainingOnly ? <p className="max-w-44 font-semibold">{row.fullName}</p> : <><button type="button" className="max-w-44 text-left font-semibold text-primary underline-offset-2 hover:underline" onClick={() => setProfileOpen(true)}>{row.fullName}</button><TrainingProfileDialog applicationId={row.id} open={profileOpen} onOpenChange={setProfileOpen} /></>}<p className="flex items-center gap-1 text-[11px] text-muted-foreground"><ShiftBadge schedule={f.agreedSchedule} />{row.country}</p>{p.canEditTraining && <ResendAgreementButton row={row} />}</div><Button variant={dirty ? "default" : "outline"} size="sm" className="h-7 shrink-0 px-2 text-xs" aria-label={`Guardar — ${row.fullName}`} title={dirty ? "Hay cambios sin guardar" : "Sin cambios"} onClick={() => void save()} disabled={!dirty || saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{dirty ? "Guardar" : ""}</Button></div></td>
     <td className={cell}>{row.recruiter}</td>
     <td className={cell}><Select value={f.status} disabled={!p.canEditTraining} onValueChange={(status) => setF({ ...f, status })}><SelectTrigger aria-label={`Estado — ${row.fullName}`} className={`h-7 w-40 px-2 text-xs ${f.status === "CERTIFIED" ? "bg-success/10" : f.status === "NOT CERTIFIED" || f.status.startsWith("DROP OUT") ? "bg-destructive/10" : ""}`}><SelectValue /></SelectTrigger><SelectContent>{TRAINING_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></td>
     <td className={cell}>{(() => { const opts = row.modality === "online" ? ["Online"] : branchOptions(trainingGroup(row.modality, row.countryCode)); const list = f.branch && !opts.includes(f.branch) ? [f.branch, ...opts] : opts; return <Select value={f.branch ?? ""} disabled={!p.canEditTraining} onValueChange={(branch) => setF({ ...f, branch })}><SelectTrigger aria-label={`Sucursal — ${row.fullName}`} className="h-7 w-36 px-2 text-xs"><SelectValue placeholder="Elegir" /></SelectTrigger><SelectContent>{list.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent></Select>; })()}</td>
@@ -315,27 +324,36 @@ function AddRequisition() {
   </div>;
 }
 
-function BranchSummary({ groups, rows, spots, open }: { groups: string[]; rows: { status: string; branch: string | null; modality: string | null; countryCode: string | null }[]; spots: { group: string; branch: string; agreedSchedule: string }[]; open: { group: string; branch: string }[] }) {
+function ShiftBadge({ schedule }: { schedule: string | null | undefined }) {
+  const s = shiftOf(schedule);
+  if (!s) return null;
+  return <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${s === "AM" ? "bg-primary/15 text-primary" : "bg-accent text-accent-foreground"}`}>{s}</span>;
+}
+
+function BranchSummary({ groups, rows, spots, open, secondFilter }: { groups: string[]; rows: { status: string; branch: string | null; modality: string | null; countryCode: string | null; agreedSchedule: string }[]; spots: { group: string; branch: string; agreedSchedule: string }[]; open: { group: string; branch: string; agreedSchedule: string }[]; secondFilter: { group: string; branch: string; schedule: string }[] }) {
   const norm = (b: string | null | undefined) => String(b ?? "").trim().toLowerCase();
   const th = "px-2 py-1 text-left font-semibold";
   return <div className="grid gap-2 lg:grid-cols-2">{groups.map((g) => {
     const gRows = rows.filter((r) => trainingGroup(r.modality, r.countryCode) === g);
     const gSpots = spots.filter((s) => s.group === g);
     const gOpen = open.filter((o) => o.group === g);
+    const gSf = secondFilter.filter((x) => x.group === g);
     const names = new Map<string, string>();
     for (const b of branchOptions(g)) names.set(norm(b), b);
     for (const x of [...gSpots, ...gRows]) if (x.branch && !names.has(norm(x.branch))) names.set(norm(x.branch), x.branch);
     const calc = (key: string | null) => {
       const m = <T extends { branch: string | null }>(l: T[]) => key === null ? l : l.filter((x) => norm(x.branch) === key);
       const sp = m(gSpots);
-      return { req: sp.length, am: sp.filter((s) => shiftOf(s.agreedSchedule) === "AM").length, pm: sp.filter((s) => shiftOf(s.agreedSchedule) === "PM").length, rec: m(gRows).filter((r) => r.status === "RECLUTADO").length, tr: m(gRows).filter((r) => r.status === "IN TRAINING").length, pend: m(gOpen).length };
+      const rec = m(gRows).filter((r) => r.status === "RECLUTADO");
+      const op = m(gOpen);
+      return { req: sp.length, am: sp.filter((s) => shiftOf(s.agreedSchedule) === "AM").length, pm: sp.filter((s) => shiftOf(s.agreedSchedule) === "PM").length, recAm: rec.filter((r) => shiftOf(r.agreedSchedule) === "AM").length, recPm: rec.filter((r) => shiftOf(r.agreedSchedule) === "PM").length, rec: rec.length, tr: m(gRows).filter((r) => r.status === "IN TRAINING").length, sf: key === null ? gSf.length : gSf.filter((x) => norm(x.branch) === key).length, pendAm: op.filter((o) => shiftOf(o.agreedSchedule) === "AM").length, pendPm: op.filter((o) => shiftOf(o.agreedSchedule) === "PM").length, pend: op.length };
     };
-    const lines = [...names].map(([k, label]) => ({ label, v: calc(k) })).filter((l) => l.v.req || l.v.rec || l.v.tr || l.v.pend);
+    const lines = [...names].map(([k, label]) => ({ label, v: calc(k) })).filter((l) => l.v.req || l.v.rec || l.v.tr || l.v.pend || l.v.sf);
     lines.push({ label: "TOTAL", v: calc(null) });
     return <div key={g} className="overflow-x-auto border border-border bg-card">
       <p className="bg-muted px-2 py-1 text-xs font-bold">{g}</p>
-      <table className="w-full text-xs"><thead><tr className="bg-muted/50">{["SUCURSAL", "REQUISICIÓN", "AM", "PM", "RECLUTADOS", "IN TRAINING", "PENDIENTES DE RECLUTAR"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
-        <tbody>{lines.map(({ label, v }) => <tr key={label} className={`border-t border-border ${label === "TOTAL" ? "font-semibold" : ""}`}><td className="px-2 py-1">{label}</td><td className="px-2 py-1">{v.req}</td><td className="px-2 py-1">{v.am}</td><td className="px-2 py-1">{v.pm}</td><td className="px-2 py-1">{v.rec}</td><td className="px-2 py-1">{v.tr}</td><td className={`px-2 py-1 ${v.pend ? "font-semibold text-destructive" : ""}`}>{v.pend}</td></tr>)}</tbody></table>
+      <table className="w-full text-xs"><thead><tr className="bg-muted/50">{["SUCURSAL", "REQUISICIÓN", "REQ AM", "REQ PM", "RECLUTADOS AM", "RECLUTADOS PM", "IN TRAINING", "EN 2º FILTRO", "FALTAN AM", "FALTAN PM", "FALTAN TOTAL"].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+        <tbody>{lines.map(({ label, v }) => <tr key={label} className={`border-t border-border ${label === "TOTAL" ? "font-semibold" : ""}`}><td className="px-2 py-1">{label}</td><td className="px-2 py-1">{v.req}</td><td className="px-2 py-1">{v.am}</td><td className="px-2 py-1">{v.pm}</td><td className="px-2 py-1">{v.recAm}</td><td className="px-2 py-1">{v.recPm}</td><td className="px-2 py-1">{v.tr}</td><td className="px-2 py-1 font-semibold">{v.sf}</td><td className="px-2 py-1">{v.pendAm}</td><td className="px-2 py-1">{v.pendPm}</td><td className={`px-2 py-1 ${v.pend ? "font-semibold text-destructive" : ""}`}>{v.pend}</td></tr>)}</tbody></table>
     </div>;
   })}</div>;
 }

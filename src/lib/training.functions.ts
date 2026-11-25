@@ -514,3 +514,29 @@ export const resendAgreement = createServerFn({ method: "POST" })
     if (!r.ok) throw new Error(r.detail);
     return { ok: true, detail: r.detail };
   });
+
+/** Candidates approved by Recruitment that still wait for the Manager's second filter (shown as a forecast in Training). */
+export const listPendingSecondFilter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = await ctxFor(context.userId, context.supabase);
+    if (ctx.trainingOnly) return { rows: [] };
+    let q = ctx.db
+      .from("applications")
+      .select("id, full_name, email, country, country_code, interview_evaluations(attempt_number, sections, is_test), recruitment_progress(work_modality)")
+      .eq("status", "Pending Second Filter")
+      .is("archived_at", null);
+    if (ctx.allowedCountries) q = q.in("country_code", ctx.allowedCountries.length ? ctx.allowedCountries : ["__none__"]);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).flatMap((a) => {
+      const ev = [...((a.interview_evaluations ?? []) as { attempt_number: number | null; sections: unknown; is_test: boolean | null }[])].sort((x, y) => (y.attempt_number ?? 0) - (x.attempt_number ?? 0))[0];
+      if (ev?.is_test || /^TEST PHASE/i.test(a.full_name ?? "")) return [];
+      const cand = ((ev?.sections as Record<string, Record<string, unknown>> | null)?.["candidate"]) ?? {};
+      const schedule = String(cand["schedule"] ?? "");
+      const rp = (Array.isArray(a.recruitment_progress) ? a.recruitment_progress[0] : a.recruitment_progress) as { work_modality: string | null } | null;
+      const modality = /online/i.test(schedule) ? "online" : normalizeModality(rp?.work_modality) ?? (["SV", "NI", "GT"].includes(a.country_code ?? "") ? "onsite" : "online");
+      return [{ id: a.id, fullName: a.full_name, email: a.email, country: a.country, schedule, branch: String(cand["branch"] ?? "") || (modality === "online" ? "Online" : ""), group: trainingGroupOf(modality, a.country_code) }];
+    });
+    return { rows };
+  });
