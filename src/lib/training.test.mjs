@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 const expect = (actual) => ({ toBe: (expected) => assert.equal(actual, expected), toEqual: (expected) => assert.deepEqual(actual, expected) });
-import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent, requisitionSummary } from "./training.ts";
+import { trainingGroup, trainingPermissions, approvalBlocked, documentsPercent, requisitionSummary, byNewestApproval } from "./training.ts";
 import { staffTier } from "./roles.ts";
 
 describe("Training Tracker rules", () => {
@@ -84,5 +84,19 @@ describe("country document requirements", () => {
     const d = _cd({ RENAS: true, "Antecedentes Judiciales": false }, _tdl("GT"));
     expect(d.RENAS).toBe(true);
     expect(d["Antecedentes Judiciales"]).toBe(false);
+  });
+  test("roster lists the most recently approved candidates first", () => {
+    const rows = [
+      { fullName: "Jairo Isaías", approvedAt: "2026-11-30T10:00:00Z" },
+      { fullName: "Carlos Fernando", approvedAt: "2026-10-19T09:00:00Z" },
+      { fullName: "Laura Lissette", approvedAt: "2026-10-19T14:30:00Z" },
+      { fullName: "Ana Sin Fecha", approvedAt: null },
+    ];
+    expect([...rows].sort(byNewestApproval).map((r) => r.fullName)).toEqual([
+      "Jairo Isaías",
+      "Laura Lissette",
+      "Carlos Fernando",
+      "Ana Sin Fecha",
+    ]);
   });
 });

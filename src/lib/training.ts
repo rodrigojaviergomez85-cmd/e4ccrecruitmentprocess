@@ -182,3 +182,8 @@ export function shiftOf(schedule: string | null | undefined): "AM" | "PM" | "" {
   const m = String(schedule ?? "").toUpperCase().match(/\b(AM|PM)\b/);
   return (m?.[1] as "AM" | "PM" | undefined) ?? "";
 }
+
+/** Roster order: candidates approved for training most recently come first; undated rows fall to the bottom, then alphabetical. */
+export function byNewestApproval<T extends { approvedAt: string | null; fullName: string }>(a: T, b: T) {
+  return (b.approvedAt ?? "").localeCompare(a.approvedAt ?? "") || a.fullName.localeCompare(b.fullName);
+}

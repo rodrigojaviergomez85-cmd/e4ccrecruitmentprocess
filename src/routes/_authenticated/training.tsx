@@ -18,7 +18,7 @@ import { TrainingProfileDialog } from "@/components/TrainingProfileDialog";
 import { RecruitmentGoal } from "@/components/RecruitmentGoal";
 import { publishTrainingLob } from "@/lib/training-lob";
 import { useNavCollapsed } from "@/lib/nav-collapsed";
-import { PENDING_SPOT, SPOT_TYPES, openSpots, shiftOf, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
+import { PENDING_SPOT, SPOT_TYPES, openSpots, shiftOf, TRAINING_GROUPS, TRAINING_STATUSES, approvalBlocked, byNewestApproval, documentsPercent, trainingGroup, DOC_COLUMNS, DOC_PAYMENT, docColumn, paymentComplete, type PaymentData } from "@/lib/training";
 import { ONSITE_BRANCHES } from "@/lib/branches";
 import { DAY_PATTERNS, TIME_OPTIONS, fmt12, type DayPattern } from "@/lib/schedule";
 import { toCsv } from "@/lib/interview-export";
@@ -151,8 +151,7 @@ function TrainingPage() {
         {error && <p className="text-destructive">{(error as Error).message}</p>}
         {data && !filtered.length && <p className="py-8 text-muted-foreground">No hay candidatos en esta lista.</p>}
         {data && groupNames.map((group) => {
-          const shiftRank = (s: string | null) => shiftOf(s) === "AM" ? 0 : shiftOf(s) === "PM" ? 1 : 2;
-          const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group).sort((a, b) => shiftRank(a.agreedSchedule) - shiftRank(b.agreedSchedule) || a.fullName.localeCompare(b.fullName));
+          const groupRows = filtered.filter((r) => trainingGroup(r.modality, r.countryCode) === group).sort(byNewestApproval);
           const pending = (status === "all" || status === PENDING_SPOT) && !search && (lob === "all" || lob === group) ? open.filter((o) => o.group === group) : [];
           const sf = (status === "all") && (lob === "all" || lob === group) ? (pendingSF?.rows ?? []).filter((x) => x.group === group && `${x.fullName} ${x.email} ${x.branch}`.toLowerCase().includes(search.toLowerCase())) : [];
           if (!groupRows.length && !pending.length && !sf.length) return null;
