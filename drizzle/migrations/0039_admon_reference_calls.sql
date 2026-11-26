@@ -1,0 +1,1 @@
+ALTER TABLE public.admon_candidates ADD COLUMN IF NOT EXISTS reference_calls jsonb NOT NULL DEFAULT '[]'::jsonb;

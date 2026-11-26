@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createAdmon, listAdmon } from "@/lib/admon.functions";
-import { ADMON_BRANCHES, ADMON_COUNTRIES, ADMON_POSITIONS, STAGE_LABELS, type AdmonStage } from "@/lib/admon";
+import { ADMON_BRANCHES, ADMON_COUNTRIES, ADMON_POSITIONS, STAGE_LABELS, matchesResult, type AdmonResultFilter, type AdmonStage } from "@/lib/admon";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/admon/")({
@@ -32,9 +32,14 @@ const TABS: { key: AdmonStage | "mine" | "all"; label: string }[] = [
   { key: "screening", label: STAGE_LABELS.screening },
   { key: "operations", label: STAGE_LABELS.operations },
   { key: "technical", label: STAGE_LABELS.technical },
-  { key: "hired", label: "Contratados" },
   { key: "rejected", label: "No continúan" },
   { key: "all", label: "Todos" },
+];
+const RESULT_TABS: { key: AdmonResultFilter; label: string }[] = [
+  { key: "interviewed", label: "Entrevistados" },
+  { key: "passed_screening", label: "Aprobados para 2º filtro" },
+  { key: "passed_operations", label: "Aprobados para 3er filtro" },
+  { key: "approved_training", label: "Aprobados para Training" },
 ];
 export const stageTone: Record<AdmonStage, string> = {
   screening: "bg-secondary text-navy",
@@ -49,16 +54,19 @@ export const selectCls = "h-9 w-full rounded-md border border-input bg-backgroun
 function AdmonList() {
   const list = useServerFn(listAdmon);
   const { data, isPending } = useQuery({ ...admonQuery, queryFn: () => list() });
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("mine");
+  const [tab, setTab] = useState<(typeof TABS)[number]["key"] | AdmonResultFilter>("mine");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
 
   const names = useMemo(() => new Map((data?.staff ?? []).map((s) => [s.id, s.name])), [data]);
   const mine = (c: NonNullable<typeof data>["candidates"][number]) =>
     c.stage === "screening" || (c.stage === "operations" && c.operations_interviewer === data?.me) || (c.stage === "technical" && c.technical_interviewer === data?.me);
-  const count = (k: string) => (data?.candidates ?? []).filter((c) => (k === "all" ? true : k === "mine" ? mine(c) : c.stage === k)).length;
+  const isResult = (k: string): k is AdmonResultFilter => RESULT_TABS.some((r) => r.key === k);
+  const inTab = (c: NonNullable<typeof data>["candidates"][number], k: string) =>
+    k === "all" ? true : k === "mine" ? mine(c) : isResult(k) ? matchesResult(c, k) : c.stage === k;
+  const count = (k: string) => (data?.candidates ?? []).filter((c) => inTab(c, k)).length;
   const rows = (data?.candidates ?? []).filter((c) => {
-    if (tab === "mine" ? !mine(c) : tab !== "all" && c.stage !== tab) return false;
+    if (!inTab(c, tab)) return false;
     const t = q.trim().toLowerCase();
     return !t || `${c.full_name} ${c.email} ${c.position}`.toLowerCase().includes(t);
   });
@@ -81,6 +89,15 @@ function AdmonList() {
           <li key={s} className="rounded-lg border bg-card p-3"><b>{STAGE_LABELS[s]}</b><span className="float-right text-muted-foreground">{count(s)}</span></li>
         ))}
       </ol>
+
+      <div className="flex flex-wrap items-center gap-2" aria-label="Resultados">
+        <span className="text-xs font-medium uppercase text-muted-foreground">Resultados:</span>
+        {RESULT_TABS.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} className={cn("rounded-full border px-3 py-1 text-sm", tab === t.key ? "border-emerald-700 bg-emerald-700 text-primary-foreground" : "border-emerald-200 bg-card hover:bg-emerald-50")}>
+            {t.label} <span className="opacity-70">{count(t.key)}</span>
+          </button>
+        ))}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map((t) => (
@@ -105,6 +122,11 @@ function AdmonList() {
                       <p className="truncate font-medium">{c.full_name}</p>
                       <p className="truncate text-xs text-muted-foreground">{c.position} · {c.country || "Sin país"}{c.branch ? ` · ${c.branch}` : ""}</p>
                     </div>
+                    {(() => {
+                      const total = ((c.screening as { references?: unknown[] })?.references ?? []).length;
+                      const done = (c.reference_calls ?? []).filter((r) => r.result && r.result !== "Pendiente").length;
+                      return total > 0 && c.screening_decision === "Pasa" ? <span className={cn("rounded-full border px-2 py-0.5 text-xs", done >= total ? "border-emerald-300 text-emerald-700" : "border-amber-300 text-amber-700")}>Referencias {done}/{total}</span> : null;
+                    })()}
                     <span className="text-xs text-muted-foreground">{who(c) ?? "Sin asignar"}</span>
                     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", stageTone[c.stage])}>{STAGE_LABELS[c.stage]}</span>
                   </Link>

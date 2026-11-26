@@ -30,6 +30,7 @@ export type Database = {
           operations_interviewer: string | null
           phone: string
           position: string
+          reference_calls: Json
           screening: Json
           screening_at: string | null
           screening_by: string | null
@@ -57,6 +58,7 @@ export type Database = {
           operations_interviewer?: string | null
           phone?: string
           position?: string
+          reference_calls?: Json
           screening?: Json
           screening_at?: string | null
           screening_by?: string | null
@@ -84,6 +86,7 @@ export type Database = {
           operations_interviewer?: string | null
           phone?: string
           position?: string
+          reference_calls?: Json
           screening?: Json
           screening_at?: string | null
           screening_by?: string | null

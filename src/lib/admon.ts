@@ -23,6 +23,18 @@ export const STAGE_LABELS: Record<AdmonStage, string> = {
   rejected: "No continúa",
 };
 
+export const REFERENCE_CALL_RESULTS = ["Pendiente", "Positiva", "Negativa", "No contestó", "Número incorrecto"] as const;
+export type ReferenceCall = { result: string; comment: string; by?: string | null; at?: string | null };
+
+/** Result filters: each later approval implies the earlier ones. */
+export type AdmonResultFilter = "interviewed" | "passed_screening" | "passed_operations" | "approved_training";
+export function matchesResult(c: { screening_decision: string | null; operations_decision: string | null; technical_decision: string | null }, f: AdmonResultFilter) {
+  if (f === "interviewed") return c.screening_decision != null;
+  if (f === "passed_screening") return c.screening_decision === "Pasa";
+  if (f === "passed_operations") return c.operations_decision === "Pasa";
+  return c.technical_decision === "Pasa";
+}
+
 /** Next stage after a "pasa" decision; any "no pasa" ends the process. */
 export function nextStage(stage: "screening" | "operations" | "technical", passes: boolean): AdmonStage {
   if (!passes) return "rejected";

@@ -33,6 +33,7 @@ export type AdmonCandidate = {
   technical: AnyJson; screening_by: string | null; screening_decision: string | null; screening_at: string | null;
   operations_interviewer: string | null; operations_decision: string | null; operations_at: string | null;
   technical_interviewer: string | null; technical_decision: string | null; technical_at: string | null; created_at: string;
+  reference_calls: { result: string; comment: string; by?: string | null; at?: string | null }[];
 };
 
 export const listAdmon = createServerFn({ method: "GET" })
@@ -150,5 +151,29 @@ export const reopenAdmonStage = createServerFn({ method: "POST" })
       .update({ stage: data.stage, [`${data.stage}_decision`]: null, [`${data.stage}_at`]: null } as never).eq("id", data.id);
     if (error) throw new Error(error.message);
     await writeAudit(db, { actorId: context.userId, actorEmail: email, action: `admon.${data.stage}.reopen`, entityType: "admon_candidate", entityId: data.id });
+    return { ok: true };
+  });
+
+/** Reference calls are recorded by Recruitment/Admin at any stage (they usually happen after the interviews). */
+export const saveAdmonReferenceCalls = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    id: z.string().uuid(),
+    calls: z.array(z.object({ result: z.string().max(40), comment: z.string().max(2000) })).max(10),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase, true);
+    const { data: current, error: e1 } = await db.from("admon_candidates").select("reference_calls").eq("id", data.id).single();
+    if (e1) throw new Error(e1.message);
+    const prev = (current.reference_calls ?? []) as { result?: string; comment?: string; by?: string | null; at?: string | null }[];
+    const now = new Date().toISOString();
+    const calls = data.calls.map((c, i) => {
+      const p = prev[i];
+      const changed = !p || p.result !== c.result || p.comment !== c.comment;
+      return { ...c, by: changed ? context.userId : (p?.by ?? null), at: changed ? now : (p?.at ?? null) };
+    });
+    const { error } = await db.from("admon_candidates").update({ reference_calls: calls }).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "admon.reference_calls", entityType: "admon_candidate", entityId: data.id, newValue: { calls } });
     return { ok: true };
   });
