@@ -253,6 +253,13 @@
       "when": 1795705619457,
       "tag": "0035_admon_hiring",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795723473555,
+      "tag": "0036_admon_leads",
+      "breakpoints": true
     }
   ]
 }

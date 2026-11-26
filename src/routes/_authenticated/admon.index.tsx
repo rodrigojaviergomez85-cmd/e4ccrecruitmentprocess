@@ -73,7 +73,7 @@ function AdmonList() {
           <h1 className="text-2xl font-semibold">Contratación ADMON</h1>
           <p className="text-sm text-muted-foreground">Personal administrativo y de ventas. Separado de los coaches académicos.</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus /> Nuevo candidato</Button>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link to="/admon/leads"><Search /> Leads ADMON</Link></Button><Button onClick={() => setOpen(true)}><Plus /> Nuevo candidato</Button></div>
       </div>
 
       <ol className="grid gap-2 text-sm sm:grid-cols-3">

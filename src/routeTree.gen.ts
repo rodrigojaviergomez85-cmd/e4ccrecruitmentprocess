@@ -35,6 +35,7 @@ import { Route as RespondTokenRouteImport } from './routes/respond.$token'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedAdmonIndexRouteImport } from './routes/_authenticated/admon.index'
 import { Route as AuthenticatedAdmonIdRouteImport } from './routes/_authenticated/admon.$id'
+import { Route as AuthenticatedAdmonLeadsRouteImport } from './routes/_authenticated/admon.leads'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
@@ -177,6 +178,11 @@ const AuthenticatedAdmonIdRoute = AuthenticatedAdmonIdRouteImport.update({
   path: '/admon/$id',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdmonLeadsRoute = AuthenticatedAdmonLeadsRouteImport.update({
+  id: '/admon/leads',
+  path: '/admon/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCandidatesIdRoute =
   AuthenticatedCandidatesIdRouteImport.update({
     id: '/candidates/$id',
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/admon/$id': typeof AuthenticatedAdmonIdRoute
+  '/admon/leads': typeof AuthenticatedAdmonLeadsRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/admon/$id': typeof AuthenticatedAdmonIdRoute
+  '/admon/leads': typeof AuthenticatedAdmonLeadsRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -345,6 +353,7 @@ export interface FileRoutesById {
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/admon/$id': typeof AuthenticatedAdmonIdRoute
+  '/_authenticated/admon/leads': typeof AuthenticatedAdmonLeadsRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -385,6 +394,7 @@ export interface FileRouteTypes {
     | '/respond/$token'
     | '/schedule/$token'
     | '/admon/$id'
+    | '/admon/leads'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/respond/$token'
     | '/schedule/$token'
     | '/admon/$id'
+    | '/admon/leads'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
@@ -462,6 +473,7 @@ export interface FileRouteTypes {
     | '/respond/$token'
     | '/schedule/$token'
     | '/_authenticated/admon/$id'
+    | '/_authenticated/admon/leads'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
@@ -681,6 +693,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdmonIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admon/leads': {
+      id: '/_authenticated/admon/leads'
+      path: '/admon/leads'
+      fullPath: '/admon/leads'
+      preLoaderRoute: typeof AuthenticatedAdmonLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/candidates/$id': {
       id: '/_authenticated/candidates/$id'
       path: '/candidates/$id'
@@ -773,6 +792,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedTrainingRoute: typeof AuthenticatedTrainingRoute
   AuthenticatedAdmonIdRoute: typeof AuthenticatedAdmonIdRoute
+  AuthenticatedAdmonLeadsRoute: typeof AuthenticatedAdmonLeadsRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -794,6 +814,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedTrainingRoute: AuthenticatedTrainingRoute,
   AuthenticatedAdmonIdRoute: AuthenticatedAdmonIdRoute,
+  AuthenticatedAdmonLeadsRoute: AuthenticatedAdmonLeadsRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesNewRoute: AuthenticatedCandidatesNewRoute,
   AuthenticatedEvaluationsApplicationIdRoute:

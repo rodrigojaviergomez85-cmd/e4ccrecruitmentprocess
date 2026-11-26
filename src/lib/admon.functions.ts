@@ -1,19 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import { nextStage, type AdmonStage } from "./admon";
 
-async function requireAdmonStaff(userId: string) {
-  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
-  const [{ data: roles }, { data: profile }] = await Promise.all([
-    db.from("user_roles").select("role").eq("user_id", userId),
-    db.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
+export async function requireAdmonStaff(userId: string, authDb: SupabaseClient<Database>) {
+  const [{ data: roles, error: roleError }, { data: profile, error: profileError }] = await Promise.all([
+    authDb.from("user_roles").select("role").eq("user_id", userId),
+    authDb.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
   ]);
   const tier = staffTier((roles ?? []).map((r) => r.role as string));
-  if (!tier.isStaff || profile?.active === false) throw new Error("Acceso solo para personal interno.");
+  if (roleError || profileError || !tier.isStaff || profile?.active === false) throw new Error("Acceso solo para personal interno.");
+  const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   return { db, email: profile?.email ?? null };
 }
 
@@ -31,7 +33,7 @@ export type AdmonCandidate = {
 export const listAdmon = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { db } = await requireAdmonStaff(context.userId);
+    const { db } = await requireAdmonStaff(context.userId, context.supabase);
     const [{ data, error }, { data: staff }] = await Promise.all([
       db.from("admon_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
       db.from("staff_profiles").select("user_id, full_name, active").order("full_name"),
@@ -58,7 +60,7 @@ export const createAdmon = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => basics.parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email } = await requireAdmonStaff(context.userId);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
     const { data: row, error } = await db.from("admon_candidates")
       .insert({ ...data, email: data.email.toLowerCase(), created_by: context.userId }).select("id").single();
     if (error) throw new Error(error.message);
@@ -70,7 +72,7 @@ export const updateAdmonBasics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => basics.extend({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email } = await requireAdmonStaff(context.userId);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
     const { id, ...rest } = data;
     const { error } = await db.from("admon_candidates").update({ ...rest, email: rest.email.toLowerCase() }).eq("id", id);
     if (error) throw new Error(error.message);
@@ -90,7 +92,7 @@ export const saveAdmonStage = createServerFn({ method: "POST" })
     nextInterviewer: z.string().uuid().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email } = await requireAdmonStaff(context.userId);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
     const { data: current, error: e1 } = await db.from("admon_candidates").select("stage").eq("id", data.id).single();
     if (e1) throw new Error(e1.message);
     if (current.stage !== data.stage) throw new Error("Esta etapa ya fue cerrada.");
@@ -117,7 +119,7 @@ export const reopenAdmonStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), stage: z.enum(["screening", "operations", "technical"]) }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email } = await requireAdmonStaff(context.userId);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
     const { error } = await db.from("admon_candidates")
       .update({ stage: data.stage, [`${data.stage}_decision`]: null, [`${data.stage}_at`]: null } as never).eq("id", data.id);
     if (error) throw new Error(error.message);

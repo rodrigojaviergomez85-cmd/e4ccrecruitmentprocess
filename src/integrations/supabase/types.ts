@@ -34,6 +34,7 @@ export type Database = {
           screening_at: string | null
           screening_by: string | null
           screening_decision: string | null
+          source_lead_id: string | null
           stage: string
           technical: Json
           technical_at: string | null
@@ -60,6 +61,7 @@ export type Database = {
           screening_at?: string | null
           screening_by?: string | null
           screening_decision?: string | null
+          source_lead_id?: string | null
           stage?: string
           technical?: Json
           technical_at?: string | null
@@ -86,6 +88,7 @@ export type Database = {
           screening_at?: string | null
           screening_by?: string | null
           screening_decision?: string | null
+          source_lead_id?: string | null
           stage?: string
           technical?: Json
           technical_at?: string | null
@@ -93,7 +96,95 @@ export type Database = {
           technical_interviewer?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "admon_candidates_source_lead_id_fkey"
+            columns: ["source_lead_id"]
+            isOneToOne: false
+            referencedRelation: "admon_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admon_leads: {
+        Row: {
+          age: string
+          branch: string
+          candidate_id: string | null
+          comments: string
+          contact_status: string
+          country: string
+          cv_filter: string
+          cv_link: string
+          email: string
+          experience: string
+          experience_time: string
+          full_name: string
+          id: string
+          imported_at: string
+          phone: string
+          position: string
+          presentation_link: string
+          source_key: string
+          source_row: number
+          submitted_at: string | null
+          video_link: string
+        }
+        Insert: {
+          age?: string
+          branch?: string
+          candidate_id?: string | null
+          comments?: string
+          contact_status?: string
+          country?: string
+          cv_filter?: string
+          cv_link?: string
+          email?: string
+          experience?: string
+          experience_time?: string
+          full_name: string
+          id?: string
+          imported_at?: string
+          phone?: string
+          position?: string
+          presentation_link?: string
+          source_key: string
+          source_row: number
+          submitted_at?: string | null
+          video_link?: string
+        }
+        Update: {
+          age?: string
+          branch?: string
+          candidate_id?: string | null
+          comments?: string
+          contact_status?: string
+          country?: string
+          cv_filter?: string
+          cv_link?: string
+          email?: string
+          experience?: string
+          experience_time?: string
+          full_name?: string
+          id?: string
+          imported_at?: string
+          phone?: string
+          position?: string
+          presentation_link?: string
+          source_key?: string
+          source_row?: number
+          submitted_at?: string | null
+          video_link?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admon_leads_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "admon_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_evaluations: {
         Row: {

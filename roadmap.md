@@ -42,3 +42,5 @@
 - [x] Leads: filtro "Aprobación" para ver solo APPROVED (filtro, llamada, entrevista hoja, avance a último filtro, filtro+llamada) con 21 pruebas y pantalla autenticada
 
 - [x] Leads: teléfonos ONLINE (exportación nativa por pestaña) y sugerencias desde Leads al crear aplicante
+- [x] Leads ADMON: leer CSV autorizado (sin escribir en la hoja), filtros y actividad reciente, CV/videos y pase a Screening sin duplicar ficha.
+- [x] Verificar Leads ADMON con datos reales y 12 pruebas, filtros y reapertura de ficha existente sin duplicación ni correos; celular sin desbordamiento.
