@@ -70,6 +70,7 @@ export const getStaffContext = createServerFn({ method: "GET" })
     return {
       isStaff: tier.canSignIn && active,
       isTrainerOnly: !tier.isStaff && (tier.isTrainer || tier.isGeneralista),
+      isAdmonOnly: !tier.isStaff && tier.isOperationsManager,
       active,
       roles: roleList,
       role: tier.primary,
@@ -126,6 +127,8 @@ export const listStaff = createServerFn({ method: "GET" })
     }));
   });
 
+const needsCountries = (role: StaffRole) => role !== "admin" && role !== "operations_manager";
+
 const staffInput = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(160),
@@ -139,7 +142,7 @@ export const createStaffUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => staffInput.parse(d))
   .handler(async ({ context, data }) => {
-    if (data.role !== "admin" && data.countries.length === 0) {
+    if (needsCountries(data.role) && data.countries.length === 0) {
       throw new Error("Select at least one country for Recruitment or Manager accounts.");
     }
     const { db, email: actorEmail } = await requireActiveAdmin(context.userId);
@@ -263,7 +266,7 @@ export const updateStaffAccess = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    if (data.role !== "admin" && data.countries.length === 0) {
+    if (needsCountries(data.role) && data.countries.length === 0) {
       throw new Error("Select at least one country for Recruitment or Manager accounts.");
     }
     const { db, email } = await requireActiveAdmin(context.userId);

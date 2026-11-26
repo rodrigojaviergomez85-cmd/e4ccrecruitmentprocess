@@ -12,7 +12,7 @@ export type AdmonLead = Database["public"]["Tables"]["admon_leads"]["Row"];
 export const syncAdmonLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase, true);
     const response = await fetch(`https://docs.google.com/spreadsheets/d/${ADMON_LEADS_SHEET}/export?format=csv&gid=${ADMON_LEADS_GID}`, { signal: AbortSignal.timeout(45000) });
     if (!response.ok) throw new Error(`No se pudo leer la hoja de Leads (${response.status}).`);
     const csv = parseCsv(await response.text());
@@ -38,7 +38,7 @@ export const listAdmonLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => filterSchema.parse(d))
   .handler(async ({ context, data }) => {
-    const { db } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db } = await requireAdmonStaff(context.userId, context.supabase, true);
     let query = db.from("admon_leads").select("*", { count: "exact" });
     if (data.country) query = query.eq("country", data.country);
     if (data.position) query = query.eq("position", data.position);
@@ -60,7 +60,7 @@ export const listAdmonLeads = createServerFn({ method: "POST" })
 export const admonLeadCatalogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { db } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db } = await requireAdmonStaff(context.userId, context.supabase, true);
     const country = new Set<string>(), branch = new Set<string>(), position = new Set<string>(), cvFilter = new Set<string>();
     for (let i = 0; ; i += 1000) {
       const { data, error } = await db.from("admon_leads").select("country, branch, position, cv_filter").order("id").range(i, i + 999);
@@ -75,7 +75,7 @@ export const startAdmonLeadScreening = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { db, email } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db, email } = await requireAdmonStaff(context.userId, context.supabase, true);
     const { data: lead, error } = await db.from("admon_leads").select("*").eq("id", data.id).single();
     if (error) throw new Error(error.message);
     if (lead.candidate_id) return { id: lead.candidate_id };

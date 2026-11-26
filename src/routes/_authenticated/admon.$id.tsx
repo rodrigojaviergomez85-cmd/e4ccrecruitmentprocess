@@ -86,7 +86,7 @@ function AdmonDetail() {
       </header>
 
       {view !== "screening" && reached(view) && <PreviousNotes c={c} upTo={view} />}
-      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view} staff={data.staff} />
+      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view === "operations" && c.operations_interviewer === data.me))} staff={data.staff} />
     </main>
   );
 }

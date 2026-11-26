@@ -260,6 +260,13 @@
       "when": 1795723473555,
       "tag": "0036_admon_leads",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795724577259,
+      "tag": "0037_add_operations_manager_role",
+      "breakpoints": true
     }
   ]
 }

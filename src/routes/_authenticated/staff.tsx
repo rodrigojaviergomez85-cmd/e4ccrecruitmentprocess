@@ -344,7 +344,7 @@ function StaffPage() {
                       </SelectContent>
                     </Select>
 
-                    {s.role !== "admin" && s.countries.length === 0 && (
+                    {s.role !== "admin" && s.role !== "operations_manager" && s.countries.length === 0 && (
                       <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                         No countries — sees no candidates
                       </span>

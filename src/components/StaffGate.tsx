@@ -44,6 +44,10 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     }
     if (data.isTrainerOnly && pathname !== "/training") {
       void navigate({ to: "/training", replace: true });
+      return;
+    }
+    if (data.isAdmonOnly && !pathname.startsWith("/admon")) {
+      void navigate({ to: "/admon", replace: true });
     }
   }, [data, isError, isPending, navigate, pathname]);
 
@@ -60,7 +64,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isPending || !data?.isStaff || data.mustChangePassword || (data.isTrainerOnly && pathname !== "/training")) {
+  if (isPending || !data?.isStaff || data.mustChangePassword || (data.isTrainerOnly && pathname !== "/training") || (data.isAdmonOnly && !pathname.startsWith("/admon"))) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -68,7 +72,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const noCountries = !data.isAdmin && (data.countries?.length ?? 0) === 0;
+  const noCountries = !data.isAdmin && !data.isAdmonOnly && (data.countries?.length ?? 0) === 0;
   return (
     <div className="min-h-screen bg-secondary/30 lg:flex">
       <InternalNavigation
@@ -77,6 +81,7 @@ export function StaffGate({ children }: { children: React.ReactNode }) {
           isRecruitment: data.isRecruitment,
           isManager: data.isManager,
           isTrainerOnly: data.isTrainerOnly,
+          isAdmonOnly: data.isAdmonOnly,
         }}
       />
       <div className="min-w-0 flex-1">

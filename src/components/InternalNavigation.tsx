@@ -37,6 +37,7 @@ type StaffNavigationAccess = {
   isRecruitment: boolean;
   isManager?: boolean;
   isTrainerOnly: boolean;
+  isAdmonOnly?: boolean;
 };
 
 type NavItem = {
@@ -47,7 +48,7 @@ type NavItem = {
   show: (access: StaffNavigationAccess) => boolean;
 };
 
-const fullStaff = (access: StaffNavigationAccess) => !access.isTrainerOnly;
+const fullStaff = (access: StaffNavigationAccess) => !access.isTrainerOnly && !access.isAdmonOnly;
 const canEvaluate = (access: StaffNavigationAccess) => access.isAdmin || access.isRecruitment;
 const canInterview = (access: StaffNavigationAccess) => canEvaluate(access) || Boolean(access.isManager);
 
@@ -92,7 +93,7 @@ const ITEMS: NavItem[] = [
     to: "/training",
     icon: UsersRound,
     active: (path) => path === "/training",
-    show: () => true,
+    show: (access) => !access.isAdmonOnly,
   },
   {
     label: "Leads",
@@ -106,7 +107,7 @@ const ITEMS: NavItem[] = [
     to: "/admon",
     icon: Briefcase,
     active: (path) => path.startsWith("/admon"),
-    show: fullStaff,
+    show: (access) => fullStaff(access) || Boolean(access.isAdmonOnly),
   },
   {
     label: "Referrals",
@@ -153,7 +154,7 @@ export function InternalNavigation({ access }: { access: StaffNavigationAccess }
   function toggle() {
     publishNavCollapsed(!collapsed);
   }
-  const home = access.isTrainerOnly ? "/training" : "/dashboard";
+  const home = access.isTrainerOnly ? "/training" : access.isAdmonOnly ? "/admon" : "/dashboard";
 
   return (
     <>

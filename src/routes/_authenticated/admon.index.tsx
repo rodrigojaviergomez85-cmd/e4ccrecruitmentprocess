@@ -73,7 +73,7 @@ function AdmonList() {
           <h1 className="text-2xl font-semibold">Contratación ADMON</h1>
           <p className="text-sm text-muted-foreground">Personal administrativo y de ventas. Separado de los coaches académicos.</p>
         </div>
-        <div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link to="/admon/leads"><Search /> Leads ADMON</Link></Button><Button onClick={() => setOpen(true)}><Plus /> Nuevo candidato</Button></div>
+        {data?.operationsOnly === false && <div className="flex flex-wrap gap-2"><Button variant="outline" asChild><Link to="/admon/leads"><Search /> Leads ADMON</Link></Button><Button onClick={() => setOpen(true)}><Plus /> Nuevo candidato</Button></div>}
       </div>
 
       <ol className="grid gap-2 text-sm sm:grid-cols-3">
@@ -96,7 +96,7 @@ function AdmonList() {
 
       <div className="rounded-lg border bg-card">
         {isPending ? <div className="flex justify-center p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          : rows.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">No hay candidatos aquí. Usa “Nuevo candidato” para empezar un screening.</p>
+          : rows.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">{data?.operationsOnly ? "No tienes entrevistas de Operaciones asignadas aquí." : "No hay candidatos aquí. Usa “Nuevo candidato” para empezar un screening."}</p>
           : <ul className="divide-y">
               {rows.map((c) => (
                 <li key={c.id}>
