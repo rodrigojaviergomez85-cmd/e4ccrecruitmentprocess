@@ -33,6 +33,8 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ProcessIdRouteImport } from './routes/process.$id'
 import { Route as RespondTokenRouteImport } from './routes/respond.$token'
 import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
+import { Route as AuthenticatedAdmonIndexRouteImport } from './routes/_authenticated/admon.index'
+import { Route as AuthenticatedAdmonIdRouteImport } from './routes/_authenticated/admon.$id'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
@@ -165,6 +167,16 @@ const ScheduleTokenRoute = ScheduleTokenRouteImport.update({
   path: '/schedule/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdmonIndexRoute = AuthenticatedAdmonIndexRouteImport.update({
+  id: '/admon/',
+  path: '/admon/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdmonIdRoute = AuthenticatedAdmonIdRouteImport.update({
+  id: '/admon/$id',
+  path: '/admon/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCandidatesIdRoute =
   AuthenticatedCandidatesIdRouteImport.update({
     id: '/candidates/$id',
@@ -254,11 +266,13 @@ export interface FileRoutesByFullPath {
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
+  '/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
+  '/admon/': typeof AuthenticatedAdmonIndexRoute
   '/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -290,11 +304,13 @@ export interface FileRoutesByTo {
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
+  '/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
+  '/admon': typeof AuthenticatedAdmonIndexRoute
   '/evaluations': typeof AuthenticatedEvaluationsIndexRoute
   '/second-filter': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -328,11 +344,13 @@ export interface FileRoutesById {
   '/process/$id': typeof ProcessIdRoute
   '/respond/$token': typeof RespondTokenRoute
   '/schedule/$token': typeof ScheduleTokenRoute
+  '/_authenticated/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
   '/_authenticated/second-filter/$applicationId': typeof AuthenticatedSecondFilterApplicationIdRoute
   '/api/public/speed-test': typeof ApiPublicSpeedTestRoute
+  '/_authenticated/admon/': typeof AuthenticatedAdmonIndexRoute
   '/_authenticated/evaluations/': typeof AuthenticatedEvaluationsIndexRoute
   '/_authenticated/second-filter/': typeof AuthenticatedSecondFilterIndexRoute
   '/api/public/cron/reminders': typeof ApiPublicCronRemindersRoute
@@ -366,11 +384,13 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/respond/$token'
     | '/schedule/$token'
+    | '/admon/$id'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
     | '/second-filter/$applicationId'
     | '/api/public/speed-test'
+    | '/admon/'
     | '/evaluations/'
     | '/second-filter/'
     | '/api/public/cron/reminders'
@@ -402,11 +422,13 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/respond/$token'
     | '/schedule/$token'
+    | '/admon/$id'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
     | '/second-filter/$applicationId'
     | '/api/public/speed-test'
+    | '/admon'
     | '/evaluations'
     | '/second-filter'
     | '/api/public/cron/reminders'
@@ -439,11 +461,13 @@ export interface FileRouteTypes {
     | '/process/$id'
     | '/respond/$token'
     | '/schedule/$token'
+    | '/_authenticated/admon/$id'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
     | '/_authenticated/second-filter/$applicationId'
     | '/api/public/speed-test'
+    | '/_authenticated/admon/'
     | '/_authenticated/evaluations/'
     | '/_authenticated/second-filter/'
     | '/api/public/cron/reminders'
@@ -643,6 +667,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScheduleTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admon/': {
+      id: '/_authenticated/admon/'
+      path: '/admon'
+      fullPath: '/admon/'
+      preLoaderRoute: typeof AuthenticatedAdmonIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admon/$id': {
+      id: '/_authenticated/admon/$id'
+      path: '/admon/$id'
+      fullPath: '/admon/$id'
+      preLoaderRoute: typeof AuthenticatedAdmonIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/candidates/$id': {
       id: '/_authenticated/candidates/$id'
       path: '/candidates/$id'
@@ -734,10 +772,12 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedTrainingRoute: typeof AuthenticatedTrainingRoute
+  AuthenticatedAdmonIdRoute: typeof AuthenticatedAdmonIdRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
   AuthenticatedSecondFilterApplicationIdRoute: typeof AuthenticatedSecondFilterApplicationIdRoute
+  AuthenticatedAdmonIndexRoute: typeof AuthenticatedAdmonIndexRoute
   AuthenticatedEvaluationsIndexRoute: typeof AuthenticatedEvaluationsIndexRoute
   AuthenticatedSecondFilterIndexRoute: typeof AuthenticatedSecondFilterIndexRoute
 }
@@ -753,12 +793,14 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedTrainingRoute: AuthenticatedTrainingRoute,
+  AuthenticatedAdmonIdRoute: AuthenticatedAdmonIdRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesNewRoute: AuthenticatedCandidatesNewRoute,
   AuthenticatedEvaluationsApplicationIdRoute:
     AuthenticatedEvaluationsApplicationIdRoute,
   AuthenticatedSecondFilterApplicationIdRoute:
     AuthenticatedSecondFilterApplicationIdRoute,
+  AuthenticatedAdmonIndexRoute: AuthenticatedAdmonIndexRoute,
   AuthenticatedEvaluationsIndexRoute: AuthenticatedEvaluationsIndexRoute,
   AuthenticatedSecondFilterIndexRoute: AuthenticatedSecondFilterIndexRoute,
 }

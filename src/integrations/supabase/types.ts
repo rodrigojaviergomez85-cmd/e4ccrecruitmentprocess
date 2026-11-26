@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      admon_candidates: {
+        Row: {
+          branch: string
+          country: string
+          created_at: string
+          created_by: string | null
+          cv_link: string
+          email: string
+          full_name: string
+          id: string
+          operations: Json
+          operations_at: string | null
+          operations_decision: string | null
+          operations_interviewer: string | null
+          phone: string
+          position: string
+          screening: Json
+          screening_at: string | null
+          screening_by: string | null
+          screening_decision: string | null
+          stage: string
+          technical: Json
+          technical_at: string | null
+          technical_decision: string | null
+          technical_interviewer: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch?: string
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          cv_link?: string
+          email?: string
+          full_name: string
+          id?: string
+          operations?: Json
+          operations_at?: string | null
+          operations_decision?: string | null
+          operations_interviewer?: string | null
+          phone?: string
+          position?: string
+          screening?: Json
+          screening_at?: string | null
+          screening_by?: string | null
+          screening_decision?: string | null
+          stage?: string
+          technical?: Json
+          technical_at?: string | null
+          technical_decision?: string | null
+          technical_interviewer?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch?: string
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          cv_link?: string
+          email?: string
+          full_name?: string
+          id?: string
+          operations?: Json
+          operations_at?: string | null
+          operations_decision?: string | null
+          operations_interviewer?: string | null
+          phone?: string
+          position?: string
+          screening?: Json
+          screening_at?: string | null
+          screening_by?: string | null
+          screening_decision?: string | null
+          stage?: string
+          technical?: Json
+          technical_at?: string | null
+          technical_decision?: string | null
+          technical_interviewer?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_evaluations: {
         Row: {
           application_id: string

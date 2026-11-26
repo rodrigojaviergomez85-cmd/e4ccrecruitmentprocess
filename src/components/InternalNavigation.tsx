@@ -15,6 +15,7 @@ import {
   UsersRound,
   Download,
   BadgeDollarSign,
+  Briefcase,
 } from "lucide-react";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -40,7 +41,7 @@ type StaffNavigationAccess = {
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/second-filter" | "/evaluations" | "/export-interviews" | "/scorecard" | "/training" | "/referrals" | "/bonuses" | "/leads" | "/settings" | "/staff";
+  to: "/dashboard" | "/admon" | "/second-filter" | "/evaluations" | "/export-interviews" | "/scorecard" | "/training" | "/referrals" | "/bonuses" | "/leads" | "/settings" | "/staff";
   icon: typeof ClipboardList;
   active: (pathname: string) => boolean;
   show: (access: StaffNavigationAccess) => boolean;
@@ -99,6 +100,13 @@ const ITEMS: NavItem[] = [
     icon: Inbox,
     active: (path) => path === "/leads",
     show: canEvaluate,
+  },
+  {
+    label: "Contratación ADMON",
+    to: "/admon",
+    icon: Briefcase,
+    active: (path) => path.startsWith("/admon"),
+    show: fullStaff,
   },
   {
     label: "Referrals",
