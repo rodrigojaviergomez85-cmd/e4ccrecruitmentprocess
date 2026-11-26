@@ -3,7 +3,7 @@
  * Recruitment; "viewer" is retired and grants no access. Applicants never have
  * staff accounts — they use their secure candidate link / Retake code.
  */
-export const STAFF_ROLES = ["recruitment", "manager", "operations_manager", "admin", "trainer", "generalista"] as const;
+export const STAFF_ROLES = ["recruitment", "manager", "operations_manager", "technical_interviewer", "admin", "trainer", "generalista"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -11,6 +11,7 @@ export const ROLE_LABELS: Record<string, string> = {
   recruitment: "Recruitment",
   manager: "Manager",
   operations_manager: "Gerente de Operaciones",
+  technical_interviewer: "Entrevistador Técnico (Gerente de Ventas)",
   trainer: "Trainer",
   generalista: "Generalista",
   evaluator: "Recruitment",
@@ -25,6 +26,7 @@ export function staffTier(roles: readonly string[]) {
     roles.includes("recruitment") || roles.includes("evaluator") || roles.includes("recruiter");
   const isManager = roles.includes("manager");
   const isOperationsManager = roles.includes("operations_manager");
+  const isTechnicalInterviewer = roles.includes("technical_interviewer");
   const isTrainer = roles.includes("trainer");
   const isGeneralista = roles.includes("generalista");
   const full: StaffRole | null = isAdmin
@@ -34,9 +36,9 @@ export function staffTier(roles: readonly string[]) {
       : isRecruitment
         ? "recruitment"
         : null;
-  const primary: StaffRole | null = full ?? (isOperationsManager ? "operations_manager" : isGeneralista ? "generalista" : isTrainer ? "trainer" : null);
+  const primary: StaffRole | null = full ?? (isOperationsManager ? "operations_manager" : isTechnicalInterviewer ? "technical_interviewer" : isGeneralista ? "generalista" : isTrainer ? "trainer" : null);
   // Restricted roles can sign in, but their route and server checks limit them to their own area.
-  return { isAdmin, isRecruitment, isManager, isOperationsManager, isTrainer, isGeneralista, isStaff: full !== null, canSignIn: primary !== null, primary };
+  return { isAdmin, isRecruitment, isManager, isOperationsManager, isTechnicalInterviewer, isTrainer, isGeneralista, isStaff: full !== null, canSignIn: primary !== null, primary };
 }
 
 /** Normalises a stored role list to the single final role shown in the UI. */

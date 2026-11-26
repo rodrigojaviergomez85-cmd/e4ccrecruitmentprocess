@@ -22,3 +22,13 @@ describe("Gerente de Operaciones", () => {
     assert.equal(staffTier(["trainer"]).canSignIn, true);
   });
 });
+
+import { test as t2 } from "node:test";
+t2("technical interviewer is a restricted ADMON-only role", async () => {
+  const { STAFF_ROLES: R, staffTier: st } = await import("./roles.ts");
+  assert.ok(R.includes("technical_interviewer"));
+  const tier = st(["technical_interviewer"]);
+  assert.equal(tier.isStaff, false);
+  assert.equal(tier.canSignIn, true);
+  assert.equal(tier.isTechnicalInterviewer, true);
+});

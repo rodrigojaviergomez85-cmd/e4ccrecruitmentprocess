@@ -70,7 +70,7 @@ export const getStaffContext = createServerFn({ method: "GET" })
     return {
       isStaff: tier.canSignIn && active,
       isTrainerOnly: !tier.isStaff && (tier.isTrainer || tier.isGeneralista),
-      isAdmonOnly: !tier.isStaff && tier.isOperationsManager,
+      isAdmonOnly: !tier.isStaff && (tier.isOperationsManager || tier.isTechnicalInterviewer),
       active,
       roles: roleList,
       role: tier.primary,
@@ -127,7 +127,7 @@ export const listStaff = createServerFn({ method: "GET" })
     }));
   });
 
-const needsCountries = (role: StaffRole) => role !== "admin" && role !== "operations_manager";
+const needsCountries = (role: StaffRole) => role !== "admin" && role !== "operations_manager" && role !== "technical_interviewer";
 
 const staffInput = z.object({
   fullName: z.string().trim().min(2).max(120),

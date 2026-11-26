@@ -267,6 +267,13 @@
       "when": 1795724577259,
       "tag": "0037_add_operations_manager_role",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795725711935,
+      "tag": "0038_add_technical_interviewer_role",
+      "breakpoints": true
     }
   ]
 }

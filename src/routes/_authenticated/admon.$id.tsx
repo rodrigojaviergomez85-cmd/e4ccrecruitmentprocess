@@ -86,7 +86,7 @@ function AdmonDetail() {
       </header>
 
       {view !== "screening" && reached(view) && <PreviousNotes c={c} upTo={view} />}
-      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view === "operations" && c.operations_interviewer === data.me))} staff={data.staff} />
+      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view !== "screening" && data.myStages.includes(view) && c[`${view}_interviewer`] === data.me))} staff={view === "screening" ? data.operationsInterviewers : data.technicalInterviewers} />
     </main>
   );
 }
@@ -166,6 +166,7 @@ function StageForm({ c, stage, editable, staff }: { c: AdmonCandidate; stage: St
             {stage !== "technical" && (
               <select className={cn(selectCls, "w-56")} value={next} onChange={(e) => setNext(e.target.value)} aria-label="Siguiente entrevistador">
                 <option value="">{stage === "screening" ? "Gerente de Operaciones…" : "Entrevistador técnico…"}</option>
+                {staff.length === 0 && <option value="" disabled>{stage === "screening" ? "No hay Gerentes de Operaciones creados" : "No hay Entrevistadores Técnicos creados"}</option>}
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}

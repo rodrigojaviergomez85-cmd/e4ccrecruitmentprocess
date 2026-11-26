@@ -96,7 +96,7 @@ function AdmonList() {
 
       <div className="rounded-lg border bg-card">
         {isPending ? <div className="flex justify-center p-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-          : rows.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">{data?.operationsOnly ? "No tienes entrevistas de Operaciones asignadas aquí." : "No hay candidatos aquí. Usa “Nuevo candidato” para empezar un screening."}</p>
+          : rows.length === 0 ? <p className="p-10 text-center text-sm text-muted-foreground">{data?.operationsOnly ? "No tienes entrevistas asignadas aquí." : "No hay candidatos aquí. Usa “Nuevo candidato” para empezar un screening."}</p>
           : <ul className="divide-y">
               {rows.map((c) => (
                 <li key={c.id}>

@@ -14,10 +14,14 @@ export async function requireAdmonStaff(userId: string, authDb: SupabaseClient<D
     authDb.from("staff_profiles").select("active, email").eq("user_id", userId).maybeSingle(),
   ]);
   const tier = staffTier((roles ?? []).map((r) => r.role as string));
-  const operationsOnly = !tier.isStaff && tier.isOperationsManager;
+  // Restricted ADMON interviewers (Operations / Technical) only touch the stages assigned to them.
+  const operationsOnly = !tier.isStaff && (tier.isOperationsManager || tier.isTechnicalInterviewer);
+  const myStages: ("operations" | "technical")[] = operationsOnly
+    ? [...(tier.isOperationsManager ? ["operations" as const] : []), ...(tier.isTechnicalInterviewer ? ["technical" as const] : [])]
+    : [];
   if (roleError || profileError || (!tier.isStaff && !operationsOnly) || (fullOnly && !tier.isStaff) || profile?.active === false) throw new Error("Acceso solo para personal interno.");
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
-  return { db, email: profile?.email ?? null, operationsOnly };
+  return { db, email: profile?.email ?? null, operationsOnly, myStages };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,17 +38,27 @@ export type AdmonCandidate = {
 export const listAdmon = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { db, operationsOnly } = await requireAdmonStaff(context.userId, context.supabase);
-    const [{ data, error }, { data: staff }] = await Promise.all([
+    const { db, operationsOnly, myStages } = await requireAdmonStaff(context.userId, context.supabase);
+    const [{ data, error }, { data: staff }, { data: roleRows }] = await Promise.all([
       db.from("admon_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
       db.from("staff_profiles").select("user_id, full_name, active").order("full_name"),
+      db.from("user_roles").select("user_id, role").in("role", ["operations_manager", "technical_interviewer"]),
     ]);
+    const withRole = (role: string) => new Set((roleRows ?? []).filter((r) => r.role === role).map((r) => r.user_id as string));
+    const opsIds = withRole("operations_manager");
+    const techIds = withRole("technical_interviewer");
+    const activeStaff = (staff ?? []).filter((s) => s.active !== false).map((s) => ({ id: s.user_id as string, name: s.full_name as string }));
     if (error) throw new Error(error.message);
     return {
       me: context.userId,
-      candidates: ((data ?? []) as unknown as AdmonCandidate[]).filter((c) => !operationsOnly || c.operations_interviewer === context.userId),
+      candidates: ((data ?? []) as unknown as AdmonCandidate[]).filter((c) => !operationsOnly
+        || (myStages.includes("operations") && c.operations_interviewer === context.userId)
+        || (myStages.includes("technical") && c.technical_interviewer === context.userId)),
       operationsOnly,
-      staff: (staff ?? []).filter((s) => s.active !== false).map((s) => ({ id: s.user_id as string, name: s.full_name as string })),
+      myStages,
+      staff: (staff ?? []).map((s) => ({ id: s.user_id as string, name: s.full_name as string })),
+      operationsInterviewers: activeStaff.filter((s) => opsIds.has(s.id)),
+      technicalInterviewers: activeStaff.filter((s) => techIds.has(s.id)),
     };
   });
 
@@ -94,12 +108,17 @@ export const saveAdmonStage = createServerFn({ method: "POST" })
     nextInterviewer: z.string().uuid().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email, operationsOnly } = await requireAdmonStaff(context.userId, context.supabase);
-    const { data: current, error: e1 } = await db.from("admon_candidates").select("stage, operations_interviewer").eq("id", data.id).single();
+    const { db, email, operationsOnly, myStages } = await requireAdmonStaff(context.userId, context.supabase);
+    const { data: current, error: e1 } = await db.from("admon_candidates").select("stage, operations_interviewer, technical_interviewer").eq("id", data.id).single();
     if (e1) throw new Error(e1.message);
     if (current.stage !== data.stage) throw new Error("Esta etapa ya fue cerrada.");
-    if (operationsOnly && (data.stage !== "operations" || current.operations_interviewer !== context.userId)) throw new Error("Solo puedes evaluar las entrevistas de Operaciones asignadas a ti.");
-    if (data.finish === "pass" && data.stage !== "technical" && !data.nextInterviewer) throw new Error("Elige quién hará la siguiente entrevista.");
+    if (operationsOnly && (data.stage === "screening" || !myStages.includes(data.stage) || current[`${data.stage}_interviewer`] !== context.userId)) throw new Error("Solo puedes evaluar las entrevistas asignadas a ti.");
+    if (data.finish === "pass" && data.stage !== "technical") {
+      if (!data.nextInterviewer) throw new Error("Elige quién hará la siguiente entrevista.");
+      const role = data.stage === "screening" ? "operations_manager" : "technical_interviewer";
+      const { data: ok } = await db.from("user_roles").select("user_id").eq("user_id", data.nextInterviewer).eq("role", role).maybeSingle();
+      if (!ok) throw new Error(data.stage === "screening" ? "Elige un Gerente de Operaciones." : "Elige un Entrevistador Técnico.");
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patch: Record<string, any> = { [data.stage]: data.answers };
     if (data.finish) {
@@ -122,10 +141,10 @@ export const reopenAdmonStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), stage: z.enum(["screening", "operations", "technical"]) }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email, operationsOnly } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db, email, operationsOnly, myStages } = await requireAdmonStaff(context.userId, context.supabase);
     if (operationsOnly) {
-      const { data: assigned } = await db.from("admon_candidates").select("operations_interviewer").eq("id", data.id).single();
-      if (data.stage !== "operations" || assigned?.operations_interviewer !== context.userId) throw new Error("Solo puedes reabrir tus entrevistas de Operaciones.");
+      const { data: assigned } = await db.from("admon_candidates").select("operations_interviewer, technical_interviewer").eq("id", data.id).single();
+      if (data.stage === "screening" || !myStages.includes(data.stage) || assigned?.[`${data.stage}_interviewer`] !== context.userId) throw new Error("Solo puedes reabrir tus propias entrevistas.");
     }
     const { error } = await db.from("admon_candidates")
       .update({ stage: data.stage, [`${data.stage}_decision`]: null, [`${data.stage}_at`]: null } as never).eq("id", data.id);
