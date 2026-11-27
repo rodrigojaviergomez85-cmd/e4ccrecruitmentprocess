@@ -1,0 +1,1 @@
+CREATE TABLE public.native_booking_notifications (appointment_id uuid PRIMARY KEY REFERENCES public.appointments(id) ON DELETE CASCADE, status text NOT NULL DEFAULT 'requesting',created_at timestamptz NOT NULL DEFAULT now()); GRANT ALL ON public.native_booking_notifications TO service_role; ALTER TABLE public.native_booking_notifications ENABLE ROW LEVEL SECURITY;

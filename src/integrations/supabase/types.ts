@@ -1157,6 +1157,7 @@ export type Database = {
           min_notice_hours: number
           minimum_download_mbps: number
           minimum_upload_mbps: number
+          native_booking_enabled: boolean
           reminder_offsets_minutes: number[]
           templates: Json
           timezone: string
@@ -1182,6 +1183,7 @@ export type Database = {
           min_notice_hours?: number
           minimum_download_mbps?: number
           minimum_upload_mbps?: number
+          native_booking_enabled?: boolean
           reminder_offsets_minutes?: number[]
           templates?: Json
           timezone?: string
@@ -1207,6 +1209,7 @@ export type Database = {
           min_notice_hours?: number
           minimum_download_mbps?: number
           minimum_upload_mbps?: number
+          native_booking_enabled?: boolean
           reminder_offsets_minutes?: number[]
           templates?: Json
           timezone?: string
@@ -1426,6 +1429,83 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      native_booking_notifications: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          status: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          status?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "native_booking_notifications_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruiter_agenda: {
+        Row: {
+          actual_count: number
+          category: string
+          connected_count: number
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string
+          source_key: string | null
+          starts_at: string
+          status: string
+          target_count: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actual_count?: number
+          category: string
+          connected_count?: number
+          created_at?: string
+          ends_at: string
+          id?: string
+          notes?: string
+          source_key?: string | null
+          starts_at: string
+          status?: string
+          target_count?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actual_count?: number
+          category?: string
+          connected_count?: number
+          created_at?: string
+          ends_at?: string
+          id?: string
+          notes?: string
+          source_key?: string | null
+          starts_at?: string
+          status?: string
+          target_count?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       recruitment_leads: {
         Row: {

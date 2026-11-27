@@ -63,7 +63,6 @@ const ACTIVE_APPT = ["Scheduled", "Confirmed"];
 
 type Candidate = Awaited<ReturnType<typeof listCandidates>>[number];
 type Tone = "blue" | "amber" | "green" | "red" | "gray";
-type Kpi = "new" | "pending" | "scheduled" | null;
 type SortKey = "name" | "applied" | "english" | "interview";
 
 const TONE: Record<Tone, string> = {
@@ -152,7 +151,6 @@ function Dashboard() {
   const [owner, setOwner] = useState(ALL);
   const [requirement, setRequirement] = useState(ALL);
   const [archived, setArchived] = useState(false);
-  const [kpi, setKpi] = useState<Kpi>(null);
   const [showMore, setShowMore] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "applied", dir: "desc" });
   const [pageSize, setPageSize] = useState(25);
@@ -197,20 +195,8 @@ function Dashboard() {
     [data, modality, owner, requirement],
   );
 
-  const counts = useMemo(
-    () => ({
-      total: base.length,
-      new: base.filter((c) => c.status === "New").length,
-      pending: base.filter((c) => pendingRequirements(c).length > 0).length,
-      scheduled: base.filter((c) => upcomingInterview(c)).length,
-    }),
-    [base],
-  );
-
   const rows = useMemo(() => {
-    const filtered = base.filter((c) =>
-      kpi === "new" ? c.status === "New" : kpi === "pending" ? pendingRequirements(c).length > 0 : kpi === "scheduled" ? Boolean(upcomingInterview(c)) : true,
-    );
+    const filtered = base;
     const val = (c: Candidate): string | number => {
       if (sort.key === "name") return c.full_name.toLowerCase();
       if (sort.key === "english") return c.overall_score ?? -1;
@@ -222,9 +208,9 @@ function Dashboard() {
       const r = x < y ? -1 : x > y ? 1 : 0;
       return sort.dir === "asc" ? r : -r;
     });
-  }, [base, kpi, sort]);
+  }, [base, sort]);
 
-  useEffect(() => setPage(0), [serverFilters, modality, owner, requirement, kpi, pageSize, sort]);
+  useEffect(() => setPage(0), [serverFilters, modality, owner, requirement, pageSize, sort]);
 
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const visible = rows.slice(page * pageSize, page * pageSize + pageSize);
@@ -245,7 +231,6 @@ function Dashboard() {
     ...(to ? [{ label: `Applied to ${to}`, clear: () => setTo("") }] : []),
     ...(owner !== ALL ? [{ label: `Owner: ${owner === "__unassigned" ? "Unassigned" : owner}`, clear: () => setOwner(ALL) }] : []),
     ...(requirement !== ALL ? [{ label: `Pending: ${requirement}`, clear: () => setRequirement(ALL) }] : []),
-    ...(kpi ? [{ label: kpi === "new" ? "New applicants" : kpi === "pending" ? "Pending follow-up" : "Interviews scheduled", clear: () => setKpi(null) }] : []),
   ];
   const clearAll = () => chips.forEach((c) => c.clear());
 
@@ -265,13 +250,6 @@ function Dashboard() {
           <Button asChild>
             <Link to="/candidates/new" search={{ lead: undefined }}><Plus className="mr-1.5 h-4 w-4" /> Add candidate</Link>
           </Button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Total applicants" value={counts.total} active={kpi === null && chips.length === 0} onClick={() => setKpi(null)} loading={isLoading} />
-          <KpiCard label="New applicants" hint='Stage "New"' value={counts.new} active={kpi === "new"} onClick={() => setKpi(kpi === "new" ? null : "new")} loading={isLoading} />
-          <KpiCard label="Pending follow-up" hint="Resume, grammar or internet pending" value={counts.pending} active={kpi === "pending"} onClick={() => setKpi(kpi === "pending" ? null : "pending")} loading={isLoading} />
-          <KpiCard label="Interviews scheduled" hint="Upcoming, active bookings" value={counts.scheduled} active={kpi === "scheduled"} onClick={() => setKpi(kpi === "scheduled" ? null : "scheduled")} loading={isLoading} />
         </div>
 
         <section className="rounded-lg border border-border bg-card shadow-sm">
@@ -483,16 +461,6 @@ function Dashboard() {
         </SheetContent>
       </Sheet>
     </main>
-  );
-}
-
-function KpiCard({ label, value, hint, active, onClick, loading }: { label: string; value: number; hint?: string; active: boolean; onClick: () => void; loading: boolean }) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={active} className={cn("rounded-lg border bg-card p-3 text-left shadow-sm transition-colors hover:border-navy/40", active ? "border-navy ring-1 ring-navy" : "border-border")}>
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="font-display text-2xl font-semibold text-navy">{loading ? "…" : value}</p>
-      {hint && <p className="truncate text-[11px] text-muted-foreground">{hint}</p>}
-    </button>
   );
 }
 

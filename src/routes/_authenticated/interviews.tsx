@@ -43,6 +43,8 @@ export const Route = createFileRoute("/_authenticated/interviews")({
         name: "description",
         content: "Configure interview availability, interviewers, reminders and booked interviews.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:title", content: "Scheduling Settings — E4CC" },
       {
         property: "og:description",
@@ -54,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/interviews")({
 });
 
 type SettingsForm = {
+  native_booking_enabled: boolean;
   timezone: string;
   duration_minutes: number;
   buffer_minutes: number;
@@ -79,26 +82,31 @@ function InterviewsPage() {
   const setStatus = useServerFn(updateAppointmentStatus);
   const remind = useServerFn(sendManualReminder);
 
-
   const accessQuery = useQuery({ queryKey: ["my-access"], queryFn: () => loadAccess() });
   const configQuery = useQuery({ queryKey: ["interview-config"], queryFn: () => loadConfig() });
 
   const isAdmin = (accessQuery.data?.roles ?? []).includes("admin");
   const canEvaluate = Boolean(accessQuery.data?.canEvaluate);
   const [form, setForm] = useState<SettingsForm | null>(null);
-  const [newInterviewer, setNewInterviewer] = useState({ full_name: "", email: "", meeting_link: "", country_codes: "" });
+  const [newInterviewer, setNewInterviewer] = useState({
+    full_name: "",
+    email: "",
+    meeting_link: "",
+    country_codes: "",
+  });
   const [newBlocked, setNewBlocked] = useState({ blocked_on: "", reason: "" });
 
   useEffect(() => {
     const s = configQuery.data?.settings;
     if (s && !form) {
       setForm({
+        native_booking_enabled: s.native_booking_enabled,
         timezone: s.timezone,
-        duration_minutes: s.duration_minutes,
-        buffer_minutes: s.buffer_minutes,
+        duration_minutes: 30,
+        buffer_minutes: 0,
         min_notice_hours: s.min_notice_hours,
-        max_booking_days: s.max_booking_days,
-        max_per_slot: s.max_per_slot,
+        max_booking_days: 3,
+        max_per_slot: Math.max(5, s.max_per_slot),
         default_meeting_link: s.default_meeting_link,
         token_expiry_days: s.token_expiry_days,
         allow_reapply_days: s.allow_reapply_days,
@@ -164,7 +172,8 @@ function InterviewsPage() {
         <div>
           <h1 className="text-2xl font-bold">Scheduling settings</h1>
           <p className="text-sm text-muted-foreground">
-            Availability, interviewers and blocked dates for internal reschedule links. Booked interviews live in Interviews. Times are shown in {orgTz}.
+            Availability, interviewers and blocked dates for internal reschedule links. Booked
+            interviews live in Interviews. Times are shown in {orgTz}.
           </p>
         </div>
 
@@ -175,6 +184,13 @@ function InterviewsPage() {
             {/* --------------------------------- settings -------------------------------- */}
             <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
               <h2 className="text-lg font-semibold">Interview settings</h2>
+              <label className="mt-4 flex items-center gap-3 text-sm">
+                <Switch
+                  checked={form.native_booking_enabled}
+                  onCheckedChange={(v) => setForm({ ...form, native_booking_enabled: v })}
+                />
+                Agendamiento directo en E4CC
+              </label>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <Label className="text-xs">Organization timezone</Label>
@@ -194,31 +210,41 @@ function InterviewsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <NumberField
-                  label="Duration (minutes)"
-                  value={form.duration_minutes}
-                  onChange={(v) => setForm({ ...form, duration_minutes: v })}
-                />
-                <NumberField
-                  label="Buffer between interviews (minutes)"
-                  value={form.buffer_minutes}
-                  onChange={(v) => setForm({ ...form, buffer_minutes: v })}
-                />
+                <div>
+                  <Label className="text-xs">Duración del grupo</Label>
+                  <p className="mt-2 text-sm font-medium">30 minutos</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Separación entre grupos</Label>
+                  <p className="mt-2 text-sm font-medium">Sin intervalo adicional</p>
+                </div>
                 <NumberField
                   label="Minimum notice (hours)"
                   value={form.min_notice_hours}
                   onChange={(v) => setForm({ ...form, min_notice_hours: v })}
                 />
-                <NumberField
-                  label="Booking window (days)"
-                  value={form.max_booking_days}
-                  onChange={(v) => setForm({ ...form, max_booking_days: v })}
-                />
-                <NumberField
-                  label="Max interviews per slot"
-                  value={form.max_per_slot}
-                  onChange={(v) => setForm({ ...form, max_per_slot: v })}
-                />
+                <div>
+                  <Label className="text-xs">Ventana de reservas</Label>
+                  <p className="mt-2 text-sm font-medium">Próximas 72 horas · Lunes a sábado</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Candidatos por grupo (cada 30 minutos)</Label>
+                  <Select
+                    value={String(form.max_per_slot)}
+                    onValueChange={(v) => setForm({ ...form, max_per_slot: Number(v) })}
+                  >
+                    <SelectTrigger className="mt-1" aria-label="Cupo por grupo">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 16 }, (_, i) => i + 5).map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} candidatos
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <NumberField
                   label="Scheduling link expiry (days)"
                   value={form.token_expiry_days}
@@ -273,57 +299,106 @@ function InterviewsPage() {
                 </div>
               </div>
 
-              <h3 className="mt-6 text-sm font-semibold">Weekly availability</h3>
-              <div className="mt-2 space-y-2">
+              <h3 className="mt-6 text-sm font-semibold">Horario de entrevistas (UTC−6)</h3>
+              <div className="mt-3 space-y-4">
                 {WEEKDAY_LABELS.map((label, index) => {
                   const ranges = form.weekly_hours[String(index)] ?? [];
-                  const enabled = ranges.length > 0;
-                  const range = ranges[0] ?? (["09:00", "17:00"] as [string, string]);
+                  const names = [
+                    "Domingo",
+                    "Lunes",
+                    "Martes",
+                    "Miércoles",
+                    "Jueves",
+                    "Viernes",
+                    "Sábado",
+                  ];
+                  function change(next: Array<[string, string]>) {
+                    setForm((current) =>
+                      current
+                        ? {
+                            ...current,
+                            weekly_hours: { ...current.weekly_hours, [String(index)]: next },
+                          }
+                        : current,
+                    );
+                  }
                   return (
-                    <div key={label} className="flex flex-wrap items-center gap-3">
-                      <Switch
-                        checked={enabled}
-                        onCheckedChange={(on) =>
-                          setForm({
-                            ...form,
-                            weekly_hours: {
-                              ...form.weekly_hours,
-                              [String(index)]: on ? [range] : [],
-                            },
-                          })
-                        }
-                      />
-                      <span className="w-24 text-sm">{label}</span>
-                      <Input
-                        type="time"
-                        className="w-32 rounded-2xl"
-                        disabled={!enabled}
-                        value={range[0]}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            weekly_hours: {
-                              ...form.weekly_hours,
-                              [String(index)]: [[e.target.value, range[1]]],
-                            },
-                          })
-                        }
-                      />
-                      <Input
-                        type="time"
-                        className="w-32 rounded-2xl"
-                        disabled={!enabled}
-                        value={range[1]}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            weekly_hours: {
-                              ...form.weekly_hours,
-                              [String(index)]: [[range[0], e.target.value]],
-                            },
-                          })
-                        }
-                      />
+                    <div
+                      key={label}
+                      className="flex flex-wrap items-start gap-3 border-b border-border pb-3"
+                    >
+                      <div className="flex w-36 items-center gap-2 pt-2">
+                        <Switch
+                          disabled={index === 0}
+                          aria-label={`Habilitar ${names[index]}`}
+                          checked={ranges.length > 0}
+                          onCheckedChange={(on) =>
+                            change(
+                              on
+                                ? [
+                                    ["09:00", "12:30"],
+                                    ["14:00", "17:00"],
+                                  ]
+                                : [],
+                            )
+                          }
+                        />
+                        <span className="text-sm">
+                          {names[index]}
+                          {!ranges.length ? " · OFF" : ""}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {ranges.map((r, i) => (
+                          <div key={i} className="flex flex-wrap items-center gap-2">
+                            <Input
+                              type="time"
+                              className="w-28"
+                              aria-label={`${names[index]} inicio ${i + 1}`}
+                              value={r[0]}
+                              onChange={(e) =>
+                                change(
+                                  ranges.map((old, j) =>
+                                    j === i ? [e.target.value, old[1]] : old,
+                                  ),
+                                )
+                              }
+                            />
+                            <span>—</span>
+                            <Input
+                              type="time"
+                              className="w-28"
+                              aria-label={`${names[index]} fin ${i + 1}`}
+                              value={r[1]}
+                              onChange={(e) =>
+                                change(
+                                  ranges.map((old, j) =>
+                                    j === i ? [old[0], e.target.value] : old,
+                                  ),
+                                )
+                              }
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="Quitar bloque"
+                              onClick={() => change(ranges.filter((_, j) => j !== i))}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        {ranges.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => change([...ranges, ["14:00", "17:00"]])}
+                          >
+                            <Plus className="mr-1 h-4 w-4" />
+                            Bloque
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -351,7 +426,8 @@ function InterviewsPage() {
                     <div>
                       <p className="font-medium">{i.full_name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {i.email} · {i.country_codes.length ? i.country_codes.join(", ") : "All countries"}
+                        {i.email} ·{" "}
+                        {i.country_codes.length ? i.country_codes.join(", ") : "All countries"}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -379,7 +455,9 @@ function InterviewsPage() {
                   className="rounded-2xl"
                   placeholder="Full name"
                   value={newInterviewer.full_name}
-                  onChange={(e) => setNewInterviewer({ ...newInterviewer, full_name: e.target.value })}
+                  onChange={(e) =>
+                    setNewInterviewer({ ...newInterviewer, full_name: e.target.value })
+                  }
                 />
                 <Input
                   className="rounded-2xl"
@@ -427,7 +505,7 @@ function InterviewsPage() {
 
             {/* ------------------------------ blocked dates ------------------------------ */}
             <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-              <h2 className="text-lg font-semibold">Blocked dates and holidays</h2>
+              <h2 className="text-lg font-semibold">Días OFF y feriados</h2>
               <div className="mt-4 space-y-2">
                 {(configQuery.data?.blocked ?? []).map((b) => (
                   <div
@@ -459,7 +537,7 @@ function InterviewsPage() {
                 />
                 <Input
                   className="w-64 rounded-2xl"
-                  placeholder="Reason"
+                  placeholder="Motivo del día OFF"
                   value={newBlocked.reason}
                   onChange={(e) => setNewBlocked({ ...newBlocked, reason: e.target.value })}
                 />
@@ -477,7 +555,7 @@ function InterviewsPage() {
                     }
                   }}
                 >
-                  <Plus className="mr-2 h-4 w-4" /> Block date
+                  <Plus className="mr-2 h-4 w-4" /> Marcar día OFF
                 </Button>
               </div>
             </section>

@@ -1,6 +1,7 @@
 import { publishNavCollapsed, useNavCollapsed } from "@/lib/nav-collapsed";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
+  CalendarDays,
   BarChart3,
   ClipboardCheck,
   ClipboardList,
@@ -42,7 +43,7 @@ type StaffNavigationAccess = {
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/admon" | "/second-filter" | "/evaluations" | "/export-interviews" | "/scorecard" | "/training" | "/referrals" | "/bonuses" | "/leads" | "/settings" | "/staff";
+  to: "/agenda" | "/dashboard" | "/admon" | "/second-filter" | "/evaluations" | "/export-interviews" | "/scorecard" | "/training" | "/referrals" | "/bonuses" | "/leads" | "/settings" | "/staff";
   icon: typeof ClipboardList;
   active: (pathname: string) => boolean;
   show: (access: StaffNavigationAccess) => boolean;
@@ -53,6 +54,7 @@ const canEvaluate = (access: StaffNavigationAccess) => access.isAdmin || access.
 const canInterview = (access: StaffNavigationAccess) => canEvaluate(access) || Boolean(access.isManager);
 
 const ITEMS: NavItem[] = [
+  {label: "Agenda diaria", to: "/agenda", icon: CalendarDays, active: path => path === "/agenda", show: canEvaluate},
   {
     label: "Applicants",
     to: "/dashboard",

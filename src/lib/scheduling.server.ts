@@ -1,3 +1,4 @@
+import { BOOKING_WINDOW_HOURS, withinBookingWindow } from "./booking-rules";
 import { reminderRowStatus } from "./email-status";
 /** Server-only scheduling core: settings, slots, tokens, booking, notifications. */
 import {
@@ -41,13 +42,14 @@ export async function getSettings(): Promise<InterviewSettings> {
 }
 
 export async function sha256Hex(value: string): Promise<string> {
-  const { createHash } = await import("node:crypto");
-  return createHash("sha256").update(value, "utf8").digest("hex");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (v) => v.toString(16).padStart(2, "0")).join("");
 }
 
 export async function randomToken(): Promise<string> {
-  const { randomBytes } = await import("node:crypto");
-  return randomBytes(32).toString("base64url");
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)), (v) =>
+    v.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 /** Issues a fresh scheduling token; only its hash is stored. */
@@ -103,7 +105,7 @@ export async function candidateContext(applicationId: string): Promise<Candidate
   const { data: app, error } = await client
     .from("applications")
     .select(
-      "id, full_name, email, phone_e164, phone, country_code, contact_consent, status, eligibility_override, ai_evaluations(cefr)",
+      "id, full_name, email, phone_e164, phone, country_code, contact_consent, status, eligibility_override, ai_evaluations(cefr, state)",
     )
     .eq("id", applicationId)
     .single();
@@ -115,7 +117,7 @@ export async function candidateContext(applicationId: string): Promise<Candidate
       ? true
       : app.eligibility_override === false
         ? false
-        : isSchedulingEligible(cefr);
+        : evaluation?.state === "done" && isSchedulingEligible(cefr);
   return {
     application: {
       id: app.id,
@@ -141,16 +143,18 @@ export async function availableSlots(countryCode: string | null): Promise<Slot[]
   const step = settings.duration_minutes + settings.buffer_minutes;
   const now = Date.now();
   const earliest = now + settings.min_notice_hours * 3600000;
-  const latest = now + settings.max_booking_days * 86400000;
+  const latest = now + BOOKING_WINDOW_HOURS * 3600000;
 
   const [{ data: interviewers }, { data: availability }, { data: blocked }, { data: booked }] =
     await Promise.all([
       client.from("interviewers").select("id, country_codes").eq("active", true),
-      client.from("interviewer_availability").select("interviewer_id, weekday, start_time, end_time"),
+      client
+        .from("interviewer_availability")
+        .select("interviewer_id, weekday, start_time, end_time"),
       client.from("blocked_dates").select("interviewer_id, blocked_on"),
       client
         .from("appointments")
-        .select("interviewer_id, starts_at")
+        .select("interviewer_id, starts_at, ends_at")
         .in("status", ACTIVE_APPOINTMENT_STATUSES)
         .gte("starts_at", new Date(now).toISOString()),
     ]);
@@ -172,23 +176,26 @@ export async function availableSlots(countryCode: string | null): Promise<Slot[]
   }
 
   const slots: Slot[] = [];
-  for (let dayOffset = 0; dayOffset <= settings.max_booking_days; dayOffset += 1) {
+  for (let dayOffset = 0; dayOffset <= Math.ceil(BOOKING_WINDOW_HOURS / 24); dayOffset += 1) {
     const dayAnchor = now + dayOffset * 86400000;
     const dateKey = zonedDateKey(tz, dayAnchor);
     if (blockedAll.has(dateKey)) continue;
     const weekday = zonedWeekday(tz, dayAnchor);
+    if (weekday === 0) continue;
     const ranges = settings.weekly_hours[String(weekday)] ?? [];
     const [y, m, d] = dateKey.split("-").map(Number);
+    if (y === undefined || m === undefined || d === undefined) continue;
 
     for (const [from, to] of ranges) {
       const [fh, fm] = parseHm(from);
       const [th, tm] = parseHm(to);
-      const startMs = zonedToUtcMs(tz, y!, m!, d!, fh, fm);
-      const endMs = zonedToUtcMs(tz, y!, m!, d!, th, tm);
+      const startMs = zonedToUtcMs(tz, y, m, d, fh, fm);
+      const endMs = zonedToUtcMs(tz, y, m, d, th, tm);
       for (let t = startMs; t + settings.duration_minutes * 60000 <= endMs; t += step * 60000) {
-        if (t < earliest || t > latest) continue;
+        if (t < earliest || t > latest || !withinBookingWindow(t, now, settings.min_notice_hours))
+          continue;
         const iso = new Date(t).toISOString();
-        const capacity = Math.min(pool.length, Math.max(1, settings.max_per_slot) * pool.length);
+        const capacity = settings.max_per_slot;
         const freeInterviewers = pool.filter((i) =>
           interviewerFree(i.id, t, availability ?? [], blocked ?? [], booked ?? [], tz, settings),
         ).length;
@@ -211,7 +218,7 @@ type AvailabilityRow = {
   end_time: string;
 };
 type BlockedRow = { interviewer_id: string | null; blocked_on: string };
-type BookedRow = { interviewer_id: string | null; starts_at: string };
+type BookedRow = { interviewer_id: string | null; starts_at: string; ends_at: string };
 
 function interviewerFree(
   interviewerId: string,
@@ -230,19 +237,30 @@ function interviewerFree(
   if (own.length > 0) {
     const weekday = zonedWeekday(tz, startMs);
     const [y, m, d] = dateKey.split("-").map(Number);
+    if (y === undefined || m === undefined || d === undefined) return false;
     const fits = own.some((a) => {
       if (a.weekday !== weekday) return false;
       const [sh, sm] = parseHm(a.start_time);
       const [eh, em] = parseHm(a.end_time);
       return (
-        startMs >= zonedToUtcMs(tz, y!, m!, d!, sh, sm) &&
-        startMs + settings.duration_minutes * 60000 <= zonedToUtcMs(tz, y!, m!, d!, eh, em)
+        startMs >= zonedToUtcMs(tz, y, m, d, sh, sm) &&
+        startMs + settings.duration_minutes * 60000 <= zonedToUtcMs(tz, y, m, d, eh, em)
       );
     });
     if (!fits) return false;
   }
 
   const iso = new Date(startMs).toISOString();
+  if (
+    booked.some(
+      (b) =>
+        b.interviewer_id === interviewerId &&
+        new Date(b.starts_at).getTime() !== startMs &&
+        new Date(b.starts_at).getTime() < startMs + settings.duration_minutes * 60000 &&
+        new Date(b.ends_at).getTime() + settings.buffer_minutes * 60000 > startMs,
+    )
+  )
+    return false;
   const taken = booked.filter(
     (b) => b.interviewer_id === interviewerId && new Date(b.starts_at).toISOString() === iso,
   ).length;
@@ -255,12 +273,17 @@ export async function pickInterviewer(startIso: string, countryCode: string | nu
   const settings = await getSettings();
   const [{ data: interviewers }, { data: availability }, { data: blocked }, { data: booked }] =
     await Promise.all([
-      client.from("interviewers").select("id, full_name, email, meeting_link, country_codes").eq("active", true),
-      client.from("interviewer_availability").select("interviewer_id, weekday, start_time, end_time"),
+      client
+        .from("interviewers")
+        .select("id, full_name, email, meeting_link, country_codes")
+        .eq("active", true),
+      client
+        .from("interviewer_availability")
+        .select("interviewer_id, weekday, start_time, end_time"),
       client.from("blocked_dates").select("interviewer_id, blocked_on"),
       client
         .from("appointments")
-        .select("interviewer_id, starts_at")
+        .select("interviewer_id, starts_at, ends_at")
         .in("status", ACTIVE_APPOINTMENT_STATUSES),
     ]);
 
@@ -288,18 +311,16 @@ export async function pickInterviewer(startIso: string, countryCode: string | nu
   for (const b of booked ?? []) {
     if (b.interviewer_id) load.set(b.interviewer_id, (load.get(b.interviewer_id) ?? 0) + 1);
   }
-  const preferred = candidates.filter(
-    (i) => countryCode && i.country_codes.includes(countryCode),
-  );
+  const preferred = candidates.filter((i) => countryCode && i.country_codes.includes(countryCode));
   const list = preferred.length > 0 ? preferred : candidates;
-  return list.sort((a, b) => (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0))[0]!;
+  return list.sort((a, b) => (load.get(a.id) ?? 0) - (load.get(b.id) ?? 0))[0] ?? null;
 }
 
 export function timezoneForCountry(countryCode: string | null | undefined): string {
   return COUNTRY_TIMEZONES[countryCode ?? ""] ?? "America/El_Salvador";
 }
 
-/** Books a slot transactionally; the DB unique index decides the winner. */
+/** Books a group slot transactionally; advisory locks enforce shared capacity. */
 export async function bookSlot(opts: {
   applicationId: string;
   startIso: string;
@@ -308,7 +329,29 @@ export async function bookSlot(opts: {
 }) {
   const client = await db();
   const settings = await getSettings();
+  const { data: rollout } = await client
+    .from("interview_settings")
+    .select("native_booking_enabled")
+    .eq("id", true)
+    .single();
+  if (!rollout?.native_booking_enabled) throw new Error("Online booking is not available yet.");
+  await assertBookingReady(opts.applicationId);
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: opts.candidateTimezone }).format();
+  } catch {
+    throw new Error("Please select a valid timezone.");
+  }
   const start = new Date(opts.startIso);
+  if (!Number.isFinite(start.getTime())) throw new Error("Please select a valid interview time.");
+  const { data: existing } = await client
+    .from("appointments")
+    .select("id, starts_at")
+    .eq("application_id", opts.applicationId)
+    .in("status", ACTIVE_APPOINTMENT_STATUSES)
+    .order("starts_at")
+    .limit(1)
+    .maybeSingle();
+  if (existing) return { appointmentId: existing.id };
   const slots = await availableSlots(opts.countryCode);
   if (!slots.some((s) => s.startIso === start.toISOString())) {
     throw new Error("That time is no longer available. Please pick another slot.");
@@ -347,13 +390,14 @@ export async function bookSlot(opts: {
       .eq("id", newId as string);
   }
 
-  await client
-    .from("applications")
-    .update({ status: "Interview" })
-    .eq("id", opts.applicationId);
+  await client.from("applications").update({ status: "Interview" }).eq("id", opts.applicationId);
 
   await scheduleReminders(newId as string);
-  await notifyBooking(newId as string, "booked");
+  try {
+    await notifyNativePreparation(newId as string);
+  } catch {
+    console.error("Native booking preparation request failed; appointment is retained.");
+  }
   return { appointmentId: newId as string };
 }
 
@@ -410,7 +454,11 @@ export async function appointmentDetails(appointmentId: string) {
 
 export type NotifyKind = "booked" | "rescheduled" | "canceled" | "reminder";
 
-export async function notifyBooking(appointmentId: string, kind: NotifyKind, reminderKind?: string) {
+export async function notifyBooking(
+  appointmentId: string,
+  kind: NotifyKind,
+  reminderKind?: string,
+) {
   const client = await db();
   const settings = await getSettings();
   const details = await appointmentDetails(appointmentId);
@@ -509,4 +557,106 @@ export async function sendSchedulingInvite(applicationId: string) {
     });
   }
   return { sent: true, url, email, whatsapp };
+}
+
+/** Common gate for token and in-process booking: no bypass of the existing checklist. */
+export async function assertBookingReady(applicationId: string) {
+  const client = await db();
+  const ctx = await candidateContext(applicationId);
+  if (!ctx.eligible) throw new Error("This application is not eligible to schedule.");
+  const [{ data: progress }, { data: refs }] = await Promise.all([
+    client
+      .from("recruitment_progress")
+      .select("work_modality, internet_test_passed, internet_override, resume_path")
+      .eq("application_id", applicationId)
+      .maybeSingle(),
+    client
+      .from("work_references")
+      .select("company, position, supervisor_name, supervisor_phone, reason_for_leaving")
+      .eq("application_id", applicationId),
+  ]);
+  const ready =
+    progress?.resume_path &&
+    (progress.work_modality === "onsite" ||
+      (progress.work_modality === "online" &&
+        (progress.internet_test_passed || progress.internet_override))) &&
+    refs?.some(
+      (r) =>
+        r.company.trim() &&
+        r.position.trim() &&
+        r.supervisor_name.trim() &&
+        r.reason_for_leaving.trim() &&
+        r.supervisor_phone.replace(/\D/g, "").length >= 8 &&
+        r.supervisor_phone.replace(/\D/g, "").length <= 15,
+    );
+  if (!ready)
+    throw new Error(
+      "Please complete your position, resume, internet requirement and work reference before booking.",
+    );
+  return ctx;
+}
+
+async function notifyNativePreparation(appointmentId: string) {
+  const client = await db();
+  const details = await appointmentDetails(appointmentId);
+  if (!details?.application) return;
+  const { data: last } = await client
+    .from("candidate_emails")
+    .select("status")
+    .eq("application_id", details.application_id)
+    .eq("kind", "preparation")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { alreadyRequested } = await import("./email-status");
+  if (alreadyRequested(last?.status)) return;
+  const { data: progress } = await client
+    .from("recruitment_progress")
+    .select("work_modality")
+    .eq("application_id", details.application_id)
+    .maybeSingle();
+  const format = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: details.candidate_timezone, ...options }).format(
+      new Date(details.starts_at),
+    );
+  const { buildPreparationEmail } = await import("./candidate-emails");
+  const message = buildPreparationEmail({
+    fullName: details.application.full_name,
+    interviewDate: format({ weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+    interviewTime: format({ hour: "numeric", minute: "2-digit" }),
+    timezone: details.candidate_timezone,
+    modality: progress?.work_modality === "onsite" ? "onsite" : "online",
+  });
+  const claim = await client
+    .from("native_booking_notifications")
+    .insert({ appointment_id: appointmentId });
+  if (claim.error) return;
+  const delivery = await sendEmail({
+    to: details.application.email,
+    ...message,
+    candidateName: details.application.full_name,
+    result: "preparation",
+  });
+  await client
+    .from("native_booking_notifications")
+    .update({ status: delivery.status })
+    .eq("appointment_id", appointmentId);
+  await client
+    .from("candidate_emails")
+    .insert({
+      application_id: details.application_id,
+      kind: "preparation",
+      to_email: details.application.email,
+      subject: message.subject,
+      body: message.html,
+      status:
+        delivery.status === "accepted"
+          ? "accepted"
+          : delivery.status === "sent"
+            ? "sent"
+            : "failed",
+      http_status: delivery.httpStatus ?? null,
+      response_message: delivery.detail,
+      error_message: delivery.ok ? null : delivery.detail,
+    });
 }

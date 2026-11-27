@@ -1,3 +1,4 @@
+import { validWeeklyHours } from "./booking-rules";
 import { reminderRowStatus } from "./email-status";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -76,17 +77,18 @@ export const getInterviewConfig = createServerFn({ method: "GET" })
 
 const settingsSchema = z.object({
   timezone: z.string().min(3).max(60),
-  duration_minutes: z.number().int().min(5).max(240),
-  buffer_minutes: z.number().int().min(0).max(120),
+  duration_minutes: z.literal(30),
+  buffer_minutes: z.literal(0),
   min_notice_hours: z.number().int().min(0).max(720),
-  max_booking_days: z.number().int().min(1).max(180),
-  max_per_slot: z.number().int().min(1).max(20),
+  max_booking_days: z.literal(3),
+  max_per_slot: z.number().int().min(5).max(20),
+  native_booking_enabled: z.boolean(),
   default_meeting_link: z.string().max(500),
   token_expiry_days: z.number().int().min(1).max(365),
   allow_reapply_days: z.number().int().min(0).max(730),
   assignment_mode: z.enum(["round_robin", "country"]),
   reminder_offsets_minutes: z.array(z.number().int().min(0).max(20160)).max(10),
-  weekly_hours: z.record(z.string(), z.array(z.tuple([z.string(), z.string()]))),
+  weekly_hours: z.record(z.string(), z.array(z.tuple([z.string(), z.string()]))).refine(validWeeklyHours, "Revisa los bloques de horario. Domingo debe permanecer OFF."),
   templates: z.record(z.string(), z.string()).optional(),
 });
 

@@ -7,13 +7,8 @@ const tokenSchema = z.object({ token: z.string().min(20).max(200) });
 export const getSchedulingContext = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => tokenSchema.parse(d))
   .handler(async ({ data }) => {
-    const {
-      resolveToken,
-      candidateContext,
-      getSettings,
-      timezoneForCountry,
-      appointmentDetails,
-    } = await import("./scheduling.server");
+    const { resolveToken, candidateContext, getSettings, timezoneForCountry, appointmentDetails } =
+      await import("./scheduling.server");
 
     let applicationId: string;
     let client: Awaited<ReturnType<typeof resolveToken>>["client"];
@@ -28,6 +23,11 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
     const ctx = await candidateContext(applicationId);
 
     const settings = await getSettings();
+    const { data: rollout } = await client
+      .from("interview_settings")
+      .select("native_booking_enabled")
+      .eq("id", true)
+      .single();
 
     const { data: existing } = await client
       .from("appointments")
@@ -45,6 +45,7 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
       fullName: ctx.application.full_name,
       email: ctx.application.email,
       eligible: ctx.eligible,
+      nativeBookingEnabled: rollout?.native_booking_enabled ?? false,
       organizationTimezone: settings.timezone,
       suggestedTimezone: timezoneForCountry(ctx.application.country_code),
       durationMinutes: settings.duration_minutes,
@@ -66,9 +67,10 @@ export const getSchedulingContext = createServerFn({ method: "POST" })
 export const listSchedulingSlots = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => tokenSchema.parse(d))
   .handler(async ({ data }) => {
-    const { resolveToken, candidateContext, availableSlots } = await import("./scheduling.server");
+    const { resolveToken, assertBookingReady, availableSlots } =
+      await import("./scheduling.server");
     const { applicationId } = await resolveToken(data.token);
-    const ctx = await candidateContext(applicationId);
+    const ctx = await assertBookingReady(applicationId);
     // Eligibility is enforced on the server, never only hidden in the UI.
     if (!ctx.eligible) throw new Error("This account is not eligible to schedule an interview.");
     return availableSlots(ctx.application.country_code);
@@ -77,7 +79,10 @@ export const listSchedulingSlots = createServerFn({ method: "POST" })
 export const bookInterview = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     tokenSchema
-      .extend({ startIso: z.string().min(10), timezone: z.string().min(3).max(60) })
+      .extend({
+        startIso: z.string().datetime({ offset: true }),
+        timezone: z.string().min(3).max(60),
+      })
       .parse(d),
   )
   .handler(async ({ data }) => {
@@ -106,7 +111,9 @@ export const recordCalendlySchedule = createServerFn({ method: "POST" })
   });
 
 export const cancelInterview = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => tokenSchema.extend({ reason: z.string().max(400).optional() }).parse(d))
+  .inputValidator((d: unknown) =>
+    tokenSchema.extend({ reason: z.string().max(400).optional() }).parse(d),
+  )
   .handler(async ({ data }) => {
     const { resolveToken, notifyBooking } = await import("./scheduling.server");
     const { applicationId, client } = await resolveToken(data.token);

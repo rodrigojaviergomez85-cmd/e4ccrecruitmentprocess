@@ -19,6 +19,7 @@ import { Route as MisReferidosRouteImport } from './routes/mis-referidos'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RetakeRouteImport } from './routes/retake'
 import { Route as SpeedTestRouteImport } from './routes/speed-test'
+import { Route as AuthenticatedAgendaRouteImport } from './routes/_authenticated/agenda'
 import { Route as AuthenticatedBonusesRouteImport } from './routes/_authenticated/bonuses'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedExportInterviewsRouteImport } from './routes/_authenticated/export-interviews'
@@ -97,6 +98,11 @@ const SpeedTestRoute = SpeedTestRouteImport.update({
   id: '/speed-test',
   path: '/speed-test',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAgendaRoute = AuthenticatedAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBonusesRoute = AuthenticatedBonusesRouteImport.update({
   id: '/bonuses',
@@ -265,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/agenda': typeof AuthenticatedAgendaRoute
   '/bonuses': typeof AuthenticatedBonusesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/export-interviews': typeof AuthenticatedExportInterviewsRoute
@@ -305,6 +312,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/agenda': typeof AuthenticatedAgendaRoute
   '/bonuses': typeof AuthenticatedBonusesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/export-interviews': typeof AuthenticatedExportInterviewsRoute
@@ -347,6 +355,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/retake': typeof RetakeRoute
   '/speed-test': typeof SpeedTestRoute
+  '/_authenticated/agenda': typeof AuthenticatedAgendaRoute
   '/_authenticated/bonuses': typeof AuthenticatedBonusesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/export-interviews': typeof AuthenticatedExportInterviewsRoute
@@ -389,6 +398,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/agenda'
     | '/bonuses'
     | '/dashboard'
     | '/export-interviews'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/agenda'
     | '/bonuses'
     | '/dashboard'
     | '/export-interviews'
@@ -470,6 +481,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retake'
     | '/speed-test'
+    | '/_authenticated/agenda'
     | '/_authenticated/bonuses'
     | '/_authenticated/dashboard'
     | '/_authenticated/export-interviews'
@@ -593,6 +605,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/speed-test'
       preLoaderRoute: typeof SpeedTestRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/agenda': {
+      id: '/_authenticated/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AuthenticatedAgendaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/bonuses': {
       id: '/_authenticated/bonuses'
@@ -801,6 +820,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAgendaRoute: typeof AuthenticatedAgendaRoute
   AuthenticatedBonusesRoute: typeof AuthenticatedBonusesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedExportInterviewsRoute: typeof AuthenticatedExportInterviewsRoute
@@ -824,6 +844,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAgendaRoute: AuthenticatedAgendaRoute,
   AuthenticatedBonusesRoute: AuthenticatedBonusesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedExportInterviewsRoute: AuthenticatedExportInterviewsRoute,

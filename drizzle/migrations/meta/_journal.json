@@ -288,6 +288,27 @@
       "when": 1795802505489,
       "tag": "0040_admon_training_tracker",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795821401639,
+      "tag": "0041_recruiter_agenda_group_booking",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795821803534,
+      "tag": "0042_native_booking_delivery_claim",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1795821961787,
+      "tag": "0043_native_booking_idempotent_reservation",
+      "breakpoints": true
     }
   ]
 }

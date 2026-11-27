@@ -71,12 +71,11 @@ function referenceComplete(row: {
 }) {
   return Boolean(
     row.company.trim() &&
-      row.position.trim() &&
-      row.supervisor_name.trim() &&
-      validSupervisorPhone(row.supervisor_phone) &&
-      row.reason_for_leaving.trim(),
+    row.position.trim() &&
+    row.supervisor_name.trim() &&
+    validSupervisorPhone(row.supervisor_phone) &&
+    row.reason_for_leaving.trim(),
   );
-
 }
 
 /** Device requirement: onsite coaches only confirm the device; online coaches
@@ -87,7 +86,8 @@ export function deviceRequirementMet(progress: {
   internet_override: boolean;
 }) {
   if (progress.work_modality === "onsite") return true;
-  if (progress.work_modality === "online") return progress.internet_test_passed || progress.internet_override;
+  if (progress.work_modality === "online")
+    return progress.internet_test_passed || progress.internet_override;
   return false;
 }
 
@@ -114,38 +114,72 @@ type Db = Awaited<ReturnType<typeof admin>>;
 async function loadState(db: Db, applicationId: string) {
   await db
     .from("recruitment_progress")
-    .upsert({ application_id: applicationId }, { onConflict: "application_id", ignoreDuplicates: true });
-  await db.from("work_references").upsert(
-    { application_id: applicationId, slot: 1 },
-    { onConflict: "application_id,slot", ignoreDuplicates: true },
-  );
-  const [{ data: progress }, { data: references }, { data: appointments }, { data: emails }] = await Promise.all([
-    db.from("recruitment_progress").select("*").eq("application_id", applicationId).single(),
-    db
-      .from("work_references")
-      .select("*")
-      .eq("application_id", applicationId)
-      .lte("slot", MAX_REFERENCES)
-      .order("slot"),
-    db.from("appointments").select("id, starts_at, ends_at, status, candidate_timezone, meeting_link").eq("application_id", applicationId).in("status", ["Scheduled", "Confirmed"]).order("starts_at").limit(1),
-    db.from("candidate_emails").select("status, error_message, created_at").eq("application_id", applicationId).eq("kind", "preparation").order("created_at", { ascending: false }).limit(1),
-  ]);
+    .upsert(
+      { application_id: applicationId },
+      { onConflict: "application_id", ignoreDuplicates: true },
+    );
+  await db
+    .from("work_references")
+    .upsert(
+      { application_id: applicationId, slot: 1 },
+      { onConflict: "application_id,slot", ignoreDuplicates: true },
+    );
+  const [{ data: progress }, { data: references }, { data: appointments }, { data: emails }] =
+    await Promise.all([
+      db.from("recruitment_progress").select("*").eq("application_id", applicationId).single(),
+      db
+        .from("work_references")
+        .select("*")
+        .eq("application_id", applicationId)
+        .lte("slot", MAX_REFERENCES)
+        .order("slot"),
+      db
+        .from("appointments")
+        .select("id, starts_at, ends_at, status, candidate_timezone, meeting_link")
+        .eq("application_id", applicationId)
+        .in("status", ["Scheduled", "Confirmed"])
+        .order("starts_at")
+        .limit(1),
+      db
+        .from("candidate_emails")
+        .select("status, error_message, created_at")
+        .eq("application_id", applicationId)
+        .eq("kind", "preparation")
+        .order("created_at", { ascending: false })
+        .limit(1),
+    ]);
   const refs = (references ?? []).map((r) => {
     const { verification_notes: _notes, ...safe } = r;
     return safe;
   });
   const complete = refs.some((r) => referenceComplete(r));
-  const { items, unlocked } = requirementsFor(progress!, complete);
+  if (!progress) throw new Error("Recruitment progress not found.");
+  const { items, unlocked } = requirementsFor(progress, complete);
   // Every mutation returns the full page state, so the candidate header keeps
   // rendering after a save.
   const [{ data: app }, { data: evaluation }] = await Promise.all([
-    db.from("applications").select("full_name, email").eq("id", applicationId).maybeSingle(),
+    db
+      .from("applications")
+      .select("full_name, email, country_code")
+      .eq("id", applicationId)
+      .maybeSingle(),
     db.from("ai_evaluations").select("cefr").eq("application_id", applicationId).maybeSingle(),
   ]);
+  const { data: settings } = await db
+    .from("interview_settings")
+    .select("native_booking_enabled, timezone")
+    .eq("id", true)
+    .maybeSingle();
   return {
     invalid: null,
-    candidate: { fullName: app?.full_name ?? "", email: app?.email ?? "", cefr: evaluation?.cefr ?? null },
-    progress: progress!,
+    nativeBookingEnabled: settings?.native_booking_enabled ?? false,
+    timezone: settings?.timezone ?? "America/El_Salvador",
+    candidate: {
+      fullName: app?.full_name ?? "",
+      email: app?.email ?? "",
+      cefr: evaluation?.cefr ?? null,
+    },
+    progress: progress,
     references: refs,
     requirements: items,
     unlocked,
@@ -155,7 +189,12 @@ async function loadState(db: Db, applicationId: string) {
 }
 
 /** Sync the application status with the checklist state. */
-async function syncStatus(db: Db, applicationId: string, unlocked: boolean, schedulingOpened: boolean) {
+async function syncStatus(
+  db: Db,
+  applicationId: string,
+  unlocked: boolean,
+  schedulingOpened: boolean,
+) {
   const { data: app } = await db
     .from("applications")
     .select("status")
@@ -188,11 +227,11 @@ export const getRecruitmentProcess = createServerFn({ method: "POST" })
       // Never throw across the RPC boundary: an invalid/ineligible link should
       // render the "not available" screen, not a blank error page.
       return {
-        invalid: e instanceof Error ? e.message : "This stage is not available for your application.",
+        invalid:
+          e instanceof Error ? e.message : "This stage is not available for your application.",
       } as const;
     }
   });
-
 
 const confirmSchema = ownerSchema.extend({
   work_modality: z.enum(["online", "onsite"]).optional(),
@@ -211,7 +250,8 @@ export const saveRecruitmentProgress = createServerFn({ method: "POST" })
     if (fields.internet_download_mbps != null && fields.internet_upload_mbps != null) {
       Object.assign(patch, {
         internet_tested_at: new Date().toISOString(),
-        internet_test_passed: fields.internet_download_mbps >= 10 && fields.internet_upload_mbps >= 10,
+        internet_test_passed:
+          fields.internet_download_mbps >= 10 && fields.internet_upload_mbps >= 10,
       });
     }
 
@@ -281,7 +321,13 @@ const RESUME_TYPES = ["pdf", "doc", "docx"] as const;
 export const createResumeUploadTarget = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     ownerSchema
-      .extend({ ext: z.enum(RESUME_TYPES), size: z.number().int().max(10 * 1024 * 1024) })
+      .extend({
+        ext: z.enum(RESUME_TYPES),
+        size: z
+          .number()
+          .int()
+          .max(10 * 1024 * 1024),
+      })
       .parse(d),
   )
   .handler(async ({ data }) => {
@@ -296,7 +342,9 @@ export const createResumeUploadTarget = createServerFn({ method: "POST" })
 
 export const saveResume = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    ownerSchema.extend({ path: z.string().min(3).max(300), filename: z.string().min(1).max(200) }).parse(d),
+    ownerSchema
+      .extend({ path: z.string().min(3).max(300), filename: z.string().min(1).max(200) })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     const { db } = await assertEligible(data.applicationId, data.token);
@@ -336,7 +384,13 @@ const SYSTEM_INFO_TYPES = ["jpg", "jpeg", "png"] as const;
 export const createSystemInfoUploadTarget = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     ownerSchema
-      .extend({ ext: z.enum(SYSTEM_INFO_TYPES), size: z.number().int().max(10 * 1024 * 1024) })
+      .extend({
+        ext: z.enum(SYSTEM_INFO_TYPES),
+        size: z
+          .number()
+          .int()
+          .max(10 * 1024 * 1024),
+      })
       .parse(d),
   )
   .handler(async ({ data }) => {
@@ -351,7 +405,9 @@ export const createSystemInfoUploadTarget = createServerFn({ method: "POST" })
 
 export const saveSystemInfo = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
-    ownerSchema.extend({ path: z.string().min(3).max(300), filename: z.string().min(1).max(200) }).parse(d),
+    ownerSchema
+      .extend({ path: z.string().min(3).max(300), filename: z.string().min(1).max(200) })
+      .parse(d),
   )
   .handler(async ({ data }) => {
     const { db } = await assertEligible(data.applicationId, data.token);
@@ -412,7 +468,11 @@ export const recordCalendlyBooking = createServerFn({ method: "POST" })
       await assertEligible(data.applicationId, data.token);
       const { calendlyConfigured, syncCalendly } = await import("./calendly.server");
       if (!calendlyConfigured()) return { ok: false as const };
-      const result = await syncCalendly({ applicationId: data.applicationId, sinceDays: 1, sendEmails: true });
+      const result = await syncCalendly({
+        applicationId: data.applicationId,
+        sinceDays: 1,
+        sendEmails: true,
+      });
       return { ok: true as const, created: result.created, updated: result.updated };
     } catch {
       return { ok: false as const };
@@ -424,19 +484,95 @@ export const resendPreparationEmail = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { app, db } = await assertEligible(data.applicationId, data.token);
     const [{ data: appointment }, { data: progress }] = await Promise.all([
-      db.from("appointments").select("starts_at, candidate_timezone").eq("application_id", data.applicationId).in("status", ["Scheduled", "Confirmed"]).order("starts_at").limit(1).maybeSingle(),
-      db.from("recruitment_progress").select("work_modality").eq("application_id", data.applicationId).maybeSingle(),
+      db
+        .from("appointments")
+        .select("starts_at, candidate_timezone")
+        .eq("application_id", data.applicationId)
+        .in("status", ["Scheduled", "Confirmed"])
+        .order("starts_at")
+        .limit(1)
+        .maybeSingle(),
+      db
+        .from("recruitment_progress")
+        .select("work_modality")
+        .eq("application_id", data.applicationId)
+        .maybeSingle(),
     ]);
     if (!appointment) throw new Error("No confirmed interview was found.");
-    const { data: last } = await db.from("candidate_emails").select("status").eq("application_id", data.applicationId).eq("kind", "preparation").order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: last } = await db
+      .from("candidate_emails")
+      .select("status")
+      .eq("application_id", data.applicationId)
+      .eq("kind", "preparation")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     const { alreadyRequested } = await import("./email-status");
-    if (alreadyRequested(last?.status)) return { ok: true, status: last!.status, detail: "Already requested; not sent again.", httpStatus: null };
+    if (alreadyRequested(last?.status))
+      return {
+        ok: true,
+        status: last?.status ?? "accepted",
+        detail: "Already requested; not sent again.",
+        httpStatus: null,
+      };
     const timezone = appointment.candidate_timezone || "UTC";
-    const format = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options }).format(new Date(appointment.starts_at));
+    const format = (options: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options }).format(
+        new Date(appointment.starts_at),
+      );
     const { buildPreparationEmail } = await import("./candidate-emails");
-    const message = buildPreparationEmail({ fullName: app.full_name, interviewDate: format({ weekday: "long", year: "numeric", month: "long", day: "numeric" }), interviewTime: format({ hour: "numeric", minute: "2-digit" }), timezone, modality: progress?.work_modality === "onsite" ? "onsite" : "online" });
+    const message = buildPreparationEmail({
+      fullName: app.full_name,
+      interviewDate: format({ weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+      interviewTime: format({ hour: "numeric", minute: "2-digit" }),
+      timezone,
+      modality: progress?.work_modality === "onsite" ? "onsite" : "online",
+    });
     const { sendEmail } = await import("./notify.server");
     const delivery = await sendEmail({ to: app.email, ...message });
-    await db.from("candidate_emails").insert({ application_id: data.applicationId, kind: "preparation", to_email: app.email, subject: message.subject, body: message.html, status: delivery.status === "accepted" ? "accepted" : delivery.ok ? "resent" : "failed", error_message: delivery.ok ? null : delivery.detail, http_status: delivery.httpStatus ?? null, response_message: delivery.detail });
+    await db
+      .from("candidate_emails")
+      .insert({
+        application_id: data.applicationId,
+        kind: "preparation",
+        to_email: app.email,
+        subject: message.subject,
+        body: message.html,
+        status: delivery.status === "accepted" ? "accepted" : delivery.ok ? "resent" : "failed",
+        error_message: delivery.ok ? null : delivery.detail,
+        http_status: delivery.httpStatus ?? null,
+        response_message: delivery.detail,
+      });
     return delivery;
+  });
+
+export const listProcessSlots = createServerFn({ method: "POST" })
+  .inputValidator((v: unknown) => ownerSchema.parse(v))
+  .handler(async ({ data }) => {
+    const { db } = await assertEligible(data.applicationId, data.token);
+    const state = await loadState(db, data.applicationId);
+    if (!state.unlocked) throw new Error("Complete your requirements before booking.");
+    const { assertBookingReady, availableSlots } = await import("./scheduling.server");
+    const ctx = await assertBookingReady(data.applicationId);
+    return availableSlots(ctx.application.country_code);
+  });
+export const bookProcessInterview = createServerFn({ method: "POST" })
+  .inputValidator((v: unknown) =>
+    ownerSchema
+      .extend({
+        startIso: z.string().datetime({ offset: true }),
+        timezone: z.string().min(3).max(60),
+      })
+      .parse(v),
+  )
+  .handler(async ({ data }) => {
+    await assertEligible(data.applicationId, data.token);
+    const { assertBookingReady, bookSlot } = await import("./scheduling.server");
+    const ctx = await assertBookingReady(data.applicationId);
+    return bookSlot({
+      applicationId: data.applicationId,
+      startIso: data.startIso,
+      candidateTimezone: data.timezone,
+      countryCode: ctx.application.country_code,
+    });
   });

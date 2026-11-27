@@ -24,6 +24,7 @@ import { goalTone, type Goals } from "@/lib/scorecard-metrics";
 import { formatDuration } from "@/components/InterviewTimer";
 import { buildScorecardWorkbook } from "@/lib/scorecard-excel";
 import { useQueryClient } from "@tanstack/react-query";
+import { RecruiterWorkSummary } from "@/components/RecruiterWorkSummary";
 import { RecruitmentMetrics } from "@/components/RecruitmentMetrics";
 
 export const Route = createFileRoute("/_authenticated/scorecard")({
@@ -34,6 +35,8 @@ export const Route = createFileRoute("/_authenticated/scorecard")({
         name: "description",
         content: "Weekly and monthly E4CC recruitment reporting with evaluator compliance and CSV export.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { property: "og:title", content: "Recruitment Scorecard — E4CC" },
       {
         property: "og:description",
@@ -382,6 +385,7 @@ function ScorecardPage() {
     <main className="min-h-screen bg-secondary/30 pb-16">
       <div className="mx-auto max-w-6xl space-y-5 px-5 py-6">
         <RecruitmentMetrics />
+        <RecruiterWorkSummary />
         <details className="pt-6">
         <summary className="cursor-pointer text-sm font-semibold text-muted-foreground">Reporte operativo detallado y exportación Excel</summary>
         <div className="mt-4 space-y-5">

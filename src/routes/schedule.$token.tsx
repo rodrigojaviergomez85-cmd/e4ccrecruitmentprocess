@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck, Loader2, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 
+import { BookingCalendar } from "@/components/BookingCalendar";
 import { BrandMark } from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +13,8 @@ import {
   cancelInterview,
   getSchedulingContext,
   recordCalendlySchedule,
+  listSchedulingSlots,
+  bookInterview,
 } from "@/lib/scheduling.functions";
 import { buildIcs, formatInTz, googleCalendarUrl } from "@/lib/interviews";
 
@@ -44,6 +47,8 @@ function SchedulePage() {
   const loadContext = useServerFn(getSchedulingContext);
   const cancel = useServerFn(cancelInterview);
   const syncCalendly = useServerFn(recordCalendlySchedule);
+  const slots = useServerFn(listSchedulingSlots);
+  const book = useServerFn(bookInterview);
 
   const [confirming, setConfirming] = useState(false);
 
@@ -59,9 +64,7 @@ function SchedulePage() {
 
   const eligible = context?.eligible === true;
   const tz =
-    context?.appointment?.candidateTimezone ??
-    context?.suggestedTimezone ??
-    "America/El_Salvador";
+    context?.appointment?.candidateTimezone ?? context?.suggestedTimezone ?? "America/El_Salvador";
 
   const calendlyUrl = useMemo(() => {
     const url = new URL(CALENDLY_URL);
@@ -123,8 +126,8 @@ function SchedulePage() {
           <section className="mt-10 rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
             <h1 className="text-2xl font-bold">Thank you for your application</h1>
             <p className="mt-3 text-muted-foreground">
-              After reviewing your English assessment we are not moving forward with an interview
-              at this time. We truly appreciate the time you invested with us.
+              After reviewing your English assessment we are not moving forward with an interview at
+              this time. We truly appreciate the time you invested with us.
             </p>
             {context.allowReapplyDays > 0 && (
               <p className="mt-3 text-muted-foreground">
@@ -223,8 +226,8 @@ function SchedulePage() {
               Congratulations, {context.firstName}!
             </h1>
             <p className="mt-2 text-center text-muted-foreground">
-              Your English level qualifies you for an interview. Pick a time that works for you —
-              it takes about {context.durationMinutes} minutes.
+              Your English level qualifies you for an interview. Pick a time that works for you — it
+              takes about {context.durationMinutes} minutes.
             </p>
 
             {confirming && (
@@ -233,20 +236,34 @@ function SchedulePage() {
               </p>
             )}
 
-            <div
-              className="calendly-inline-widget mt-6 min-w-[280px]"
-              data-url={calendlyUrl}
-              style={{ height: 720 }}
-            />
-            <script async src="https://assets.calendly.com/assets/external/widget.js" />
+            {context.nativeBookingEnabled ? (
+              <BookingCalendar
+                queryKey={["schedule-slots", token]}
+                suggestedTimezone={tz}
+                loadSlots={() => slots({ data: { token } })}
+                book={(startIso, timezone) => book({ data: { token, startIso, timezone } })}
+                onBooked={() =>
+                  queryClient.invalidateQueries({ queryKey: ["schedule-context", token] })
+                }
+              />
+            ) : (
+              <>
+                <div
+                  className="calendly-inline-widget mt-6 min-w-[280px]"
+                  data-url={calendlyUrl}
+                  style={{ height: 720 }}
+                />
+                <script async src="https://assets.calendly.com/assets/external/widget.js" />
 
-            <div className="mt-3 text-center">
-              <Button asChild variant="outline" className="rounded-2xl">
-                <a href={calendlyUrl} target="_blank" rel="noreferrer">
-                  Open Calendly
-                </a>
-              </Button>
-            </div>
+                <div className="mt-3 text-center">
+                  <Button asChild variant="outline" className="rounded-2xl">
+                    <a href={calendlyUrl} target="_blank" rel="noreferrer">
+                      Open Calendly
+                    </a>
+                  </Button>
+                </div>
+              </>
+            )}
           </section>
         )}
       </div>

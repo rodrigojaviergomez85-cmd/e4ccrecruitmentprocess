@@ -50,3 +50,13 @@
 - [x] Corregir país de Kenia Trujillo y habilitar edición de datos ADMON.
 - [x] Verificar Training ADMON autenticado, pruebas y móvil sin correos reales.
 - [x] Habilitar ingreso de referencias después de entrevistas y compactar lista Training ADMON; guardado y recarga verificados sin correos.
+- [x] Retirar las cuatro tarjetas KPI de Applicants.
+- [x] Agenda diaria de Morena y Kennia: prioridades, trabajo real, entrevistas y llamadas Coaches/ADMON.
+- [x] Resumen semanal de jornada en Scorecard y descarga.
+- [x] Calendario nativo para candidatos conservando videos y requisitos previos.
+- [x] Verificar permisos, persistencia, reservas simultáneas y vistas móvil/escritorio sin correos reales.
+- [x] Citas grupales: 10 candidatos cada 30 minutos, cupo configurable de 5 a 20.
+- [x] Usar Zoom confirmado para las entrevistas grupales: https://zoom.us/j/97824770369.
+- [x] Comprobar disponibilidad real de Calendly antes de activar las reservas nativas.
+- [x] Horario editable de lunes a sábado, días OFF y regla de 72 horas (ventana máxima de 72 horas confirmada).
+- [x] Limitar reservas a las próximas 72 horas (confirmado), excluyendo domingo y días OFF.
