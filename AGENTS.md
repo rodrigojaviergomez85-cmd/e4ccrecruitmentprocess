@@ -29,3 +29,4 @@
 - ADMON leads live separately from academic leads and retain original sheet fields; source-linked screening creation reuses matching email+position and enforces a unique source link, so repeat clicks do not create another process.
 - ADMON Training uses the same candidate and reference-call records after all three approvals; preparation emails use an atomic unique-candidate claim and remain accepted until delivery is verified, preventing duplicate requests and keeping academic workflows separate.
 - ADMON reference contacts and calls share one editor in candidate detail and Training; save contacts into screening.references while preserving historical fields and stage decisions, so imported approvals can add contacts without reopening interviews.
+- ADMON technical interviewers (Sales Manager) read every ADMON candidate and may evaluate any candidate in stage 3; Operations Managers stay limited to assignments. Why: sales leadership follows the whole ADMON pipeline.

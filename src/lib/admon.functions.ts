@@ -22,7 +22,9 @@ export async function requireAdmonStaff(userId: string, authDb: SupabaseClient<D
     : [];
   if (roleError || profileError || (!tier.isStaff && !operationsOnly) || (fullOnly && !tier.isStaff) || profile?.active === false) throw new Error("Acceso solo para personal interno.");
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
-  return { db, email: profile?.email ?? null, operationsOnly, myStages };
+  // Sales managers (technical interviewers) read the whole ADMON pipeline and evaluate any stage-3 candidate.
+  const seesAll = operationsOnly && tier.isTechnicalInterviewer;
+  return { db, email: profile?.email ?? null, operationsOnly, myStages, seesAll };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,7 +44,7 @@ export type AdmonCandidate = {
 export const listAdmon = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { db, operationsOnly, myStages } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db, operationsOnly, myStages, seesAll } = await requireAdmonStaff(context.userId, context.supabase);
     const [{ data, error }, { data: staff }, { data: roleRows }] = await Promise.all([
       db.from("admon_candidates").select("*").order("created_at", { ascending: false }).limit(1000),
       db.from("staff_profiles").select("user_id, full_name, active").order("full_name"),
@@ -55,11 +57,12 @@ export const listAdmon = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return {
       me: context.userId,
-      candidates: ((data ?? []) as unknown as AdmonCandidate[]).filter((c) => !operationsOnly
+      candidates: ((data ?? []) as unknown as AdmonCandidate[]).filter((c) => !operationsOnly || seesAll
         || (myStages.includes("operations") && c.operations_interviewer === context.userId)
         || (myStages.includes("technical") && c.technical_interviewer === context.userId)),
       operationsOnly,
       myStages,
+      seesAll,
       staff: (staff ?? []).map((s) => ({ id: s.user_id as string, name: s.full_name as string })),
       operationsInterviewers: activeStaff.filter((s) => opsIds.has(s.id)),
       technicalInterviewers: activeStaff.filter((s) => techIds.has(s.id)),
@@ -112,11 +115,11 @@ export const saveAdmonStage = createServerFn({ method: "POST" })
     nextInterviewer: z.string().uuid().optional(),
   }).parse(d))
   .handler(async ({ data, context }) => {
-    const { db, email, operationsOnly, myStages } = await requireAdmonStaff(context.userId, context.supabase);
+    const { db, email, operationsOnly, myStages, seesAll } = await requireAdmonStaff(context.userId, context.supabase);
     const { data: current, error: e1 } = await db.from("admon_candidates").select("stage, operations_interviewer, technical_interviewer").eq("id", data.id).single();
     if (e1) throw new Error(e1.message);
     if (current.stage !== data.stage) throw new Error("Esta etapa ya fue cerrada.");
-    if (operationsOnly && (data.stage === "screening" || !myStages.includes(data.stage) || current[`${data.stage}_interviewer`] !== context.userId)) throw new Error("Solo puedes evaluar las entrevistas asignadas a ti.");
+    if (operationsOnly && (data.stage === "screening" || !myStages.includes(data.stage) || (current[`${data.stage}_interviewer`] !== context.userId && !(seesAll && data.stage === "technical")))) throw new Error("Solo puedes evaluar las entrevistas asignadas a ti.");
     if (data.finish === "pass" && data.stage !== "technical") {
       if (!data.nextInterviewer) throw new Error("Elige quién hará la siguiente entrevista.");
       const role = data.stage === "screening" ? "operations_manager" : "technical_interviewer";

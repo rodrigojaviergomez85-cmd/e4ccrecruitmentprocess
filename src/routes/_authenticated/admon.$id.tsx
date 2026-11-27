@@ -90,7 +90,7 @@ function AdmonDetail() {
 
       {view !== "screening" && reached(view) && <PreviousNotes c={c} upTo={view} />}
       {!data.operationsOnly && c.screening_decision === "Pasa" && <details className="border-b py-3"><summary className="cursor-pointer font-medium">Llamadas de referencias</summary><div className="pt-4"><AdmonReferenceCalls key={c.id} candidate={c} /></div></details>}
-      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view !== "screening" && data.myStages.includes(view) && c[`${view}_interviewer`] === data.me))} staff={view === "screening" ? data.operationsInterviewers : data.technicalInterviewers} />
+      <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view !== "screening" && data.myStages.includes(view) && (c[`${view}_interviewer`] === data.me || (data.seesAll && view === "technical"))))} staff={view === "screening" ? data.operationsInterviewers : data.technicalInterviewers} />
     </main>
   );
 }

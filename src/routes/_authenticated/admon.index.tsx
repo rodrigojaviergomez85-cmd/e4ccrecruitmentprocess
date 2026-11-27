@@ -62,7 +62,7 @@ function AdmonList() {
 
   const candidates = data?.candidates ?? [];
   const names = useMemo(() => new Map((data?.staff ?? []).map((s) => [s.id, s.name])), [data]);
-  const mine = (c: AdmonCandidate) =>
+  const mine = (c: AdmonCandidate) => data?.seesAll ? c.stage === "technical" || (c.stage === "operations" && c.operations_interviewer === data.me) :
     c.stage === "screening" || (c.stage === "operations" && c.operations_interviewer === data?.me) || (c.stage === "technical" && c.technical_interviewer === data?.me);
   const inView = (c: AdmonCandidate, selected: ListView) =>
     selected === "all" ? true : selected === "mine" ? mine(c) : c.stage === "rejected";
