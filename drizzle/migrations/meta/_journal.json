@@ -281,6 +281,13 @@
       "when": 1795726089882,
       "tag": "0039_admon_reference_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1795802505489,
+      "tag": "0040_admon_training_tracker",
+      "breakpoints": true
     }
   ]
 }

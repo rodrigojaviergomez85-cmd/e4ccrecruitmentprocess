@@ -96,6 +96,7 @@ function AdmonList() {
             <Button variant="outline" asChild className="flex-1 sm:flex-none">
               <Link to="/admon/leads"><Search /> Leads ADMON</Link>
             </Button>
+            <Button variant="outline" asChild className="flex-1 sm:flex-none"><Link to="/admon/training">Training ADMON <ArrowRight /></Link></Button>
             <Button onClick={() => setOpen(true)} className="flex-1 sm:flex-none"><Plus /> Nuevo candidato</Button>
           </div>
         )}

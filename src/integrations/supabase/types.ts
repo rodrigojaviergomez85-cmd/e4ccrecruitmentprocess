@@ -41,6 +41,8 @@ export type Database = {
           technical_at: string | null
           technical_decision: string | null
           technical_interviewer: string | null
+          training_comment: string
+          training_status: string
           updated_at: string
         }
         Insert: {
@@ -69,6 +71,8 @@ export type Database = {
           technical_at?: string | null
           technical_decision?: string | null
           technical_interviewer?: string | null
+          training_comment?: string
+          training_status?: string
           updated_at?: string
         }
         Update: {
@@ -97,6 +101,8 @@ export type Database = {
           technical_at?: string | null
           technical_decision?: string | null
           technical_interviewer?: string | null
+          training_comment?: string
+          training_status?: string
           updated_at?: string
         }
         Relationships: [
@@ -184,6 +190,47 @@ export type Database = {
             foreignKeyName: "admon_leads_candidate_id_fkey"
             columns: ["candidate_id"]
             isOneToOne: false
+            referencedRelation: "admon_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admon_preparation_emails: {
+        Row: {
+          body: string
+          candidate_id: string
+          http_status: number | null
+          requested_at: string
+          requested_by: string
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          body: string
+          candidate_id: string
+          http_status?: number | null
+          requested_at?: string
+          requested_by: string
+          status?: string
+          subject: string
+          to_email: string
+        }
+        Update: {
+          body?: string
+          candidate_id?: string
+          http_status?: number | null
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admon_preparation_emails_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: true
             referencedRelation: "admon_candidates"
             referencedColumns: ["id"]
           },

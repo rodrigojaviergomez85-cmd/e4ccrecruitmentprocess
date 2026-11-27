@@ -1,0 +1,4 @@
+ALTER TABLE public.admon_candidates ADD COLUMN training_status text NOT NULL DEFAULT 'pending' CHECK (training_status IN ('pending','in_training','dropout','completed')), ADD COLUMN training_comment text NOT NULL DEFAULT '';
+CREATE TABLE public.admon_preparation_emails (candidate_id uuid PRIMARY KEY REFERENCES public.admon_candidates(id), status text NOT NULL DEFAULT 'requesting' CHECK (status IN ('requesting','accepted','sent','failed')), to_email text NOT NULL, subject text NOT NULL, body text NOT NULL, requested_by uuid NOT NULL, requested_at timestamptz NOT NULL DEFAULT now(), http_status integer);
+GRANT ALL ON public.admon_preparation_emails TO service_role;
+ALTER TABLE public.admon_preparation_emails ENABLE ROW LEVEL SECURITY;

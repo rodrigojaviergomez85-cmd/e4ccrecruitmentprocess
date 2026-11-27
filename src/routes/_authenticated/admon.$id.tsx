@@ -14,6 +14,7 @@ import {
   SCREENING_CLOSE, SCREENING_SECTIONS, STAGE_LABELS, TECHNICAL_SECTIONS, isSalesPosition, type Field, type Section,
 } from "@/lib/admon";
 import { cn } from "@/lib/utils";
+import { EditAdmonBasics } from "@/components/admon/EditBasics";
 import { admonQuery, selectCls, stageTone } from "./admon.index";
 
 export const Route = createFileRoute("/_authenticated/admon/$id")({
@@ -63,6 +64,7 @@ function AdmonDetail() {
           <div className="flex flex-col items-end gap-2">
             <span className={cn("rounded-full px-3 py-1 text-xs font-medium", stageTone[c.stage])}>{STAGE_LABELS[c.stage]}</span>
             {c.cv_link && <a href={c.cv_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary underline">Ver CV <ExternalLink className="h-3.5 w-3.5" /></a>}
+            {!data.operationsOnly && <EditAdmonBasics candidate={c} />}
           </div>
         </div>
         <nav className="mt-5 grid grid-cols-3 gap-2" aria-label="Etapas">
@@ -267,7 +269,7 @@ function ReferenceCalls({ c, names }: { c: AdmonCandidate; names: Map<string, st
     finally { setBusy(false); }
   };
   return (
-    <details className="rounded-lg border bg-card p-4" open={done < refs.length}>
+    <details className="rounded-lg border bg-card p-4" open>
       <summary className="cursor-pointer font-medium">Llamadas de referencias <span className="text-sm font-normal text-muted-foreground">({done}/{refs.length} realizadas)</span></summary>
       {refs.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No se registraron referencias en el Screening.</p> : (
         <div className="mt-3 space-y-3">

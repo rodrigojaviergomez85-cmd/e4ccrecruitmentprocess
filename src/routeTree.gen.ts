@@ -36,6 +36,7 @@ import { Route as ScheduleTokenRouteImport } from './routes/schedule.$token'
 import { Route as AuthenticatedAdmonIndexRouteImport } from './routes/_authenticated/admon.index'
 import { Route as AuthenticatedAdmonIdRouteImport } from './routes/_authenticated/admon.$id'
 import { Route as AuthenticatedAdmonLeadsRouteImport } from './routes/_authenticated/admon.leads'
+import { Route as AuthenticatedAdmonTrainingRouteImport } from './routes/_authenticated/admon.training'
 import { Route as AuthenticatedCandidatesIdRouteImport } from './routes/_authenticated/candidates.$id'
 import { Route as AuthenticatedCandidatesNewRouteImport } from './routes/_authenticated/candidates.new'
 import { Route as AuthenticatedEvaluationsIndexRouteImport } from './routes/_authenticated/evaluations.index'
@@ -183,6 +184,12 @@ const AuthenticatedAdmonLeadsRoute = AuthenticatedAdmonLeadsRouteImport.update({
   path: '/admon/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdmonTrainingRoute =
+  AuthenticatedAdmonTrainingRouteImport.update({
+    id: '/admon/training',
+    path: '/admon/training',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCandidatesIdRoute =
   AuthenticatedCandidatesIdRouteImport.update({
     id: '/candidates/$id',
@@ -274,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/schedule/$token': typeof ScheduleTokenRoute
   '/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/admon/leads': typeof AuthenticatedAdmonLeadsRoute
+  '/admon/training': typeof AuthenticatedAdmonTrainingRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/schedule/$token': typeof ScheduleTokenRoute
   '/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/admon/leads': typeof AuthenticatedAdmonLeadsRoute
+  '/admon/training': typeof AuthenticatedAdmonTrainingRoute
   '/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -354,6 +363,7 @@ export interface FileRoutesById {
   '/schedule/$token': typeof ScheduleTokenRoute
   '/_authenticated/admon/$id': typeof AuthenticatedAdmonIdRoute
   '/_authenticated/admon/leads': typeof AuthenticatedAdmonLeadsRoute
+  '/_authenticated/admon/training': typeof AuthenticatedAdmonTrainingRoute
   '/_authenticated/candidates/$id': typeof AuthenticatedCandidatesIdRoute
   '/_authenticated/candidates/new': typeof AuthenticatedCandidatesNewRoute
   '/_authenticated/evaluations/$applicationId': typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -395,6 +405,7 @@ export interface FileRouteTypes {
     | '/schedule/$token'
     | '/admon/$id'
     | '/admon/leads'
+    | '/admon/training'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
@@ -434,6 +445,7 @@ export interface FileRouteTypes {
     | '/schedule/$token'
     | '/admon/$id'
     | '/admon/leads'
+    | '/admon/training'
     | '/candidates/$id'
     | '/candidates/new'
     | '/evaluations/$applicationId'
@@ -474,6 +486,7 @@ export interface FileRouteTypes {
     | '/schedule/$token'
     | '/_authenticated/admon/$id'
     | '/_authenticated/admon/leads'
+    | '/_authenticated/admon/training'
     | '/_authenticated/candidates/$id'
     | '/_authenticated/candidates/new'
     | '/_authenticated/evaluations/$applicationId'
@@ -700,6 +713,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdmonLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admon/training': {
+      id: '/_authenticated/admon/training'
+      path: '/admon/training'
+      fullPath: '/admon/training'
+      preLoaderRoute: typeof AuthenticatedAdmonTrainingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/candidates/$id': {
       id: '/_authenticated/candidates/$id'
       path: '/candidates/$id'
@@ -793,6 +813,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTrainingRoute: typeof AuthenticatedTrainingRoute
   AuthenticatedAdmonIdRoute: typeof AuthenticatedAdmonIdRoute
   AuthenticatedAdmonLeadsRoute: typeof AuthenticatedAdmonLeadsRoute
+  AuthenticatedAdmonTrainingRoute: typeof AuthenticatedAdmonTrainingRoute
   AuthenticatedCandidatesIdRoute: typeof AuthenticatedCandidatesIdRoute
   AuthenticatedCandidatesNewRoute: typeof AuthenticatedCandidatesNewRoute
   AuthenticatedEvaluationsApplicationIdRoute: typeof AuthenticatedEvaluationsApplicationIdRoute
@@ -815,6 +836,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTrainingRoute: AuthenticatedTrainingRoute,
   AuthenticatedAdmonIdRoute: AuthenticatedAdmonIdRoute,
   AuthenticatedAdmonLeadsRoute: AuthenticatedAdmonLeadsRoute,
+  AuthenticatedAdmonTrainingRoute: AuthenticatedAdmonTrainingRoute,
   AuthenticatedCandidatesIdRoute: AuthenticatedCandidatesIdRoute,
   AuthenticatedCandidatesNewRoute: AuthenticatedCandidatesNewRoute,
   AuthenticatedEvaluationsApplicationIdRoute:

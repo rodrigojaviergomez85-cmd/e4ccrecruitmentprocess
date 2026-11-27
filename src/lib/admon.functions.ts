@@ -34,6 +34,8 @@ export type AdmonCandidate = {
   operations_interviewer: string | null; operations_decision: string | null; operations_at: string | null;
   technical_interviewer: string | null; technical_decision: string | null; technical_at: string | null; created_at: string;
   reference_calls: { result: string; comment: string; by?: string | null; at?: string | null }[];
+  training_status: "pending" | "in_training" | "dropout" | "completed";
+  training_comment: string;
 };
 
 export const listAdmon = createServerFn({ method: "GET" })

@@ -46,3 +46,6 @@
 - [x] Verificar Leads ADMON con datos reales y 12 pruebas, filtros y reapertura de ficha existente sin duplicación ni correos; celular sin desbordamiento.
 - [x] Añadir rol Gerente de Operaciones con acceso limitado a sus entrevistas ADMON.
 - [x] Rediseñar Contratación ADMON: etapas clicables únicas, resultados desplegables, tabla compacta y vista móvil.
+- [x] Training ADMON: estados, perfil/CV, referencias y correo por país sin duplicados.
+- [x] Corregir país de Kenia Trujillo y habilitar edición de datos ADMON.
+- [x] Verificar Training ADMON autenticado, pruebas y móvil sin correos reales.
