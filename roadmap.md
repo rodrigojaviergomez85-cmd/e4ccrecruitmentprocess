@@ -49,3 +49,4 @@
 - [x] Training ADMON: estados, perfil/CV, referencias y correo por país sin duplicados.
 - [x] Corregir país de Kenia Trujillo y habilitar edición de datos ADMON.
 - [x] Verificar Training ADMON autenticado, pruebas y móvil sin correos reales.
+- [x] Habilitar ingreso de referencias después de entrevistas y compactar lista Training ADMON; guardado y recarga verificados sin correos.

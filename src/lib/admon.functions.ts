@@ -7,6 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { writeAudit } from "./audit.server";
 import { staffTier } from "./roles";
 import { nextStage, type AdmonStage } from "./admon";
+import { admonReferencesInput, mergeAdmonReferences } from "./admon-references";
 
 export async function requireAdmonStaff(userId: string, authDb: SupabaseClient<Database>, fullOnly = false) {
   const [{ data: roles, error: roleError }, { data: profile, error: profileError }] = await Promise.all([
@@ -159,13 +160,10 @@ export const reopenAdmonStage = createServerFn({ method: "POST" })
 /** Reference calls are recorded by Recruitment/Admin at any stage (they usually happen after the interviews). */
 export const saveAdmonReferenceCalls = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    id: z.string().uuid(),
-    calls: z.array(z.object({ result: z.string().max(40), comment: z.string().max(2000) })).max(10),
-  }).parse(d))
+  .inputValidator((d: unknown) => admonReferencesInput.parse(d))
   .handler(async ({ data, context }) => {
     const { db, email } = await requireAdmonStaff(context.userId, context.supabase, true);
-    const { data: current, error: e1 } = await db.from("admon_candidates").select("reference_calls").eq("id", data.id).single();
+    const { data: current, error: e1 } = await db.from("admon_candidates").select("reference_calls, screening").eq("id", data.id).single();
     if (e1) throw new Error(e1.message);
     const prev = (current.reference_calls ?? []) as { result?: string; comment?: string; by?: string | null; at?: string | null }[];
     const now = new Date().toISOString();
@@ -174,8 +172,14 @@ export const saveAdmonReferenceCalls = createServerFn({ method: "POST" })
       const changed = !p || p.result !== c.result || p.comment !== c.comment;
       return { ...c, by: changed ? context.userId : (p?.by ?? null), at: changed ? now : (p?.at ?? null) };
     });
-    const { error } = await db.from("admon_candidates").update({ reference_calls: calls }).eq("id", data.id);
+    const screening = (current.screening ?? {}) as AnyJson;
+    const previousRefs = Array.isArray(screening["references"]) ? screening["references"] as Record<string, unknown>[] : [];
+    if (data.references && data.references.length < previousRefs.length) throw new Error("No puedes eliminar referencias guardadas desde este formulario.");
+    const patch = data.references
+      ? { reference_calls: calls, screening: { ...screening, references: mergeAdmonReferences(previousRefs, data.references) } as Database["public"]["Tables"]["admon_candidates"]["Row"]["screening"] }
+      : { reference_calls: calls };
+    const { error } = await db.from("admon_candidates").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
-    await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "admon.reference_calls", entityType: "admon_candidate", entityId: data.id, newValue: { calls } });
+    await writeAudit(db, { actorId: context.userId, actorEmail: email, action: "admon.reference_calls", entityType: "admon_candidate", entityId: data.id, newValue: { calls, references: data.references ?? previousRefs } });
     return { ok: true };
   });

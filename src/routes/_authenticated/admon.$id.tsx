@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { listAdmon, reopenAdmonStage, saveAdmonReferenceCalls, saveAdmonStage, type AdmonCandidate } from "@/lib/admon.functions";
+import { listAdmon, reopenAdmonStage, saveAdmonStage, type AdmonCandidate } from "@/lib/admon.functions";
 import {
-  REFERENCE_CALL_RESULTS, ADMON_EVALUATORS, JOB_FIELDS, MAX_JOBS, MAX_REFERENCES, OPERATIONS_CLOSE, OPERATIONS_SECTIONS, REFERENCE_FIELDS,
+  ADMON_EVALUATORS, JOB_FIELDS, MAX_JOBS, MAX_REFERENCES, OPERATIONS_CLOSE, OPERATIONS_SECTIONS, REFERENCE_FIELDS,
   SCREENING_CLOSE, SCREENING_SECTIONS, STAGE_LABELS, TECHNICAL_SECTIONS, isSalesPosition, type Field, type Section,
 } from "@/lib/admon";
 import { cn } from "@/lib/utils";
+import { AdmonReferenceCalls } from "@/components/admon/ReferenceCalls";
 import { EditAdmonBasics } from "@/components/admon/EditBasics";
 import { admonQuery, selectCls, stageTone } from "./admon.index";
 
@@ -88,7 +89,7 @@ function AdmonDetail() {
       </header>
 
       {view !== "screening" && reached(view) && <PreviousNotes c={c} upTo={view} />}
-      {!data.operationsOnly && c.screening_decision === "Pasa" && <ReferenceCalls c={c} names={names} />}
+      {!data.operationsOnly && c.screening_decision === "Pasa" && <details className="border-b py-3"><summary className="cursor-pointer font-medium">Llamadas de referencias</summary><div className="pt-4"><AdmonReferenceCalls key={c.id} candidate={c} /></div></details>}
       <StageForm key={`${c.id}-${view}-${c.stage}`} c={c} stage={view} editable={current === view && (!data.operationsOnly || (view !== "screening" && data.myStages.includes(view) && c[`${view}_interviewer`] === data.me))} staff={view === "screening" ? data.operationsInterviewers : data.technicalInterviewers} />
     </main>
   );
@@ -255,45 +256,3 @@ function Repeat({ title, intro, item, max, k, fields, a, set, editable }: {
   );
 }
 
-function ReferenceCalls({ c, names }: { c: AdmonCandidate; names: Map<string, string> }) {
-  const refs = ((c.screening as Answers)["references"] as Answers[] | undefined) ?? [];
-  const save = useServerFn(saveAdmonReferenceCalls);
-  const qc = useQueryClient();
-  const [calls, setCalls] = useState(() => refs.map((_, i) => ({ result: c.reference_calls?.[i]?.result ?? "Pendiente", comment: c.reference_calls?.[i]?.comment ?? "" })));
-  const [busy, setBusy] = useState(false);
-  const done = calls.filter((x) => x.result !== "Pendiente").length;
-  const submit = async () => {
-    setBusy(true);
-    try { await save({ data: { id: c.id, calls } }); await qc.invalidateQueries({ queryKey: admonQuery.queryKey }); toast.success("Llamadas de referencias guardadas"); }
-    catch (e) { toast.error(e instanceof Error ? e.message : "No se pudo guardar"); }
-    finally { setBusy(false); }
-  };
-  return (
-    <details className="rounded-lg border bg-card p-4" open>
-      <summary className="cursor-pointer font-medium">Llamadas de referencias <span className="text-sm font-normal text-muted-foreground">({done}/{refs.length} realizadas)</span></summary>
-      {refs.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No se registraron referencias en el Screening.</p> : (
-        <div className="mt-3 space-y-3">
-          {refs.map((r, i) => {
-            const meta = c.reference_calls?.[i];
-            return (
-              <div key={i} className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_12rem]">
-                <div className="text-sm">
-                  <p className="font-medium">{String(r["company"] || `Referencia ${i + 1}`)}</p>
-                  <p className="text-muted-foreground">{String(r["boss"] || "Sin contacto")}{r["score"] ? ` · Nota ${String(r["score"])}/10` : ""}</p>
-                  {meta?.at && <p className="text-xs text-muted-foreground">Actualizado por {names.get(meta.by ?? "") ?? "—"} · {new Date(meta.at).toLocaleString("es")}</p>}
-                </div>
-                <select className={selectCls} aria-label={`Resultado referencia ${i + 1}`} value={calls[i]?.result ?? "Pendiente"}
-                  onChange={(e) => setCalls((p) => p.map((x, j) => (j === i ? { ...x, result: e.target.value } : x)))}>
-                  {REFERENCE_CALL_RESULTS.map((o) => <option key={o}>{o}</option>)}
-                </select>
-                <Textarea className="sm:col-span-2" rows={2} placeholder="Comentarios de la llamada" value={calls[i]?.comment ?? ""}
-                  onChange={(e) => setCalls((p) => p.map((x, j) => (j === i ? { ...x, comment: e.target.value } : x)))} />
-              </div>
-            );
-          })}
-          <Button onClick={() => void submit()} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Save />} Guardar llamadas</Button>
-        </div>
-      )}
-    </details>
-  );
-}
