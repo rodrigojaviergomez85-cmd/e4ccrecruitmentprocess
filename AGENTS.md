@@ -30,6 +30,6 @@
 - ADMON Training uses the same candidate and reference-call records after all three approvals; preparation emails use an atomic unique-candidate claim and remain accepted until delivery is verified, preventing duplicate requests and keeping academic workflows separate.
 - ADMON reference contacts and calls share one editor in candidate detail and Training; save contacts into screening.references while preserving historical fields and stage decisions, so imported approvals can add contacts without reopening interviews.
 - ADMON technical interviewers (Sales Manager) read every ADMON candidate and may evaluate any candidate in stage 3; Operations Managers stay limited to assignments. Why: sales leadership follows the whole ADMON pipeline.
-- Agenda counts only completed work, unions overlaps and captures new AHT segments for their active owner; why: bookings and historical totals cannot prove work.
+- Agenda unions completed work and captures new AHT segments for their active owner; why: bookings cannot prove hours worked.
 - Native booking reuses token/checklist gates, locks candidate and shared capacity, and claims delivery once; why: prevent overbooking, duplicate profiles and emails.
 - Native scheduling keeps existing Calendly appointments and sync; uses weekly blocks, OFF dates and rolling 72 hours; why: preserve bookings and honor availability.
