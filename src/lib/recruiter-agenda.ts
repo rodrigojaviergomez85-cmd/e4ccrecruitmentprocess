@@ -35,6 +35,8 @@ export const agendaInput = z
     const minutes = (Date.parse(v.ends_at) - Date.parse(v.starts_at)) / 60000;
     if (minutes <= 0 || minutes > 960)
       c.addIssue({ code: "custom", message: "El bloque debe durar entre 1 minuto y 16 horas." });
+    if ([v.starts_at, v.ends_at].some((t) => Date.parse(t) % 1800000 !== 0))
+      c.addIssue({ code: "custom", message: "Usa horas en punto o y media (bloques de 30 minutos)." });
     if (v.connected_count > v.actual_count)
       c.addIssue({ code: "custom", message: "Las conexiones no pueden superar las llamadas." });
     if (v.status === "done" && Date.parse(v.ends_at) > Date.now())

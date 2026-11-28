@@ -381,6 +381,7 @@ function ActivityEditor({
                 id="activity-start"
                 required
                 type="time"
+                step={1800}
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
               />
@@ -391,6 +392,7 @@ function ActivityEditor({
                 id="activity-end"
                 required
                 type="time"
+                step={1800}
                 value={end}
                 onChange={(e) => setEnd(e.target.value)}
               />

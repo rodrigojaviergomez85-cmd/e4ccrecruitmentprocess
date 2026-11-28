@@ -309,6 +309,20 @@
       "when": 1795821961787,
       "tag": "0043_native_booking_idempotent_reservation",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795825391487,
+      "tag": "0044_agenda_half_hour_blocks",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795825410101,
+      "tag": "0045_agenda_half_hour_blocks_test_check",
+      "breakpoints": true
     }
   ]
 }
