@@ -914,7 +914,7 @@ export const reopenManagerEvaluation = createServerFn({ method: "POST" })
     await assertAccess(ctx, ev.application_id);
     await ctx.db
       .from("manager_evaluations")
-      .update({ status: "Reopened", reopened_at: new Date().toISOString() })
+      .update({ status: "Reopened", reopened_at: new Date().toISOString(), timer_started_at: null, timer_ended_at: null, timer_active_user_id: null })
       .eq("id", ev.id);
     await writeAudit(ctx.db as never, {
       actorId: context.userId,

@@ -867,6 +867,10 @@ export const reopenEvaluation = createServerFn({ method: "POST" })
         status: "Reopened",
         reopened_at: new Date().toISOString(),
         last_edited_by: context.userId,
+        // Reopening resumes the interview, so the timer must be able to run again.
+        timer_started_at: null,
+        timer_ended_at: null,
+        timer_active_user_id: null,
       })
       .eq("id", data.evaluationId);
     if (error) throw new Error(error.message);
