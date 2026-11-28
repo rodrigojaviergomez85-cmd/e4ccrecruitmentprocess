@@ -46,6 +46,36 @@ export const agendaInput = z
       });
   });
 export type AgendaInput = z.infer<typeof agendaInput>;
+export const agendaPrioritiesInput = z
+  .object({
+    user_id: z.string().uuid(),
+    agenda_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    priorities: z
+      .array(
+        z.object({
+          slot: z.number().int().min(1).max(5),
+          title: z.string().max(200),
+          done: z.boolean(),
+        }),
+      )
+      .length(5),
+  })
+  .superRefine((v, c) => {
+    if (v.priorities.map((p) => p.slot).sort((a, b) => a - b).join(",") !== "1,2,3,4,5")
+      c.addIssue({ code: "custom", message: "Debes guardar exactamente las prioridades A1 a A5." });
+    for (const p of v.priorities)
+      if (p.done && !p.title.trim())
+        c.addIssue({ code: "custom", message: "Escribe la prioridad antes de marcarla como cubierta." });
+  });
+export type AgendaPriority = {
+  id: string;
+  user_id: string;
+  agenda_date: string;
+  slot: number;
+  title: string;
+  done: boolean;
+};
+export type AgendaPrioritiesInput = z.infer<typeof agendaPrioritiesInput>;
 export type AgendaEntry = {
   id: string;
   user_id: string;
@@ -70,7 +100,12 @@ export function unionSeconds(intervals: Array<[number, number]>) {
   }
   return Math.round(total / 1000);
 }
-export function summarizeAgenda(entries: AgendaEntry[], from: string, to: string) {
+export function summarizeAgenda(
+  entries: AgendaEntry[],
+  from: string,
+  to: string,
+  dailyPriorities?: AgendaPriority[],
+) {
   const lower = Date.parse(`${from}T00:00:00-06:00`),
     upper = Date.parse(`${to}T00:00:00-06:00`) + 86400000;
   const range = (e: AgendaEntry): [number, number] => [
@@ -87,10 +122,10 @@ export function summarizeAgenda(entries: AgendaEntry[], from: string, to: string
       unionSeconds(actual.filter((e) => e.category === category).map(range)),
     ]),
   );
-  const priorities = relevant.filter(
+  const planned = relevant.filter(
     (e) => !e.source_key && e.status !== "canceled" && e.category !== "break",
   );
-  const covered = priorities.filter((e) => {
+  const legacyCovered = planned.filter((e) => {
     const done = actual.filter(
       (a) =>
         a.category === e.category &&
@@ -112,6 +147,13 @@ export function summarizeAgenda(entries: AgendaEntry[], from: string, to: string
       count >= e.target_count
     );
   }).length;
+  const fixedPriorities = (dailyPriorities ?? []).filter(
+    (p) => p.agenda_date >= from && p.agenda_date <= to && p.title.trim(),
+  );
+  const priorityCount = dailyPriorities ? fixedPriorities.length : planned.length;
+  const covered = dailyPriorities
+    ? fixedPriorities.filter((p) => p.done).length
+    : legacyCovered;
   const calls = (category: string) =>
     actual.filter((e) => e.category === category).reduce((n, e) => n + e.actual_count, 0);
   const interviewKeys = new Set(
@@ -119,7 +161,7 @@ export function summarizeAgenda(entries: AgendaEntry[], from: string, to: string
   );
   return {
     workedSeconds: unionSeconds(actual.map(range)),
-    plannedSeconds: unionSeconds(priorities.map(range)),
+    plannedSeconds: unionSeconds(planned.map(range)),
     byCategory,
     callsCoach: calls("calls_coach"),
     callsAdmon: calls("calls_admon"),
@@ -128,9 +170,9 @@ export function summarizeAgenda(entries: AgendaEntry[], from: string, to: string
       .filter((e) => e.category.startsWith("calls_") || e.category === "references")
       .reduce((n, e) => n + e.connected_count, 0),
     interviews: interviewKeys.size + calls("interview_coach") + calls("interview_admon"),
-    priorities: priorities.length,
+    priorities: priorityCount,
     covered,
-    coverage: priorities.length ? Math.round((covered / priorities.length) * 100) : null,
+    coverage: priorityCount ? Math.round((covered / priorityCount) * 100) : null,
   };
 }
 export const hoursLabel = (seconds: number) =>

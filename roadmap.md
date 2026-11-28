@@ -60,3 +60,4 @@
 - [x] Comprobar disponibilidad real de Calendly antes de activar las reservas nativas.
 - [x] Horario editable de lunes a sábado, días OFF y regla de 72 horas (ventana máxima de 72 horas confirmada).
 - [x] Limitar reservas a las próximas 72 horas (confirmado), excluyendo domingo y días OFF.
+- [x] Rediseñar Agenda con cinco prioridades A1–A5 guardables y cuaderno por bloques de 30 minutos; conservar resumen semanal. Persistencia, recarga, 15 pruebas y móvil verificados.

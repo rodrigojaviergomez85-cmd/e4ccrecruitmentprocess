@@ -1507,6 +1507,39 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_agenda_priorities: {
+        Row: {
+          agenda_date: string
+          created_at: string
+          done: boolean
+          id: string
+          slot: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agenda_date: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          slot: number
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agenda_date?: string
+          created_at?: string
+          done?: boolean
+          id?: string
+          slot?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recruitment_leads: {
         Row: {
           age: string

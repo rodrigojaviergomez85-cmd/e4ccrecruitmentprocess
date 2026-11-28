@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { agendaInput, canUseAgenda } from "./recruiter-agenda";
+import { agendaInput, agendaPrioritiesInput, canUseAgenda } from "./recruiter-agenda";
 async function access(db: SupabaseClient<Database>, userId: string) {
   const [{ data: roles, error }, { data: profile }] = await Promise.all([
     db.from("user_roles").select("role").eq("user_id", userId),
@@ -38,13 +38,19 @@ export const getRecruiterAgenda = createServerFn({ method: "POST" })
     const db = context.supabase;
     const { isAdmin } = await access(db, context.userId);
     const upper = new Date(Date.parse(`${data.to}T00:00:00-06:00`) + 86400000).toISOString();
-    const [entries, staff, settings, appointments] = await Promise.all([
+    const [entries, priorities, staff, settings, appointments] = await Promise.all([
       db
         .from("recruiter_agenda")
         .select("*")
         .lt("starts_at", upper)
         .gt("ends_at", `${data.from}T00:00:00-06:00`)
         .order("starts_at"),
+      db
+        .from("recruiter_agenda_priorities")
+        .select("*")
+        .gte("agenda_date", data.from)
+        .lte("agenda_date", data.to)
+        .order("slot"),
       db.from("staff_profiles").select("user_id,full_name,email").eq("active", true),
       db.from("interview_settings").select("timezone,weekly_hours").eq("id", true).maybeSingle(),
       db
@@ -57,9 +63,10 @@ export const getRecruiterAgenda = createServerFn({ method: "POST" })
         .in("status", ["Scheduled", "Confirmed"])
         .order("starts_at"),
     ]);
-    if (entries.error) throw new Error("No se pudo cargar la agenda.");
+    if (entries.error || priorities.error) throw new Error("No se pudo cargar la agenda.");
     return {
       entries: entries.data ?? [],
+      priorities: priorities.data ?? [],
       staff: (staff.data ?? []).filter((s) => /morena|kennia/i.test(s.full_name)),
       settings: settings.data,
       appointments: (appointments.data ?? []).map((a) => ({
@@ -107,6 +114,34 @@ export const saveRecruiterAgenda = createServerFn({ method: "POST" })
         entity_id: result.data.id,
         details: { category: values.category, status: values.status },
       });
+    return { ok: true };
+  });
+export const saveRecruiterAgendaPriorities = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((v: unknown) => agendaPrioritiesInput.parse(v))
+  .handler(async ({ context, data }) => {
+    const db = context.supabase;
+    const { isAdmin } = await access(db, context.userId);
+    if (!isAdmin && data.user_id !== context.userId)
+      throw new Error("Solo puedes editar tus propias prioridades.");
+    const rows = data.priorities.map((p) => ({
+      user_id: data.user_id,
+      agenda_date: data.agenda_date,
+      slot: p.slot,
+      title: p.title.trim(),
+      done: p.done,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await db
+      .from("recruiter_agenda_priorities")
+      .upsert(rows, { onConflict: "user_id,agenda_date,slot" });
+    if (error) throw new Error("No se pudieron guardar las prioridades.");
+    await db.from("audit_logs").insert({
+      actor_id: context.userId,
+      action: "agenda.priorities.save",
+      entity_type: "recruiter_agenda_priorities",
+      details: { agenda_date: data.agenda_date, user_id: data.user_id },
+    });
     return { ok: true };
   });
 export const deleteRecruiterAgenda = createServerFn({ method: "POST" })

@@ -20,6 +20,7 @@ export function RecruiterWorkSummary() {
       (q.data?.entries ?? []).filter((e) => e.user_id === s.user_id),
       dates.from,
       dates.to,
+      (q.data?.priorities ?? []).filter((p) => p.user_id === s.user_id),
     ),
   }));
   function shift(n: number) {
@@ -71,6 +72,19 @@ export function RecruiterWorkSummary() {
         })),
       ),
       "Detalle",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(
+        (q.data?.priorities ?? []).filter((p) => p.title.trim()).map((p) => ({
+          Reclutadora: q.data?.staff.find((s) => s.user_id === p.user_id)?.full_name ?? "",
+          Fecha: p.agenda_date,
+          Prioridad: `A${p.slot}`,
+          Descripción: p.title,
+          Estado: p.done ? "Cubierta" : "Pendiente",
+        })),
+      ),
+      "Prioridades",
     );
     XLSX.writeFile(wb, `e4cc-jornada-${dates.from}.xlsx`);
   }

@@ -323,6 +323,13 @@
       "when": 1795825410101,
       "tag": "0045_agenda_half_hour_blocks_test_check",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795826248768,
+      "tag": "0046_agenda_notebook_priorities",
+      "breakpoints": true
     }
   ]
 }
